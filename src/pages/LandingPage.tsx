@@ -56,15 +56,15 @@ export default function LandingPage() {
       {/* ============ THE PROBLEM ============ */}
       <section className="py-24 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
-          {/* Two-column: illustration left, text right */}
+          {/* Two-column: illustration left, text right (on mobile: text first, illustration after) */}
           <div className="grid md:grid-cols-2 gap-10 items-center mb-16">
             {/* Illustration */}
-            <div className="flex justify-center">
+            <div className="flex justify-center order-2 md:order-1">
               <img src="/section2.png" alt="" className="w-full max-w-[480px] h-auto" />
             </div>
 
             {/* Text */}
-            <div>
+            <div className="order-1 md:order-2">
               <p className="text-[11px] font-semibold uppercase tracking-[2px] text-mustard mb-3">
                 SOUND FAMILIAR?
               </p>
