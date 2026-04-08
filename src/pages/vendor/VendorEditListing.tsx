@@ -86,6 +86,7 @@ export default function VendorEditListing() {
   }
 
   function handleSave() {
+    if (!listing) return
     updateListing({
       ...listing,
       name, photos, style, price, includes,

@@ -135,10 +135,6 @@ export default function CategoryBoardPage() {
                 trialSessions={trialSessions}
                 ritualId={ritualId!}
                 categoryId={categoryId!}
-                onRequestTrial={(id) => requestTrial(ritualId!, categoryId!, id)}
-                onMarkTrialDone={(id) => markTrialDone(ritualId!, categoryId!, id)}
-                trialsExhausted={(trialsUsed[`${ritualId}-${categoryId}`] || 0) >= maxTrials}
-                subscription={subscription}
               />
             ) : (
               <CompareTable
@@ -195,7 +191,7 @@ export default function CategoryBoardPage() {
                           Accept new time
                         </button>
                       )}
-                      {(status === 'confirmed' || status === 'accepted') && status !== 'done' && (
+                      {(status === 'confirmed' || status === 'accepted') && (
                         <button
                           onClick={() => markTrialDone(ritualId!, categoryId!, v.id)}
                           className="shrink-0 bg-green-500 text-white text-[9px] font-semibold px-2.5 py-1 rounded-md active:scale-[0.97] transition-transform"
@@ -458,14 +454,11 @@ export default function CategoryBoardPage() {
 // --- Sub-components ---
 
 function VisualGridCard({
-  v, isSelected, unlocked, onSelect, onLike, onRemove, onTap,
-  trialStatus, onRequestTrial, onMarkTrialDone, trialsExhausted, subscription,
+  v, isSelected, unlocked, onSelect, onLike, onRemove, onTap, trialStatus,
 }: {
   v: Vendor; isSelected: boolean; unlocked: boolean;
   onSelect: () => void; onLike: () => void; onRemove: () => void; onTap: () => void;
   trialStatus: 'none' | 'requested' | 'done';
-  onRequestTrial: () => void; onMarkTrialDone: () => void;
-  trialsExhausted: boolean; subscription: string;
 }) {
   const likeNames = v.likes.map((l) => l.name)
   const userLiked = v.likes.some((l) => l.userId === 'u-user')
@@ -502,27 +495,24 @@ function VisualGridCard({
 
 function VisualGrid({
   vendors, selectedId, unlocked, onSelect, onLike, onRemove, onTap,
-  trialSessions, ritualId, categoryId, onRequestTrial, onMarkTrialDone, trialsExhausted, subscription,
+  trialSessions, ritualId, categoryId,
 }: {
   vendors: Vendor[]; selectedId: string | null; unlocked: boolean;
   onSelect: (id: string) => void; onLike: (id: string) => void; onRemove: (id: string) => void; onTap: (id: string) => void;
   trialSessions: Record<string, { status: string }>; ritualId: string; categoryId: string;
-  onRequestTrial: (id: string) => void; onMarkTrialDone: (id: string) => void;
-  trialsExhausted: boolean; subscription: string;
 }) {
   return (
     <div className="masonry-grid">
       {vendors.map((v, i) => {
         const trialKey = `${ritualId}-${categoryId}-${v.id}`
         const trial = trialSessions[trialKey]
-        const trialStatus = trial ? trial.status as 'requested' | 'done' : 'none'
+        const trialStatus: 'none' | 'requested' | 'done' = trial ? (trial.status === 'done' ? 'done' : 'requested') : 'none'
         return (
           <div key={v.id} className={i === 0 && vendors.length > 2 ? 'span-2' : ''}>
             <VisualGridCard
               v={v} isSelected={v.id === selectedId} unlocked={unlocked}
               onSelect={() => onSelect(v.id)} onLike={() => onLike(v.id)} onRemove={() => onRemove(v.id)} onTap={() => onTap(v.id)}
-              trialStatus={trialStatus} onRequestTrial={() => onRequestTrial(v.id)} onMarkTrialDone={() => onMarkTrialDone(v.id)}
-              trialsExhausted={trialsExhausted} subscription={subscription}
+              trialStatus={trialStatus}
             />
           </div>
         )
