@@ -14,6 +14,11 @@ export default function LandingPage() {
     const email = waitlistEmail.trim()
     if (!email) return
 
+    if (!supabase) {
+      setWaitlistError("Waitlist is temporarily unavailable. Please try again later.")
+      return
+    }
+
     setWaitlistSubmitting(true)
     setWaitlistError(null)
 
