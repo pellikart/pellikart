@@ -1,18 +1,41 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import LandingNav from '@/components/LandingNav'
+import { supabase } from '@/lib/supabase'
 
 export default function LandingPage() {
   const [waitlistEmail, setWaitlistEmail] = useState('')
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false)
+  const [waitlistSubmitting, setWaitlistSubmitting] = useState(false)
+  const [waitlistError, setWaitlistError] = useState<string | null>(null)
 
-  function handleWaitlistSubmit(e: React.FormEvent) {
+  async function handleWaitlistSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (waitlistEmail.trim()) {
-      setWaitlistSubmitted(true)
-      setTimeout(() => setWaitlistSubmitted(false), 4000)
-      setWaitlistEmail('')
+    const email = waitlistEmail.trim()
+    if (!email) return
+
+    setWaitlistSubmitting(true)
+    setWaitlistError(null)
+
+    const { error } = await supabase.from('waitlist').insert({ email })
+
+    setWaitlistSubmitting(false)
+
+    if (error) {
+      // Duplicate email — treat as success so the user isn't confused.
+      if (error.code === '23505') {
+        setWaitlistSubmitted(true)
+        setWaitlistEmail('')
+        setTimeout(() => setWaitlistSubmitted(false), 4000)
+        return
+      }
+      setWaitlistError("Something went wrong. Please try again.")
+      return
     }
+
+    setWaitlistSubmitted(true)
+    setWaitlistEmail('')
+    setTimeout(() => setWaitlistSubmitted(false), 4000)
   }
 
   return (
@@ -178,17 +201,27 @@ export default function LandingPage() {
               <span className="text-white text-[14px]">You're on the list! We'll be in touch.</span>
             </div>
           ) : (
-            <form onSubmit={handleWaitlistSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-              <input
-                type="email" required value={waitlistEmail}
-                onChange={(e) => setWaitlistEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="flex-1 px-4 py-3 rounded-xl bg-white text-dark text-[14px] outline-none focus:ring-2 focus:ring-magenta"
-              />
-              <button type="submit" className="bg-magenta text-white font-semibold px-6 py-3 rounded-xl hover:opacity-90 transition-opacity">
-                Join early access
-              </button>
-            </form>
+            <>
+              <form onSubmit={handleWaitlistSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+                <input
+                  type="email" required value={waitlistEmail}
+                  onChange={(e) => setWaitlistEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  disabled={waitlistSubmitting}
+                  className="flex-1 px-4 py-3 rounded-xl bg-white text-dark text-[14px] outline-none focus:ring-2 focus:ring-magenta disabled:opacity-60"
+                />
+                <button
+                  type="submit"
+                  disabled={waitlistSubmitting}
+                  className="bg-magenta text-white font-semibold px-6 py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60"
+                >
+                  {waitlistSubmitting ? 'Joining…' : 'Join early access'}
+                </button>
+              </form>
+              {waitlistError && (
+                <p className="text-[13px] text-red-400 mt-3">{waitlistError}</p>
+              )}
+            </>
           )}
 
           <p className="text-[12px] text-gray-400 mt-4">
