@@ -27,11 +27,7 @@ export default function RoleSelectPage() {
           className="w-full p-5 rounded-2xl border-2 border-card-border bg-white text-left active:border-magenta active:bg-magenta-light/30 transition-all group"
         >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-magenta-light flex items-center justify-center shrink-0">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E91E78" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-            </div>
+            <img src="/user-logo.png" alt="User" className="w-12 h-12 rounded-xl object-cover shrink-0" />
             <div>
               <p className="text-[15px] font-semibold text-dark">I'm planning a wedding</p>
               <p className="text-[11px] text-gray-400 mt-0.5">Browse vendors, plan events, book slots</p>
@@ -45,11 +41,7 @@ export default function RoleSelectPage() {
           className="w-full p-5 rounded-2xl border-2 border-card-border bg-white text-left active:border-mustard active:bg-mustard-light/30 transition-all group"
         >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-mustard-light flex items-center justify-center shrink-0">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-              </svg>
-            </div>
+            <img src="/vendor-logo.png" alt="Vendor" className="w-12 h-12 rounded-xl object-cover shrink-0" />
             <div>
               <p className="text-[15px] font-semibold text-dark">I'm a vendor</p>
               <p className="text-[11px] text-gray-400 mt-0.5">List your services, manage bookings, get leads</p>

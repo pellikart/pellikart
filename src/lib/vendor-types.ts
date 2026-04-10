@@ -1,3 +1,8 @@
+export interface BlockedTimeRange {
+  from: string  // e.g. '09:00'
+  to: string    // e.g. '14:00'
+}
+
 export interface VendorProfile {
   businessName: string
   category: string
@@ -141,8 +146,9 @@ export interface VendorState {
   vendorPackages: VendorPackage[]
   vendorDesigns: VendorDesignListing[]
   vendorListings: VendorListing[]
-  // key: date string, value: { status, listingIds (which listings are blocked, empty = all) }
-  vendorAvailability: Record<string, { status: 'available' | 'blocked' | 'booked'; listingIds: string[] }>
+  // key: date string, value: { status, listingIds (which listings are blocked, empty = all), blockedRanges (specific time ranges blocked, empty = full day) }
+  vendorAvailability: Record<string, { status: 'available' | 'blocked' | 'booked'; listingIds: string[]; blockedRanges: BlockedTimeRange[] }>
+
   vendorBookings: VendorBooking[]
   vendorTrials: VendorTrial[]
   vendorBidRequests: VendorBidRequest[]
@@ -153,7 +159,7 @@ export interface VendorState {
 
   // Actions
   completeVendorOnboarding: (profile: VendorProfile, packages: VendorPackage[]) => void
-  toggleDateBlock: (date: string, listingIds: string[]) => void
+  toggleDateBlock: (date: string, listingIds: string[], blockedRanges: BlockedTimeRange[]) => void
   submitBid: (bidId: string, price: number, note: string) => void
   scheduleTrial: (trialId: string, date: string) => void
   markNotificationRead: (id: string) => void

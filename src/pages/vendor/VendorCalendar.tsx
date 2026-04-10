@@ -1,14 +1,33 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
+import type { BlockedTimeRange } from '@/lib/vendor-types'
+
+// Generate time options in 30-min increments: 06:00 … 23:30
+const TIME_OPTIONS: string[] = []
+for (let h = 6; h < 24; h++) {
+  TIME_OPTIONS.push(`${String(h).padStart(2, '0')}:00`)
+  TIME_OPTIONS.push(`${String(h).padStart(2, '0')}:30`)
+}
+
+function formatTime(t: string) {
+  const [hStr, m] = t.split(':')
+  const h = parseInt(hStr)
+  const suffix = h >= 12 ? 'PM' : 'AM'
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${h12}:${m} ${suffix}`
+}
 
 export default function VendorCalendar() {
   const navigate = useNavigate()
   const { vendorAvailability, toggleDateBlock, vendorBookings, vendorListings } = useVendorStore()
   const [monthOffset, setMonthOffset] = useState(0)
-  const [blockSheet, setBlockSheet] = useState<string | null>(null) // date string
+  const [blockSheet, setBlockSheet] = useState<string | null>(null)
   const [selectedListingIds, setSelectedListingIds] = useState<string[]>([])
   const [blockAll, setBlockAll] = useState(true)
+  const [blockFullDay, setBlockFullDay] = useState(true)
+  const [fromTime, setFromTime] = useState('09:00')
+  const [toTime, setToTime] = useState('17:00')
 
   const today = new Date()
   const viewMonth = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1)
@@ -21,30 +40,30 @@ export default function VendorCalendar() {
     const current = vendorAvailability[dateStr]
     if (current?.status === 'booked') return
     if (current?.status === 'blocked') {
-      // Unblock
-      toggleDateBlock(dateStr, [])
+      toggleDateBlock(dateStr, [], [])
     } else {
-      // Open sheet to choose listings
-      if (vendorListings.length === 0) {
-        // No listings, just block all
-        toggleDateBlock(dateStr, [])
-      } else {
-        setBlockSheet(dateStr)
-        setSelectedListingIds([])
-        setBlockAll(true)
-      }
+      setBlockSheet(dateStr)
+      setSelectedListingIds([])
+      setBlockAll(true)
+      setBlockFullDay(true)
+      setFromTime('09:00')
+      setToTime('17:00')
     }
   }
 
   function confirmBlock() {
     if (!blockSheet) return
-    toggleDateBlock(blockSheet, blockAll ? [] : selectedListingIds)
+    const ranges: BlockedTimeRange[] = blockFullDay ? [] : [{ from: fromTime, to: toTime }]
+    toggleDateBlock(blockSheet, blockAll ? [] : selectedListingIds, ranges)
     setBlockSheet(null)
   }
 
   function toggleListingSelect(id: string) {
     setSelectedListingIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
   }
+
+  const timeValid = blockFullDay || fromTime < toTime
+  const canConfirm = timeValid && (blockAll || selectedListingIds.length > 0)
 
   return (
     <div className="min-h-dvh bg-white pb-20 page-enter">
@@ -74,7 +93,9 @@ export default function VendorCalendar() {
               const status = entry?.status || 'available'
               const isPast = dateStr < todayStr
               const isToday = dateStr === todayStr
-              const isPartial = status === 'blocked' && entry?.listingIds && entry.listingIds.length > 0
+              const isPartialListing = status === 'blocked' && entry?.listingIds && entry.listingIds.length > 0
+              const isPartialTime = status === 'blocked' && entry?.blockedRanges && entry.blockedRanges.length > 0
+              const isPartial = isPartialListing || isPartialTime
 
               return (
                 <button
@@ -101,77 +122,127 @@ export default function VendorCalendar() {
         {/* Legend */}
         <div className="flex items-center gap-3 mt-3 justify-center flex-wrap">
           <span className="flex items-center gap-1.5 text-[9px] text-gray-500"><span className="w-3 h-3 rounded bg-white border border-card-border" /> Available</span>
-          <span className="flex items-center gap-1.5 text-[9px] text-gray-500"><span className="w-3 h-3 rounded bg-gray-400" /> Blocked (all)</span>
-          {vendorListings.length > 0 && (
-            <span className="flex items-center gap-1.5 text-[9px] text-gray-500"><span className="w-3 h-3 rounded bg-amber-400" /> Blocked (some)</span>
-          )}
+          <span className="flex items-center gap-1.5 text-[9px] text-gray-500"><span className="w-3 h-3 rounded bg-gray-400" /> Blocked (full day)</span>
+          <span className="flex items-center gap-1.5 text-[9px] text-gray-500"><span className="w-3 h-3 rounded bg-amber-400" /> Blocked (partial)</span>
           <span className="flex items-center gap-1.5 text-[9px] text-gray-500"><span className="w-3 h-3 rounded bg-magenta" /> Booked</span>
         </div>
 
         <p className="text-[10px] text-gray-400 text-center mt-3">Tap available dates to block. Tap blocked dates to unblock.</p>
       </div>
 
-      {/* Block sheet — choose listings */}
+      {/* Block sheet */}
       {blockSheet && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setBlockSheet(null)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[85dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
             <p className="text-[14px] font-bold text-dark mb-1">Block {blockSheet}</p>
-            <p className="text-[11px] text-gray-400 mb-4">Choose which listings to block for this date.</p>
+            <p className="text-[11px] text-gray-400 mb-4">Choose how much of this day to block.</p>
 
-            {/* All listings toggle */}
+            {/* Time selection */}
+            <p className="text-[11px] font-semibold text-dark mb-2 uppercase tracking-wider">Time</p>
             <button
-              onClick={() => { setBlockAll(true); setSelectedListingIds([]) }}
-              className={`w-full py-2.5 rounded-xl text-[12px] font-medium mb-2 transition-all ${blockAll ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}
+              onClick={() => setBlockFullDay(true)}
+              className={`w-full py-2.5 rounded-xl text-[12px] font-medium mb-2 transition-all ${blockFullDay ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}
             >
-              {blockAll && '✓ '}Block all listings
+              {blockFullDay && '✓ '}Full day
+            </button>
+            <button
+              onClick={() => setBlockFullDay(false)}
+              className={`w-full py-2.5 rounded-xl text-[12px] font-medium mb-3 transition-all ${!blockFullDay ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}
+            >
+              {!blockFullDay && '✓ '}Custom time range
             </button>
 
-            <button
-              onClick={() => setBlockAll(false)}
-              className={`w-full py-2.5 rounded-xl text-[12px] font-medium mb-3 transition-all ${!blockAll ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}
-            >
-              {!blockAll && '✓ '}Block specific listings only
-            </button>
-
-            {/* Listing selection */}
-            {!blockAll && (
-              <div className="space-y-1.5 mb-4">
-                {vendorListings.map((l) => {
-                  const selected = selectedListingIds.includes(l.id)
-                  return (
-                    <button
-                      key={l.id}
-                      onClick={() => toggleListingSelect(l.id)}
-                      className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all ${selected ? 'border-2 border-mustard bg-mustard-light/30' : 'border border-card-border'}`}
+            {!blockFullDay && (
+              <div className="bg-empty-bg rounded-xl p-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <p className="text-[10px] text-gray-400 mb-1">From</p>
+                    <select
+                      value={fromTime}
+                      onChange={(e) => setFromTime(e.target.value)}
+                      className="w-full bg-white border border-card-border rounded-lg px-3 py-2.5 text-[13px] font-medium text-dark appearance-none cursor-pointer"
                     >
-                      {l.photos.length > 0 ? (
-                        <img src={l.photos[0]} alt="" className="w-8 h-8 rounded-md object-cover shrink-0" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-md bg-empty-bg shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-dark truncate">{l.name}</p>
-                        <p className="text-[9px] text-gray-400">{l.style}</p>
-                      </div>
-                      {selected && <span className="text-mustard text-sm shrink-0">✓</span>}
-                    </button>
-                  )
-                })}
-                {vendorListings.length === 0 && (
-                  <p className="text-[10px] text-gray-400 text-center py-3">No listings created yet</p>
+                      {TIME_OPTIONS.map((t) => (
+                        <option key={t} value={t}>{formatTime(t)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <span className="text-gray-400 text-[13px] mt-4">→</span>
+                  <div className="flex-1">
+                    <p className="text-[10px] text-gray-400 mb-1">To</p>
+                    <select
+                      value={toTime}
+                      onChange={(e) => setToTime(e.target.value)}
+                      className="w-full bg-white border border-card-border rounded-lg px-3 py-2.5 text-[13px] font-medium text-dark appearance-none cursor-pointer"
+                    >
+                      {TIME_OPTIONS.filter((t) => t > fromTime).map((t) => (
+                        <option key={t} value={t}>{formatTime(t)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {!timeValid && (
+                  <p className="text-[10px] text-red-400 mt-2">End time must be after start time.</p>
                 )}
               </div>
             )}
 
+            {/* Listing selection */}
+            {vendorListings.length > 0 && (
+              <>
+                <p className="text-[11px] font-semibold text-dark mb-2 uppercase tracking-wider mt-1">Listings</p>
+                <button
+                  onClick={() => { setBlockAll(true); setSelectedListingIds([]) }}
+                  className={`w-full py-2.5 rounded-xl text-[12px] font-medium mb-2 transition-all ${blockAll ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}
+                >
+                  {blockAll && '✓ '}Block all listings
+                </button>
+                <button
+                  onClick={() => setBlockAll(false)}
+                  className={`w-full py-2.5 rounded-xl text-[12px] font-medium mb-3 transition-all ${!blockAll ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}
+                >
+                  {!blockAll && '✓ '}Block specific listings only
+                </button>
+
+                {!blockAll && (
+                  <div className="space-y-1.5 mb-4">
+                    {vendorListings.map((l) => {
+                      const selected = selectedListingIds.includes(l.id)
+                      return (
+                        <button
+                          key={l.id}
+                          onClick={() => toggleListingSelect(l.id)}
+                          className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all ${selected ? 'border-2 border-mustard bg-mustard-light/30' : 'border border-card-border'}`}
+                        >
+                          {l.photos.length > 0 ? (
+                            <img src={l.photos[0]} alt="" className="w-8 h-8 rounded-md object-cover shrink-0" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-md bg-empty-bg shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-medium text-dark truncate">{l.name}</p>
+                            <p className="text-[9px] text-gray-400">{l.style}</p>
+                          </div>
+                          {selected && <span className="text-mustard text-sm shrink-0">✓</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
             <button
               onClick={confirmBlock}
-              disabled={!blockAll && selectedListingIds.length === 0}
-              className={`w-full py-2.5 rounded-xl font-semibold text-[13px] ${
-                (blockAll || selectedListingIds.length > 0) ? 'bg-mustard text-white' : 'bg-gray-200 text-gray-400'
+              disabled={!canConfirm}
+              className={`w-full py-2.5 rounded-xl font-semibold text-[13px] mt-2 ${
+                canConfirm ? 'bg-mustard text-white' : 'bg-gray-200 text-gray-400'
               }`}
             >
-              Block this date
+              {blockFullDay
+                ? 'Block full day'
+                : `Block ${formatTime(fromTime)} – ${formatTime(toTime)}`}
             </button>
           </div>
         </div>

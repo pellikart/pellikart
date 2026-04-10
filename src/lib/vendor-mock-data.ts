@@ -158,8 +158,8 @@ export const mockVendorAnalytics: VendorAnalytics = {
 }
 
 // Generate mock availability for 6 months
-export function generateMockAvailability(): Record<string, { status: 'available' | 'blocked' | 'booked'; listingIds: string[] }> {
-  const avail: Record<string, { status: 'available' | 'blocked' | 'booked'; listingIds: string[] }> = {}
+export function generateMockAvailability(): Record<string, { status: 'available' | 'blocked' | 'booked'; listingIds: string[]; blockedRanges: import('./vendor-types').BlockedTimeRange[] }> {
+  const avail: Record<string, { status: 'available' | 'blocked' | 'booked'; listingIds: string[]; blockedRanges: import('./vendor-types').BlockedTimeRange[] }> = {}
   const today = new Date()
   for (let m = 0; m < 6; m++) {
     const month = new Date(today.getFullYear(), today.getMonth() + m, 1)
@@ -167,15 +167,15 @@ export function generateMockAvailability(): Record<string, { status: 'available'
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(month.getFullYear(), month.getMonth(), d)
       const key = date.toISOString().split('T')[0]
-      avail[key] = { status: 'available', listingIds: [] }
+      avail[key] = { status: 'available', listingIds: [], blockedRanges: [] }
     }
   }
-  avail['2026-04-15'] = { status: 'blocked', listingIds: [] } // all listings
-  avail['2026-04-16'] = { status: 'blocked', listingIds: [] }
-  avail['2026-05-01'] = { status: 'blocked', listingIds: [] }
-  avail['2026-05-20'] = { status: 'blocked', listingIds: [] }
-  avail['2026-11-15'] = { status: 'booked', listingIds: [] }
-  avail['2026-12-12'] = { status: 'booked', listingIds: [] }
-  avail['2026-12-13'] = { status: 'booked', listingIds: [] }
+  avail['2026-04-15'] = { status: 'blocked', listingIds: [], blockedRanges: [] } // full day
+  avail['2026-04-16'] = { status: 'blocked', listingIds: [], blockedRanges: [{ from: '09:00', to: '14:00' }] } // partial
+  avail['2026-05-01'] = { status: 'blocked', listingIds: [], blockedRanges: [] }
+  avail['2026-05-20'] = { status: 'blocked', listingIds: [], blockedRanges: [{ from: '17:00', to: '22:00' }] } // evening
+  avail['2026-11-15'] = { status: 'booked', listingIds: [], blockedRanges: [] }
+  avail['2026-12-12'] = { status: 'booked', listingIds: [], blockedRanges: [] }
+  avail['2026-12-13'] = { status: 'booked', listingIds: [], blockedRanges: [] }
   return avail
 }

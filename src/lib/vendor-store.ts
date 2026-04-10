@@ -69,7 +69,7 @@ export const useVendorStore = create<VendorState>((set) => ({
     }))
   },
 
-  toggleDateBlock: (date, listingIds) =>
+  toggleDateBlock: (date, listingIds, blockedRanges) =>
     set((s) => {
       const current = s.vendorAvailability[date]
       if (current?.status === 'booked') return s
@@ -78,8 +78,8 @@ export const useVendorStore = create<VendorState>((set) => ({
         vendorAvailability: {
           ...s.vendorAvailability,
           [date]: isCurrentlyBlocked
-            ? { status: 'available' as const, listingIds: [] }
-            : { status: 'blocked' as const, listingIds },
+            ? { status: 'available' as const, listingIds: [], blockedRanges: [] }
+            : { status: 'blocked' as const, listingIds, blockedRanges },
         },
       }
     }),
