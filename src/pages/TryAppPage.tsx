@@ -37,7 +37,7 @@ export default function TryAppPage() {
           {/* Feature grid */}
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              { title: 'Visual mood boards', body: 'Pinterest-style ritual boards for every event. Engagement, Wedding, Reception, Sangeet — each with its own dates, vendors, and budget.' },
+              { title: 'Visual mood boards', body: 'Pinterest-style ritual boards for every event. Nischitartham, Pelli, Reception, Sangeeth — each with its own dates, vendors, and budget.' },
               { title: 'Side-by-side comparison', body: 'Compare shortlisted vendors across price, style, capacity, area, and ratings. Best values highlighted automatically. Decisions made easy.' },
               { title: 'Slot booking', body: 'Book all your vendors at once with just 10% upfront. Or book individually at 11%. Either way, your slots are locked the moment you pay.' },
               { title: 'Family collaboration', body: 'Share boards with family. They like, suggest, and stay updated — all in the app. No more 6 WhatsApp groups.' },

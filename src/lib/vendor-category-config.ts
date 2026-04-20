@@ -118,11 +118,11 @@ export const ONBOARDING_CONFIG: Record<string, CategoryOnboardingConfig> = {
   },
   Pandit: {
     title: 'About your services',
-    subtitle: 'Help couples find the right fit for their traditions.',
+    subtitle: 'Help couples find the right purohit for their traditions.',
     fields: [
-      { key: 'traditions', label: 'Traditions', type: 'multi', options: ['Vedic', 'South Indian', 'Bengali', 'Marwari', 'Punjabi', 'Gujarati', 'Multi-tradition'] },
-      { key: 'languages', label: 'Languages', type: 'multi', options: ['Hindi', 'Telugu', 'Sanskrit', 'Tamil', 'Bengali', 'English', 'Kannada'] },
-      { key: 'samagriIncluded', label: 'Samagri (puja materials)', type: 'single', options: ['Included', 'Available at extra cost', 'Not included'] },
+      { key: 'traditions', label: 'Traditions', type: 'multi', options: ['Telugu Brahmin', 'Telugu Niyogi', 'Telugu Kamma', 'Telugu Reddy', 'Arya Vysya', 'Multi-tradition', 'North Indian', 'Other'] },
+      { key: 'languages', label: 'Languages', type: 'multi', options: ['Telugu', 'Sanskrit', 'Hindi', 'Tamil', 'Kannada', 'English'] },
+      { key: 'samagriIncluded', label: 'Pooja samagri', type: 'single', options: ['Included', 'Available at extra cost', 'Not included'] },
       { key: 'travelOutsideCity', label: 'Travel outside city', type: 'single', options: ['Yes', 'Up to 50km', 'Up to 100km', 'No'] },
     ],
   },
@@ -342,27 +342,27 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
     ],
   },
   Pandit: {
-    styles: ['Vedic Rituals', 'South Indian', 'Bengali', 'Marwari', 'Multi-tradition'],
-    inclusions: ['Full Ceremony', 'Havan Setup', 'Muhurat Consultation', 'Ganesh Puja', 'Samagri Included', 'Multi-Language', 'Varmala Ceremony', 'Vidai Rituals', 'Griha Pravesh'],
+    styles: ['Telugu Traditional', 'Vedic', 'Arya Vysya', 'Multi-tradition', 'North Indian'],
+    inclusions: ['Full Ceremony', 'Homam Setup', 'Muhurtham Consultation', 'Ganapathi Puja', 'Pooja Samagri', 'Mangala Vaadyam', 'Talambralu', 'Jeelakarra Bellam', 'Saptapadi', 'Appaginthalu', 'Gruha Pravesham'],
     priceRange: { min: 5000, max: 100000, step: 2500 },
     steps: [
       {
         title: 'Ceremony details',
         subtitle: 'What ceremonies does this cover?',
         fields: [
-          { key: 'tradition', label: 'Tradition', type: 'single', options: ['Vedic', 'South Indian', 'Bengali', 'Marwari', 'Punjabi', 'Gujarati', 'Multi-tradition'] },
-          { key: 'ceremonies', label: 'Ceremonies covered', type: 'multi', options: ['Ganesh Puja', 'Haldi', 'Wedding Main', 'Varmala', 'Pheras', 'Vidai', 'Griha Pravesh', 'Engagement', 'Satyanarayan Puja'] },
+          { key: 'tradition', label: 'Tradition', type: 'single', options: ['Telugu Brahmin', 'Telugu Niyogi', 'Arya Vysya', 'Multi-tradition', 'North Indian', 'Other'] },
+          { key: 'ceremonies', label: 'Ceremonies covered', type: 'multi', options: ['Ganapathi Puja', 'Punyahavachanam', 'Nalugu', 'Snathakam', 'Kashi Yatra', 'Mangalsutra Dharana', 'Talambralu', 'Jeelakarra Bellam', 'Saptapadi', 'Appaginthalu', 'Gruha Pravesham', 'Nischitartham', 'Satyanarayana Vratham'] },
           { key: 'duration', label: 'Ceremony duration', type: 'single', options: ['1 hour', '2 hours', '3 hours', '4 hours', 'Full day'] },
-          { key: 'languages', label: 'Languages', type: 'multi', options: ['Hindi', 'Telugu', 'Sanskrit', 'Tamil', 'Bengali', 'English', 'Kannada'] },
+          { key: 'languages', label: 'Languages', type: 'multi', options: ['Telugu', 'Sanskrit', 'Hindi', 'Tamil', 'Kannada', 'English'] },
         ],
       },
       {
         title: 'Logistics',
         subtitle: 'What else is included?',
         fields: [
-          { key: 'samagri', label: 'Samagri (puja materials)', type: 'single', options: ['Included', 'Extra cost', 'Not included'] },
-          { key: 'havanKund', label: 'Havan kund setup', type: 'single', options: ['Included', 'Client provides'] },
-          { key: 'muhuratConsult', label: 'Muhurat consultation', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+          { key: 'samagri', label: 'Pooja samagri', type: 'single', options: ['Included', 'Extra cost', 'Not included'] },
+          { key: 'homamSetup', label: 'Homam / Agni setup', type: 'single', options: ['Included', 'Client provides'] },
+          { key: 'muhurthamConsult', label: 'Muhurtham consultation', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
           { key: 'travel', label: 'Travel outside city', type: 'single', options: ['Yes', 'Up to 50km', 'Up to 100km', 'No'] },
         ],
       },
@@ -412,7 +412,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
 // ─── RITUALS / EVENTS ───────────────────────
 
 /** All rituals/events a listing can be tagged for (used for couple-vendor matching) */
-export const RITUALS = ['Engagement', 'Pelli Choopulu', 'Haldi', 'Mehendi', 'Sangeet', 'Wedding', 'Reception']
+export const RITUALS = ['Nischitartham', 'Pelli Choopulu', 'Nalugu', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
 
 /** Get the listing config for a category, with a safe fallback */
 export function getListingConfig(category: string): CategoryListingConfig {

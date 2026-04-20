@@ -57,7 +57,7 @@ export default function HomePage() {
                 <label className="text-[11px] font-medium text-dark block mb-1">Event name</label>
                 <input
                   type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. Haldi, Cocktail Party, Pre-Wedding..."
+                  placeholder="e.g. Nalugu, Cocktail Party, Pre-Wedding..."
                   className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[12px] text-dark outline-none focus:border-magenta"
                   autoFocus
                 />

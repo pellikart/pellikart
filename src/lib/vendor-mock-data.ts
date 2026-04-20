@@ -32,8 +32,8 @@ const mockListingsData: Record<string, VendorListing[]> = {
     { id: 'ml-2', name: 'Sufi Night Experience', photos: ['/images/gallery/dj/3.jpg', '/images/gallery/dj/4.jpg'], category: 'DJ / Music', price: 70000, style: 'Sufi + Bollywood', coverageHours: 6, includes: ['Sound System', 'Wireless Mics', 'Emcee'], createdAt: '2026-03-10' },
   ],
   Pandit: [
-    { id: 'ml-1', name: 'Full Vedic Ceremony', photos: ['/images/gallery/decor/4.jpg'], category: 'Pandit', price: 25000, style: 'Vedic Rituals', includes: ['Full Ceremony', 'Havan Setup', 'Samagri Included', 'Ganesh Puja', 'Varmala Ceremony'], createdAt: '2026-03-15' },
-    { id: 'ml-2', name: 'Quick Muhurat', photos: ['/images/gallery/decor/7.jpg'], category: 'Pandit', price: 11000, style: 'South Indian', includes: ['Full Ceremony', 'Muhurat Consultation', 'Samagri Included'], createdAt: '2026-03-10' },
+    { id: 'ml-1', name: 'Sampoorna Telugu Pelli', photos: ['/images/gallery/decor/4.jpg'], category: 'Pandit', price: 25000, style: 'Telugu Traditional', includes: ['Full Ceremony', 'Homam Setup', 'Pooja Samagri', 'Ganapathi Puja', 'Talambralu'], createdAt: '2026-03-15' },
+    { id: 'ml-2', name: 'Muhurtham Consultation', photos: ['/images/gallery/decor/7.jpg'], category: 'Pandit', price: 11000, style: 'Telugu Traditional', includes: ['Full Ceremony', 'Muhurtham Consultation', 'Pooja Samagri'], createdAt: '2026-03-10' },
   ],
   Invitations: [
     { id: 'ml-1', name: 'Luxury Box Set', photos: ['/images/gallery/decor/5.jpg'], category: 'Invitations', price: 110000, style: 'Luxury Boxed', includes: ['Design', 'Printing', 'Box Packaging', 'Digital Version', 'Envelope', 'Sweet Box'], createdAt: '2026-03-15' },

@@ -20,11 +20,11 @@ const categoryVendorPrefix: Record<string, string> = {
 function getCategoriesForEvent(eventName: string): string[] {
   const lower = eventName.toLowerCase();
   if (lower === 'mehendi') return ["Venue", "Catering", "Mehendi", "Photography", "Decor"];
-  if (lower === 'sangeet') return ["Venue", "Catering", "DJ / Music", "Photography", "Decor"];
-  if (lower === 'haldi') return ["Venue", "Catering", "Decor", "Photography"];
+  if (lower === 'sangeeth') return ["Venue", "Catering", "DJ / Music", "Photography", "Decor"];
+  if (lower === 'nalugu') return ["Venue", "Catering", "Decor", "Photography"];
   if (lower === 'reception') return ["Venue", "Catering", "Decor", "Photography", "DJ / Music"];
-  if (lower === 'wedding') return ["Venue", "Catering", "Decor", "Photography", "Makeup", "Pandit", "Invitations"];
-  if (lower === 'engagement' || lower === 'pelli choopulu') return ["Venue", "Catering", "Decor", "Photography", "Makeup"];
+  if (lower === 'pelli (wedding)') return ["Venue", "Catering", "Decor", "Photography", "Makeup", "Pandit", "Invitations"];
+  if (lower === 'nischitartham' || lower === 'pelli choopulu') return ["Venue", "Catering", "Decor", "Photography", "Makeup"];
   return [...defaultCategories];
 }
 
@@ -321,7 +321,7 @@ export const mockDesigns: Design[] = [
 
   // === DJ / MUSIC LISTINGS ===
   { id: "d-dj-1a", vendorId: "v-dj-1", name: "Bollywood + EDM Night", photo: img("dj", 1), style: "Bollywood + EDM", price: 95000, rating: 4.7, description: "Full night DJ, 10K watts sound, LED dance floor, fog machine, live dhol entry" },
-  { id: "d-dj-1b", vendorId: "v-dj-1", name: "Sangeet Special Setup", photo: img("dj", 2), style: "Sangeet", price: 65000, rating: 4.5, description: "6-hour sangeet package — wireless mics for performances, curated Bollywood playlist" },
+  { id: "d-dj-1b", vendorId: "v-dj-1", name: "Sangeeth Special Setup", photo: img("dj", 2), style: "Sangeeth", price: 65000, rating: 4.5, description: "6-hour sangeeth package — wireless mics for performances, curated Bollywood + Telugu playlist" },
   { id: "d-dj-2a", vendorId: "v-dj-2", name: "Sufi Night Experience", photo: img("dj", 3), style: "Sufi + Bollywood", price: 70000, rating: 4.4, description: "Live sufi singer + DJ combo, qawwali session transitioning to dance floor" },
   { id: "d-dj-2b", vendorId: "v-dj-2", name: "Cocktail Lounge Mix", photo: img("dj", 4), style: "Lounge", price: 50000, rating: 4.2, description: "Ambient lounge music for cocktail hour, smooth transitions to party set" },
 
@@ -393,8 +393,8 @@ export const mockRitualBoards: RitualBoard[] = [
     ],
   },
   {
-    id: "r-sangeet",
-    name: "Sangeet",
+    id: "r-sangeeth",
+    name: "Sangeeth",
     dateStart: "2026-12-11",
     categories: [
       { id: "c-san-venue", label: "Venue", selectedVendorId: null, shortlistedVendorIds: [], suggestedVendors: [{ vendorId: "v-venue-3", suggestedBy: "Mom" }], removed: false },

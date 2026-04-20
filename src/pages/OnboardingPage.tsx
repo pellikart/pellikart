@@ -4,7 +4,7 @@ import { useStore } from '@/lib/store'
 import { OnboardingData } from '@/lib/types'
 import { formatINR } from '@/lib/helpers'
 
-const PRESET_EVENTS = ['Engagement', 'Pelli Choopulu', 'Haldi', 'Mehendi', 'Sangeet', 'Wedding', 'Reception']
+const PRESET_EVENTS = ['Nischitartham', 'Pelli Choopulu', 'Nalugu', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
 const GUEST_OPTIONS = ['100-200', '200-500', '500-1000', '1000+']
 const BUDGET_PRESETS = [
   { label: '₹5-10L', min: 500000, max: 1000000, mid: 750000 },
