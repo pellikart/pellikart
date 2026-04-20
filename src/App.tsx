@@ -24,9 +24,14 @@ import VendorAddListing from './pages/vendor/VendorAddListing'
 import VendorEditListing from './pages/vendor/VendorEditListing'
 import VendorBottomNav from './components/VendorBottomNav'
 
-export default function App() {
+export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
   const { pathname, search } = useLocation()
   const isEmbed = new URLSearchParams(search).has('embed')
+
+  // Live app mode (/app/*) — skip landing pages, go straight to the app
+  if (isLiveApp) {
+    return <AppRoutes />
+  }
 
   // Landing page at root, unless embedded in iframe
   if (pathname === '/' && !isEmbed) {

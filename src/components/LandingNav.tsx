@@ -34,10 +34,11 @@ export default function LandingNav({ transparentOnTop = false }: Props) {
 
   const isWhite = !transparentOnTop || scrolled
 
-  const links = [
+  const links: { label: string; href: string; external?: boolean }[] = [
     { label: 'Home', href: '/' },
     { label: 'Why us', href: '/why' },
     { label: 'Try the app', href: '/try' },
+    { label: 'App', href: '/app', external: true },
   ]
 
   return (
@@ -52,13 +53,12 @@ export default function LandingNav({ transparentOnTop = false }: Props) {
         <div className="hidden md:flex items-center gap-7">
           {links.map((l) => {
             const active = pathname === l.href
-            return (
-              <Link
-                key={l.href} to={l.href}
-                className={`text-[14px] transition-colors ${active ? 'text-magenta font-semibold' : 'text-gray-600 hover:text-dark'}`}
-              >
-                {l.label}
-              </Link>
+            const cls = `text-[14px] transition-colors ${active ? 'text-magenta font-semibold' : 'text-gray-600 hover:text-dark'}`
+            // /app needs a full page reload to switch BrowserRouter basename
+            return l.external ? (
+              <a key={l.href} href={l.href} className={cls}>{l.label}</a>
+            ) : (
+              <Link key={l.href} to={l.href} className={cls}>{l.label}</Link>
             )
           })}
           <button onClick={goToWaitlist} className="bg-magenta text-white text-[13px] font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity">
@@ -80,15 +80,25 @@ export default function LandingNav({ transparentOnTop = false }: Props) {
       {mobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-card-border">
           <div className="px-6 py-4 flex flex-col gap-4">
-            {links.map((l) => (
-              <Link
-                key={l.href} to={l.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`text-[14px] ${pathname === l.href ? 'text-magenta font-semibold' : 'text-gray-600'}`}
-              >
-                {l.label}
-              </Link>
-            ))}
+            {links.map((l) =>
+              l.external ? (
+                <a
+                  key={l.href} href={l.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`text-[14px] ${pathname === l.href ? 'text-magenta font-semibold' : 'text-gray-600'}`}
+                >
+                  {l.label}
+                </a>
+              ) : (
+                <Link
+                  key={l.href} to={l.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`text-[14px] ${pathname === l.href ? 'text-magenta font-semibold' : 'text-gray-600'}`}
+                >
+                  {l.label}
+                </Link>
+              )
+            )}
             <button onClick={goToWaitlist} className="bg-magenta text-white text-[13px] font-semibold px-4 py-2 rounded-lg text-center">
               Join waitlist
             </button>
