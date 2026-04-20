@@ -62,6 +62,8 @@ export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
 /** Live app: requires authentication, will use real Supabase data */
 function LiveApp() {
   const { user, profile, loading, updateRole } = useAuth()
+  const initStore = useStore(s => s.initLiveMode)
+  const initVendorStore = useVendorStore(s => s.initLiveMode)
 
   // Apply pending role from Google OAuth redirect
   useEffect(() => {
@@ -74,6 +76,16 @@ function LiveApp() {
       localStorage.removeItem('pellikart_pending_role')
     }
   }, [user, profile, updateRole])
+
+  // Initialize stores in live mode once we have user + profile
+  useEffect(() => {
+    if (!user || !profile) return
+    const role = profile.role as 'couple' | 'vendor'
+    initStore(user.id, role)
+    if (role === 'vendor') {
+      initVendorStore(user.id)
+    }
+  }, [user, profile, initStore, initVendorStore])
 
   if (loading) {
     return (
@@ -91,9 +103,7 @@ function LiveApp() {
     return <AuthPage />
   }
 
-  // Logged in — show the app with real data
-  // For now, this uses the same mock-data routes as the demo.
-  // Phase 2+ will swap these to use Supabase-backed stores.
+  // Logged in — stores are in live mode, connected to Supabase
   return <AppRoutes />
 }
 

@@ -1,6 +1,12 @@
 import { create } from "zustand";
-import { AppState, SubscriptionTier, OnboardingData, Design } from "./types";
+import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns } from "./mock-data";
+import {
+  fetchCouple, upsertCouple,
+  fetchRitualBoards, insertRitualBoard,
+  updateBoardCategory, updateBoardDatesDb,
+  fetchAllLiveVendors, fetchAllListings,
+} from "./supabase-db";
 
 function cloneVendors() {
   const cloned: Record<string, typeof mockVendors[string]> = {};
@@ -27,7 +33,21 @@ function maxTrialsForTier(tier: SubscriptionTier): number {
   return 0;
 }
 
-export const useStore = create<AppState>((set, get) => ({
+interface LiveModeState {
+  _liveMode: boolean
+  _userId: string | null
+  _coupleDbId: string | null
+}
+
+export const useStore = create<AppState & LiveModeState & {
+  initLiveMode: (userId: string, role: 'couple' | 'vendor') => Promise<void>
+}>((set, get) => ({
+  // Live mode
+  _liveMode: false,
+  _userId: null,
+  _coupleDbId: null,
+
+  // App state
   role: 'none',
   onboardingComplete: false,
   onboardingData: null,
@@ -38,84 +58,233 @@ export const useStore = create<AppState>((set, get) => ({
   trialSessions: {},
   trialsUsed: {},
 
+  /**
+   * Initialize live mode — fetch existing couple data from Supabase.
+   * Called from LiveApp after auth succeeds.
+   */
+  initLiveMode: async (userId: string, role: 'couple' | 'vendor') => {
+    set({ _liveMode: true, _userId: userId, role: role === 'couple' ? 'user' : 'vendor' })
+
+    if (role === 'couple') {
+      const couple = await fetchCouple(userId)
+      if (couple && couple.onboarding_complete) {
+        // Returning couple — restore their data
+        const onboardingData: OnboardingData = {
+          partner1: couple.partner1_name || '',
+          partner2: couple.partner2_name || '',
+          events: couple.events || [],
+          customEvents: couple.custom_events || [],
+          eventDates: couple.event_dates || {},
+          eventGuests: couple.event_guests || {},
+          budget: couple.budget || 0,
+          style: couple.style_preference,
+        }
+
+        // Fetch boards from DB
+        const boards = await fetchRitualBoards(couple.id)
+
+        // Fetch live vendors to show in explore
+        const liveVendors = await fetchAllLiveVendors()
+        const listings = await fetchAllListings()
+
+        // Build vendor map from live data
+        const vendorMap: Record<string, typeof mockVendors[string]> = {}
+        for (const v of liveVendors) {
+          vendorMap[v.id] = {
+            id: v.id,
+            code: v.business_name,
+            name: v.business_name,
+            photo: '',
+            style: '',
+            area: v.area || '',
+            price: 0,
+            rating: v.rating || 0,
+            packageTier: '',
+            likes: [],
+            booked: false,
+            amountPaid: 0,
+          }
+        }
+
+        // Also map listings as vendor entries (for board matching)
+        for (const l of listings) {
+          vendorMap[l.id] = {
+            id: l.id,
+            code: l.name,
+            name: l.name,
+            photo: (l.photos as string[])?.[0] || '',
+            style: l.style || '',
+            area: '',
+            price: l.price,
+            rating: 0,
+            packageTier: (l.includes as string[])?.join(', ') || '',
+            likes: [],
+            booked: false,
+            amountPaid: 0,
+          }
+        }
+
+        set({
+          _coupleDbId: couple.id,
+          onboardingComplete: true,
+          onboardingData: onboardingData,
+          ritualBoards: boards.length > 0 ? boards : [],
+          vendors: Object.keys(vendorMap).length > 0 ? vendorMap : cloneVendors(),
+        })
+      }
+      // If no couple record or not onboarded, state stays at defaults (will show onboarding)
+    }
+    // For vendor role, the vendor store handles its own init
+  },
+
   setRole: (role) => set({ role }),
 
   completeOnboarding: (data) => {
-    const boards = generateBoardsFromOnboarding(data);
-    const scale = getVendorPriceScale(boards, data.budget);
+    const { _liveMode, _userId } = get()
 
-    // Scale all vendor prices so the total of selected vendors ≈ budget
-    const scaledVendors = cloneVendors();
-    for (const key of Object.keys(scaledVendors)) {
-      scaledVendors[key].price = Math.round(scaledVendors[key].price * scale);
+    if (_liveMode && _userId) {
+      // Generate boards from onboarding
+      const boards = generateBoardsFromOnboarding(data)
+
+      // Save couple + boards to Supabase in background
+      upsertCouple(_userId, data).then(async (coupleData) => {
+        if (coupleData) {
+          set({ _coupleDbId: coupleData.id })
+          // Insert boards
+          for (let i = 0; i < boards.length; i++) {
+            await insertRitualBoard(coupleData.id, boards[i], i)
+          }
+          // Re-fetch boards to get DB IDs
+          const dbBoards = await fetchRitualBoards(coupleData.id)
+          if (dbBoards.length > 0) {
+            set({ ritualBoards: dbBoards })
+          }
+        }
+      })
+
+      // Fetch live vendors for the explore feed
+      fetchAllLiveVendors().then(liveVendors => {
+        fetchAllListings().then(listings => {
+          const vendorMap: Record<string, typeof mockVendors[string]> = {}
+          for (const v of liveVendors) {
+            vendorMap[v.id] = {
+              id: v.id, code: v.business_name, name: v.business_name,
+              photo: '', style: '', area: v.area || '',
+              price: 0, rating: v.rating || 0, packageTier: '',
+              likes: [], booked: false, amountPaid: 0,
+            }
+          }
+          for (const l of listings) {
+            vendorMap[l.id] = {
+              id: l.id, code: l.name, name: l.name,
+              photo: (l.photos as string[])?.[0] || '', style: l.style || '',
+              area: '', price: l.price, rating: 0,
+              packageTier: (l.includes as string[])?.join(', ') || '',
+              likes: [], booked: false, amountPaid: 0,
+            }
+          }
+          if (Object.keys(vendorMap).length > 0) {
+            set({ vendors: vendorMap })
+          }
+        })
+      })
+
+      set({
+        onboardingComplete: true,
+        onboardingData: data,
+        ritualBoards: boards, // Use local boards until DB IDs arrive
+        vendors: {}, // Will be populated by live vendor fetch
+      })
+    } else {
+      // Demo mode — use mock data
+      const boards = generateBoardsFromOnboarding(data);
+      const scale = getVendorPriceScale(boards, data.budget);
+
+      const scaledVendors = cloneVendors();
+      for (const key of Object.keys(scaledVendors)) {
+        scaledVendors[key].price = Math.round(scaledVendors[key].price * scale);
+      }
+
+      for (const design of mockDesigns) {
+        const parentVendor = scaledVendors[design.vendorId] || mockVendors[design.vendorId];
+        scaledVendors[design.id] = {
+          id: design.id, code: design.name,
+          name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
+          photo: design.photo, style: design.style,
+          area: parentVendor?.area || '', capacity: parentVendor?.capacity,
+          price: Math.round(design.price * scale), rating: design.rating,
+          packageTier: design.description, likes: [], booked: false, amountPaid: 0,
+        };
+      }
+
+      set({
+        onboardingComplete: true,
+        onboardingData: data,
+        ritualBoards: boards,
+        vendors: scaledVendors,
+      });
     }
-
-    // Register designs as vendor entries so they show on ritual boards
-    for (const design of mockDesigns) {
-      const parentVendor = scaledVendors[design.vendorId] || mockVendors[design.vendorId];
-      scaledVendors[design.id] = {
-        id: design.id,
-        code: design.name,
-        name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
-        photo: design.photo,
-        style: design.style,
-        area: parentVendor?.area || '',
-        capacity: parentVendor?.capacity,
-        price: Math.round(design.price * scale),
-        rating: design.rating,
-        packageTier: design.description,
-        likes: [],
-        booked: false,
-        amountPaid: 0,
-      };
-    }
-
-    set({
-      onboardingComplete: true,
-      onboardingData: data,
-      ritualBoards: boards,
-      vendors: scaledVendors,
-    });
   },
 
   subscribe: (tier) => set({ subscription: tier }),
 
   getMaxTrials: () => maxTrialsForTier(get().subscription),
 
-  selectVendor: (ritualId, categoryId, vendorId) =>
+  selectVendor: (ritualId, categoryId, vendorId) => {
+    const { _liveMode } = get()
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
           ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedVendorId: vendorId } : c) }
           : b
       ),
-    })),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { selectedVendorId: vendorId })
+    }
+  },
 
-  addToShortlist: (ritualId, categoryId, vendorId) =>
+  addToShortlist: (ritualId, categoryId, vendorId) => {
+    const { _liveMode } = get()
+    let newList: string[] = []
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          ? { ...b, categories: b.categories.map((c) =>
-              c.id === categoryId && !c.shortlistedVendorIds.includes(vendorId)
-                ? { ...c, shortlistedVendorIds: [...c.shortlistedVendorIds, vendorId] }
-                : c
-            ) }
+          ? { ...b, categories: b.categories.map((c) => {
+              if (c.id === categoryId && !c.shortlistedVendorIds.includes(vendorId)) {
+                newList = [...c.shortlistedVendorIds, vendorId]
+                return { ...c, shortlistedVendorIds: newList }
+              }
+              return c
+            }) }
           : b
       ),
-    })),
+    }))
+    if (_liveMode && newList.length > 0) {
+      updateBoardCategory(categoryId, { shortlistedVendorIds: newList })
+    }
+  },
 
-  removeFromShortlist: (ritualId, categoryId, vendorId) =>
+  removeFromShortlist: (ritualId, categoryId, vendorId) => {
+    const { _liveMode } = get()
+    let newList: string[] = []
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          ? { ...b, categories: b.categories.map((c) =>
-              c.id === categoryId
-                ? { ...c, shortlistedVendorIds: c.shortlistedVendorIds.filter((id) => id !== vendorId), selectedVendorId: c.selectedVendorId === vendorId ? null : c.selectedVendorId }
-                : c
-            ) }
+          ? { ...b, categories: b.categories.map((c) => {
+              if (c.id === categoryId) {
+                newList = c.shortlistedVendorIds.filter((id) => id !== vendorId)
+                return { ...c, shortlistedVendorIds: newList, selectedVendorId: c.selectedVendorId === vendorId ? null : c.selectedVendorId }
+              }
+              return c
+            }) }
           : b
       ),
-    })),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { shortlistedVendorIds: newList, selectedVendorId: undefined })
+    }
+  },
 
   toggleLike: (vendorId, userName, userId) =>
     set((s) => {
@@ -127,14 +296,19 @@ export const useStore = create<AppState>((set, get) => ({
       };
     }),
 
-  removeCategory: (ritualId, categoryId) =>
+  removeCategory: (ritualId, categoryId) => {
+    const { _liveMode } = get()
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
           ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, removed: true } : c) }
           : b
       ),
-    })),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { removed: true })
+    }
+  },
 
   bookVendor: (vendorId, amount) =>
     set((s) => ({
@@ -181,7 +355,8 @@ export const useStore = create<AppState>((set, get) => ({
       return { milestoneProgress: { ...s.milestoneProgress, [vendorId]: current + 1 } };
     }),
 
-  updateBoardDates: (ritualId, dateStart, dateEnd, removeVendorIds) =>
+  updateBoardDates: (ritualId, dateStart, dateEnd, removeVendorIds) => {
+    const { _liveMode } = get()
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
@@ -198,7 +373,11 @@ export const useStore = create<AppState>((set, get) => ({
             }
           : b
       ),
-    })),
+    }))
+    if (_liveMode) {
+      updateBoardDatesDb(ritualId, dateStart, dateEnd)
+    }
+  },
 
   requestTrial: (ritualId, categoryId, vendorId, date, time) =>
     set((s) => {
@@ -283,52 +462,52 @@ export const useStore = create<AppState>((set, get) => ({
 
   addDesignAsVendor: (design) =>
     set((s) => {
-      if (s.vendors[design.id]) return s; // already exists
+      if (s.vendors[design.id]) return s;
       const parentVendor = s.vendors[design.vendorId] || mockVendors[design.vendorId];
       return {
         vendors: {
           ...s.vendors,
           [design.id]: {
-            id: design.id,
-            code: design.name,
+            id: design.id, code: design.name,
             name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
-            photo: design.photo,
-            style: design.style,
-            area: parentVendor?.area || '',
-            capacity: parentVendor?.capacity,
-            price: design.price,
-            rating: design.rating,
-            packageTier: design.description,
-            likes: [],
-            booked: false,
-            amountPaid: 0,
+            photo: design.photo, style: design.style,
+            area: parentVendor?.area || '', capacity: parentVendor?.capacity,
+            price: design.price, rating: design.rating,
+            packageTier: design.description, likes: [], booked: false, amountPaid: 0,
           },
         },
       };
     }),
 
-  addRitualBoard: (name, dateStart, dateEnd) =>
-    set((s) => {
-      const id = `r-${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
-      const defaultCats = ["Venue", "Catering", "Decor", "Photography", "Makeup", "DJ / Music"];
-      return {
-        ritualBoards: [
-          ...s.ritualBoards,
-          {
-            id,
-            name,
-            dateStart,
-            dateEnd: dateEnd !== dateStart ? dateEnd : undefined,
-            categories: defaultCats.map((label) => ({
-              id: `${id}-c-${label.toLowerCase().replace(/[\s\/]+/g, "-")}`,
-              label,
-              selectedVendorId: null,
-              shortlistedVendorIds: [],
-              suggestedVendors: [],
-              removed: false,
-            })),
-          },
-        ],
-      };
-    }),
+  addRitualBoard: (name, dateStart, dateEnd) => {
+    const { _liveMode, _coupleDbId } = get()
+    const id = `r-${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
+    const defaultCats = ["Venue", "Catering", "Decor", "Photography", "Makeup", "DJ / Music"];
+    const board: RitualBoard = {
+      id,
+      name,
+      dateStart,
+      dateEnd: dateEnd !== dateStart ? dateEnd : undefined,
+      categories: defaultCats.map((label) => ({
+        id: `${id}-c-${label.toLowerCase().replace(/[\s\/]+/g, "-")}`,
+        label,
+        selectedVendorId: null,
+        shortlistedVendorIds: [],
+        suggestedVendors: [],
+        removed: false,
+      })),
+    }
+
+    set((s) => ({ ritualBoards: [...s.ritualBoards, board] }))
+
+    if (_liveMode && _coupleDbId) {
+      insertRitualBoard(_coupleDbId, board, get().ritualBoards.length - 1).then(async (dbBoard) => {
+        if (dbBoard) {
+          // Re-fetch to get DB IDs for categories
+          const boards = await fetchRitualBoards(_coupleDbId)
+          if (boards.length > 0) set({ ritualBoards: boards })
+        }
+      })
+    }
+  },
 }));
