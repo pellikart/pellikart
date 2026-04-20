@@ -49,18 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s)
-      setUser(s?.user ?? null)
-      if (s?.user) {
-        const p = await fetchProfile(s.user.id)
-        setProfile(p)
-      }
-      setLoading(false)
-    })
-
-    // Listen for auth changes (login, logout, token refresh)
+    // Listen for auth changes FIRST (catches the OAuth callback)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         setSession(s)
@@ -74,8 +63,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_OUT') {
           setProfile(null)
         }
+
+        setLoading(false)
       }
     )
+
+    // Then check for existing session
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      setSession(s)
+      setUser(s?.user ?? null)
+      if (s?.user) {
+        const p = await fetchProfile(s.user.id)
+        setProfile(p)
+      }
+      setLoading(false)
+    }).catch(() => {
+      // Ensure loading is cleared even on error
+      setLoading(false)
+    })
 
     return () => subscription.unsubscribe()
   }, [])
