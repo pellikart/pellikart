@@ -49,13 +49,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // Listen for auth changes FIRST (catches the OAuth callback)
+    // Safety timeout — never stay on loading screen forever
+    const timeout = setTimeout(() => {
+      console.warn('[auth] Timed out — clearing loading state')
+      setLoading(false)
+    }, 4000)
+
+    // Listen for auth changes (catches OAuth callback + initial session)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
+        console.log('[auth] event:', event, s?.user?.email ?? 'no user')
         setSession(s)
         setUser(s?.user ?? null)
 
-        if (s?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        if (s?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
           const p = await fetchProfile(s.user.id)
           setProfile(p)
         }
@@ -64,25 +71,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null)
         }
 
+        clearTimeout(timeout)
         setLoading(false)
       }
     )
 
-    // Then check for existing session
+    // Also check for existing session directly
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      console.log('[auth] getSession:', s?.user?.email ?? 'no session')
       setSession(s)
       setUser(s?.user ?? null)
       if (s?.user) {
         const p = await fetchProfile(s.user.id)
         setProfile(p)
       }
+      clearTimeout(timeout)
       setLoading(false)
-    }).catch(() => {
-      // Ensure loading is cleared even on error
+    }).catch((err) => {
+      console.error('[auth] getSession error:', err)
+      clearTimeout(timeout)
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function signOut() {
