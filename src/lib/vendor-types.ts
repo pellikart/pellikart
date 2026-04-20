@@ -17,6 +17,8 @@ export interface VendorProfile {
   portfolioPhotos: string[]
   rating: number
   profileCompleteness: number
+  /** Category-specific onboarding field values (key → selected value(s)) */
+  categoryFields?: Record<string, string | string[]>
 }
 
 export interface VendorPackage {
@@ -46,14 +48,16 @@ export interface VendorListing {
   category: string
   price: number
   style: string
-  // Category-specific fields
+  /** Category-specific selectable field values (key → selected value(s)) */
+  categoryFields?: Record<string, string | string[]>
+  includes: string[]
+  createdAt: string
+  // Legacy fields (kept for backward compat with mock data)
   capacity?: number
   coverageHours?: number
   cuisineTypes?: string[]
   editedPhotos?: number
   guestCount?: number
-  includes: string[]
-  createdAt: string
 }
 
 export interface VendorBooking {

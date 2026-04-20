@@ -1,32 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
-import { VendorListing } from '@/lib/vendor-types'
 import { formatINR } from '@/lib/helpers'
-
-const STYLE_OPTIONS: Record<string, string[]> = {
-  Venue: ['Royal Heritage', 'Garden Party', 'Modern Rooftop', 'Rustic Farmhouse', 'Beachside', 'Palace', 'Boutique Hotel'],
-  Decor: ['Floral Luxury', 'Modern Minimalist', 'Traditional', 'Rustic', 'Royal Heritage', 'Bohemian', 'Temple Traditional'],
-  Photography: ['Candid + Cinematic', 'Traditional + Posed', 'Documentary', 'Fine Art', 'Photojournalistic'],
-  Catering: ['North Indian', 'South Indian', 'Multi-Cuisine', 'Rajasthani', 'Mughlai', 'Continental', 'Fusion'],
-  Makeup: ['HD Airbrush', 'Natural Glam', 'Traditional', 'Bridal Heavy', 'Minimalist'],
-  Mehendi: ['Rajasthani Bridal', 'Arabic Fusion', 'Contemporary', 'Traditional', 'Indo-Arabic'],
-  'DJ / Music': ['Bollywood + EDM', 'Sufi + Bollywood', 'Classical Fusion', 'Live Band', 'International'],
-  Pandit: ['Vedic Rituals', 'South Indian', 'Bengali', 'Marwari', 'Multi-tradition'],
-  Invitations: ['Luxury Boxed', 'Digital Only', 'Eco-Friendly', 'Traditional Print', 'Designer'],
-}
-
-const INCLUDE_OPTIONS: Record<string, string[]> = {
-  Venue: ['AC Hall', 'Parking', 'Valet', 'Bridal Suite', 'Guest Rooms', 'Sound System', 'In-house Catering', 'Generator Backup', 'Lawn Area', 'Pool Access'],
-  Decor: ['Stage Setup', 'Mandap', 'Flower Arrangements', 'LED Lighting', 'Drapes & Fabrics', 'Table Centerpieces', 'Entrance Decor', 'Photo Booth', 'Ceiling Decor', 'Aisle Decor'],
-  Photography: ['Candid Photos', 'Traditional Photos', 'Drone Shots', 'Pre-Wedding Shoot', 'Album', 'Highlight Reel', 'Full Video', 'Photo Booth', 'Same-Day Edit', 'USB Drive'],
-  Catering: ['Welcome Drinks', 'Starters', 'Main Course', 'Desserts', 'Live Counters', 'Chaat Station', 'Ice Cream Bar', 'Paan Counter', 'Crockery & Cutlery', 'Service Staff'],
-  Makeup: ['Bridal Makeup', 'Engagement Look', 'Reception Look', 'Hair Styling', 'Draping', 'Touch-Up Kit', 'False Lashes', 'Nail Art', 'Family Makeup', 'Pre-Bridal Facial'],
-  Mehendi: ['Bridal Full Hands', 'Bridal Full Feet', 'Guest Mehendi', 'Baby Shower Design', 'Groom Mehendi', 'Touch-Up', 'Glitter Add-On', 'White Mehendi'],
-  'DJ / Music': ['Sound System', 'DJ Console', 'LED Lights', 'Fog Machine', 'Dance Floor', 'Emcee', 'Live Dhol', 'Karaoke', 'Wireless Mics', 'Subwoofer'],
-  Pandit: ['Full Ceremony', 'Havan Setup', 'Muhurat Consultation', 'Ganesh Puja', 'Samagri Included', 'Multi-Language', 'Varmala Ceremony', 'Vidai Rituals'],
-  Invitations: ['Design', 'Printing', 'Box Packaging', 'Digital Version', 'RSVP Tracking', 'Envelope', 'Wax Seal', 'Ribbon', 'Sweet Box', 'Delivery'],
-}
+import { getListingConfig, type SelectField } from '@/lib/vendor-category-config'
 
 export default function VendorEditListing() {
   const { listingId } = useParams<{ listingId: string }>()
@@ -35,15 +11,15 @@ export default function VendorEditListing() {
 
   const listing = vendorListings.find((l) => l.id === listingId)
   const category = listing?.category || vendorProfile?.category || 'Photography'
+  const config = getListingConfig(category)
+  const pr = config.priceRange
 
   const [name, setName] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
   const [style, setStyle] = useState('')
-  const [price, setPrice] = useState(100000)
-  const [capacity, setCapacity] = useState(500)
-  const [coverageHours, setCoverageHours] = useState(8)
-  const [guestCount, setGuestCount] = useState(10)
+  const [price, setPrice] = useState(pr.min)
   const [includes, setIncludes] = useState<string[]>([])
+  const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
 
   useEffect(() => {
     if (listing) {
@@ -51,10 +27,8 @@ export default function VendorEditListing() {
       setPhotos(listing.photos)
       setStyle(listing.style)
       setPrice(listing.price)
-      setCapacity(listing.capacity || 500)
-      setCoverageHours(listing.coverageHours || 8)
-      setGuestCount(listing.guestCount || 10)
       setIncludes(listing.includes)
+      setCategoryFields(listing.categoryFields || {})
     }
   }, [listing])
 
@@ -67,17 +41,6 @@ export default function VendorEditListing() {
     )
   }
 
-  const styles = STYLE_OPTIONS[category] || STYLE_OPTIONS['Photography']
-  const includeOptions = INCLUDE_OPTIONS[category] || INCLUDE_OPTIONS['Photography']
-  const priceRange: Record<string, { min: number; max: number; step: number }> = {
-    Venue: { min: 100000, max: 2000000, step: 50000 }, Catering: { min: 50000, max: 1000000, step: 25000 },
-    Photography: { min: 30000, max: 500000, step: 10000 }, Decor: { min: 50000, max: 800000, step: 25000 },
-    Makeup: { min: 10000, max: 200000, step: 5000 }, Mehendi: { min: 5000, max: 100000, step: 2500 },
-    'DJ / Music': { min: 20000, max: 300000, step: 5000 }, Pandit: { min: 5000, max: 100000, step: 2500 },
-    Invitations: { min: 10000, max: 300000, step: 5000 },
-  }
-  const pr = priceRange[category] || priceRange['Photography']
-
   function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files) {
       const newPhotos = Array.from(e.target.files).map((f) => URL.createObjectURL(f))
@@ -85,17 +48,30 @@ export default function VendorEditListing() {
     }
   }
 
+  function setCategoryField(key: string, value: string | string[]) {
+    setCategoryFields(prev => ({ ...prev, [key]: value }))
+  }
+
+  function toggleMultiField(key: string, value: string) {
+    setCategoryFields(prev => {
+      const current = (prev[key] as string[]) || []
+      const updated = current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+      return { ...prev, [key]: updated }
+    })
+  }
+
   function handleSave() {
     if (!listing) return
     updateListing({
       ...listing,
-      name, photos, style, price, includes,
-      capacity: ['Venue', 'Catering'].includes(category) ? capacity : undefined,
-      coverageHours: ['Photography', 'DJ / Music'].includes(category) ? coverageHours : undefined,
-      guestCount: ['Mehendi', 'Makeup'].includes(category) ? guestCount : undefined,
+      name, photos, style, price, includes, categoryFields,
     })
     navigate('/vendor/listings')
   }
+
+  const priceLabel = category === 'Catering' ? 'Price per plate' : category === 'Invitations' ? 'Price per invite' : 'Price'
 
   return (
     <div className="min-h-dvh bg-white page-enter flex flex-col">
@@ -137,7 +113,7 @@ export default function VendorEditListing() {
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1.5">Style</label>
           <div className="flex flex-wrap gap-1.5">
-            {styles.map((s) => (
+            {config.styles.map((s) => (
               <button key={s} onClick={() => setStyle(s)} className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${style === s ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}>{s}</button>
             ))}
           </div>
@@ -145,50 +121,32 @@ export default function VendorEditListing() {
 
         {/* Price */}
         <div>
-          <label className="text-[11px] font-medium text-dark block mb-1">Price</label>
-          <p className="text-[20px] font-bold text-mustard mb-1">{formatINR(price)}</p>
+          <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
+          <p className="text-[20px] font-bold text-mustard mb-1">{formatINR(price)}{category === 'Catering' ? ' /plate' : category === 'Invitations' ? ' /invite' : ''}</p>
           <input type="range" min={pr.min} max={pr.max} step={pr.step} value={price} onChange={(e) => setPrice(Number(e.target.value))}
             className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
             style={{ background: `linear-gradient(to right, #D4A017 ${((price - pr.min) / (pr.max - pr.min)) * 100}%, #eee ${((price - pr.min) / (pr.max - pr.min)) * 100}%)` }}
           />
         </div>
 
-        {/* Category-specific */}
-        {['Venue', 'Catering'].includes(category) && (
-          <div>
-            <label className="text-[11px] font-medium text-dark block mb-1">Guest capacity: {capacity}</label>
-            <input type="range" min={50} max={2000} step={50} value={capacity} onChange={(e) => setCapacity(Number(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
-              style={{ background: `linear-gradient(to right, #D4A017 ${((capacity - 50) / 1950) * 100}%, #eee ${((capacity - 50) / 1950) * 100}%)` }}
+        {/* Category-specific fields */}
+        {config.steps.map((stepConfig) =>
+          stepConfig.fields.map(field => (
+            <FieldRenderer
+              key={field.key}
+              field={field}
+              value={categoryFields[field.key]}
+              onChange={(val) => setCategoryField(field.key, val)}
+              onToggleMulti={(val) => toggleMultiField(field.key, val)}
             />
-          </div>
-        )}
-        {['Photography', 'DJ / Music'].includes(category) && (
-          <div>
-            <label className="text-[11px] font-medium text-dark block mb-1">Coverage hours</label>
-            <div className="flex gap-2">
-              {[4, 6, 8, 10, 12].map((h) => (
-                <button key={h} onClick={() => setCoverageHours(h)} className={`flex-1 py-2 rounded-xl text-[12px] font-medium ${coverageHours === h ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>{h}h</button>
-              ))}
-            </div>
-          </div>
-        )}
-        {['Mehendi', 'Makeup'].includes(category) && (
-          <div>
-            <label className="text-[11px] font-medium text-dark block mb-1">Covers how many people?</label>
-            <div className="flex gap-2">
-              {[1, 5, 10, 15, 20, 30].map((g) => (
-                <button key={g} onClick={() => setGuestCount(g)} className={`flex-1 py-2 rounded-xl text-[11px] font-medium ${guestCount === g ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>{g === 1 ? 'Bride' : g}</button>
-              ))}
-            </div>
-          </div>
+          ))
         )}
 
         {/* Includes */}
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1.5">What's included ({includes.length})</label>
           <div className="flex flex-wrap gap-2">
-            {includeOptions.map((item) => {
+            {config.inclusions.map((item) => {
               const selected = includes.includes(item)
               return (
                 <button key={item} onClick={() => setIncludes(selected ? includes.filter((i) => i !== item) : [...includes, item])}
@@ -201,4 +159,76 @@ export default function VendorEditListing() {
       </div>
     </div>
   )
+}
+
+/** Reusable field renderer for category-specific selectable fields */
+function FieldRenderer({ field, value, onChange, onToggleMulti }: {
+  field: SelectField
+  value: string | string[] | undefined
+  onChange: (val: string | string[]) => void
+  onToggleMulti: (val: string) => void
+}) {
+  if (field.type === 'slider') {
+    const numVal = typeof value === 'string' ? parseInt(value) || field.sliderMin! : field.sliderMin!
+    return (
+      <div>
+        <label className="text-[12px] font-medium text-dark block mb-1">{field.label}</label>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            min={field.sliderMin} max={field.sliderMax} step={field.sliderStep}
+            value={numVal}
+            onChange={(e) => onChange(e.target.value)}
+            className="flex-1 h-2 rounded-full appearance-none cursor-pointer accent-mustard"
+            style={{ background: `linear-gradient(to right, #D4A017 ${((numVal - field.sliderMin!) / (field.sliderMax! - field.sliderMin!)) * 100}%, #eee ${((numVal - field.sliderMin!) / (field.sliderMax! - field.sliderMin!)) * 100}%)` }}
+          />
+          <span className="text-[13px] font-bold text-dark w-20 text-right">{numVal} {field.sliderUnit}</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (field.type === 'single') {
+    const selected = typeof value === 'string' ? value : ''
+    return (
+      <div>
+        <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
+        <div className="flex flex-wrap gap-1.5">
+          {field.options!.map((opt) => (
+            <button
+              key={opt} onClick={() => onChange(opt)}
+              className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${selected === opt ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (field.type === 'multi') {
+    const selected = Array.isArray(value) ? value : []
+    return (
+      <div>
+        <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
+        <div className="flex flex-wrap gap-1.5">
+          {field.options!.map((opt) => {
+            const isSelected = selected.includes(opt)
+            return (
+              <button
+                key={opt} onClick={() => onToggleMulti(opt)}
+                className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${isSelected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
+              >
+                {isSelected && <span className="mr-0.5">✓ </span>}{opt}
+              </button>
+            )
+          })}
+        </div>
+        {selected.length > 0 && <p className="text-[9px] text-gray-400 mt-1">{selected.length} selected</p>}
+      </div>
+    )
+  }
+
+  return null
 }

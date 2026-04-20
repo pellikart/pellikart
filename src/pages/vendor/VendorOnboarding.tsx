@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage } from '@/lib/vendor-types'
+import { getOnboardingConfig, type SelectField } from '@/lib/vendor-category-config'
 
-const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Other']
+const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
 const TEAM_SIZES = ['Solo', '2-5', '5-10', '10+']
 
@@ -22,9 +23,28 @@ export default function VendorOnboarding() {
   const [description, setDescription] = useState('')
   const [experience, setExperience] = useState('')
   const [teamSize, setTeamSize] = useState('')
-  const totalSteps = 5
+  const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
+
+  // Steps: 1=Welcome, 2=Business Basics, 3=Category-specific, 4=Contact, 5=About, 6=Ready
+  const totalSteps = 6
+  const onboardingConfig = getOnboardingConfig(category)
+
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
   function back() { setStep((s) => Math.max(s - 1, 1)) }
+
+  function setCategoryField(key: string, value: string | string[]) {
+    setCategoryFields(prev => ({ ...prev, [key]: value }))
+  }
+
+  function toggleMultiField(key: string, value: string) {
+    setCategoryFields(prev => {
+      const current = (prev[key] as string[]) || []
+      const updated = current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+      return { ...prev, [key]: updated }
+    })
+  }
 
   function handleGoLive() {
     const profile: VendorProfile = {
@@ -41,6 +61,7 @@ export default function VendorOnboarding() {
       portfolioPhotos: ['/images/gallery/photo/1.jpg', '/images/gallery/photo/2.jpg', '/images/gallery/photo/3.jpg', '/images/gallery/photo/4.jpg', '/images/gallery/photo/5.jpg', '/images/gallery/photo/6.jpg'],
       rating: 4.7,
       profileCompleteness: 85,
+      categoryFields,
     }
     const defaultPackages: VendorPackage[] = [
       { id: 'pkg-0', name: 'Standard Package', price: 120000, features: ['Full coverage', '500 edited photos', '1 album'], capacity: 'Full day' },
@@ -88,7 +109,7 @@ export default function VendorOnboarding() {
                 <label className="text-[12px] font-medium text-dark block mb-1.5">Category</label>
                 <div className="grid grid-cols-2 gap-2">
                   {CATEGORIES.map((c) => (
-                    <button key={c} onClick={() => setCategory(c)} className={`py-2 px-3 rounded-xl text-[11px] font-medium text-left transition-all ${category === c ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>
+                    <button key={c} onClick={() => { setCategory(c); setCategoryFields({}) }} className={`py-2 px-3 rounded-xl text-[11px] font-medium text-left transition-all ${category === c ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>
                       {c}
                     </button>
                   ))}
@@ -110,8 +131,37 @@ export default function VendorOnboarding() {
           </div>
         )}
 
-        {/* Screen 3: Contact */}
+        {/* Screen 3: Category-specific questions */}
         {step === 3 && (
+          <div className="animate-fadeIn">
+            {onboardingConfig ? (
+              <>
+                <h1 className="text-[22px] font-bold text-dark">{onboardingConfig.title}</h1>
+                <p className="text-[12px] text-gray-400 mt-1 mb-5">{onboardingConfig.subtitle}</p>
+                <div className="space-y-5">
+                  {onboardingConfig.fields.map(field => (
+                    <FieldRenderer
+                      key={field.key}
+                      field={field}
+                      value={categoryFields[field.key]}
+                      onChange={(val) => setCategoryField(field.key, val)}
+                      onToggleMulti={(val) => toggleMultiField(field.key, val)}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h1 className="text-[22px] font-bold text-dark">Almost there</h1>
+                <p className="text-[12px] text-gray-400 mt-1">No category-specific details needed. Let's continue.</p>
+              </>
+            )}
+            <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
+          </div>
+        )}
+
+        {/* Screen 4: Contact */}
+        {step === 4 && (
           <div className="animate-fadeIn">
             <h1 className="text-[22px] font-bold text-dark">Contact details</h1>
             <div className="mt-5 space-y-4">
@@ -138,8 +188,8 @@ export default function VendorOnboarding() {
           </div>
         )}
 
-        {/* Screen 4: About */}
-        {step === 4 && (
+        {/* Screen 5: About */}
+        {step === 5 && (
           <div className="animate-fadeIn">
             <h1 className="text-[22px] font-bold text-dark">About your business</h1>
             <div className="mt-5 space-y-4">
@@ -150,7 +200,13 @@ export default function VendorOnboarding() {
               </div>
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1">Years of experience</label>
-                <input type="number" value={experience} onChange={(e) => setExperience(e.target.value)} placeholder="e.g. 5" className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard" />
+                <div className="flex gap-2">
+                  {['1', '2', '3', '5', '7', '10', '15', '20+'].map((y) => (
+                    <button key={y} onClick={() => setExperience(y)} className={`flex-1 py-2.5 rounded-xl text-[11px] font-medium transition-all ${experience === y ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>
+                      {y}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1.5">Team size</label>
@@ -168,8 +224,8 @@ export default function VendorOnboarding() {
           </div>
         )}
 
-        {/* Screen 5: Ready */}
-        {step === 5 && (
+        {/* Screen 6: Ready */}
+        {step === 6 && (
           <div className="animate-fadeIn text-center">
             <div className="text-4xl mb-4">🎉</div>
             <h1 className="text-[22px] font-bold text-dark leading-tight">Your profile is ready!</h1>
@@ -193,6 +249,19 @@ export default function VendorOnboarding() {
                   <p className="text-[12px] font-semibold text-dark mt-0.5">{experience || '5'} years</p>
                 </div>
               </div>
+              {/* Show category-specific selections */}
+              {Object.entries(categoryFields).filter(([, v]) => v && (typeof v === 'string' ? v : v.length > 0)).length > 0 && (
+                <div className="mt-3 pt-3 border-t border-card-border">
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(categoryFields).map(([, v]) => {
+                      const values = typeof v === 'string' ? [v] : v
+                      return values.map((val, i) => (
+                        <span key={`${val}-${i}`} className="bg-mustard-light text-mustard text-[9px] font-medium px-2 py-0.5 rounded-full">{val}</span>
+                      ))
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
             <button onClick={handleGoLive} className="mt-8 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">
               Go live
@@ -202,4 +271,76 @@ export default function VendorOnboarding() {
       </div>
     </div>
   )
+}
+
+/** Reusable field renderer for category-specific selectable fields */
+function FieldRenderer({ field, value, onChange, onToggleMulti }: {
+  field: SelectField
+  value: string | string[] | undefined
+  onChange: (val: string | string[]) => void
+  onToggleMulti: (val: string) => void
+}) {
+  if (field.type === 'slider') {
+    const numVal = typeof value === 'string' ? parseInt(value) || field.sliderMin! : field.sliderMin!
+    return (
+      <div>
+        <label className="text-[12px] font-medium text-dark block mb-1">{field.label}</label>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            min={field.sliderMin} max={field.sliderMax} step={field.sliderStep}
+            value={numVal}
+            onChange={(e) => onChange(e.target.value)}
+            className="flex-1 h-2 rounded-full appearance-none cursor-pointer accent-mustard"
+            style={{ background: `linear-gradient(to right, #D4A017 ${((numVal - field.sliderMin!) / (field.sliderMax! - field.sliderMin!)) * 100}%, #eee ${((numVal - field.sliderMin!) / (field.sliderMax! - field.sliderMin!)) * 100}%)` }}
+          />
+          <span className="text-[13px] font-bold text-dark w-20 text-right">{numVal} {field.sliderUnit}</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (field.type === 'single') {
+    const selected = typeof value === 'string' ? value : ''
+    return (
+      <div>
+        <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
+        <div className="flex flex-wrap gap-1.5">
+          {field.options!.map((opt) => (
+            <button
+              key={opt} onClick={() => onChange(opt)}
+              className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${selected === opt ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (field.type === 'multi') {
+    const selected = Array.isArray(value) ? value : []
+    return (
+      <div>
+        <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
+        <div className="flex flex-wrap gap-1.5">
+          {field.options!.map((opt) => {
+            const isSelected = selected.includes(opt)
+            return (
+              <button
+                key={opt} onClick={() => onToggleMulti(opt)}
+                className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${isSelected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
+              >
+                {isSelected && <span className="mr-0.5">✓ </span>}{opt}
+              </button>
+            )
+          })}
+        </div>
+        {selected.length > 0 && <p className="text-[9px] text-gray-400 mt-1">{selected.length} selected</p>}
+      </div>
+    )
+  }
+
+  return null
 }
