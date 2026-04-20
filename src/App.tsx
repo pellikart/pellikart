@@ -1,10 +1,13 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { useVendorStore } from '@/lib/vendor-store'
+import { AuthProvider, useAuth } from '@/lib/auth-context'
 import LandingPage from './pages/LandingPage'
 import TryAppPage from './pages/TryAppPage'
 import WhyUsPage from './pages/WhyUsPage'
 import RoleSelectPage from './pages/RoleSelectPage'
+import AuthPage from './pages/AuthPage'
 import HomePage from './pages/HomePage'
 import CategoryBoardPage from './pages/CategoryBoardPage'
 import BookingPage from './pages/BookingPage'
@@ -28,9 +31,13 @@ export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
   const { pathname, search } = useLocation()
   const isEmbed = new URLSearchParams(search).has('embed')
 
-  // Live app mode (/app/*) — skip landing pages, go straight to the app
+  // Live app mode (/app/*) — wrap in auth, gate access
   if (isLiveApp) {
-    return <AppRoutes />
+    return (
+      <AuthProvider>
+        <LiveApp />
+      </AuthProvider>
+    )
   }
 
   // Landing page at root, unless embedded in iframe
@@ -48,9 +55,52 @@ export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
     return <WhyUsPage />
   }
 
+  // Demo mode — uses mock data, no auth
+  return <DemoAppRoutes />
+}
+
+/** Live app: requires authentication, will use real Supabase data */
+function LiveApp() {
+  const { user, profile, loading, updateRole } = useAuth()
+
+  // Apply pending role from Google OAuth redirect
+  useEffect(() => {
+    if (!user || !profile) return
+    const pendingRole = localStorage.getItem('pellikart_pending_role')
+    if (pendingRole && (pendingRole === 'couple' || pendingRole === 'vendor')) {
+      if (profile.role !== pendingRole) {
+        updateRole(pendingRole)
+      }
+      localStorage.removeItem('pellikart_pending_role')
+    }
+  }, [user, profile, updateRole])
+
+  if (loading) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-3">
+          <img src="/logo.png" alt="Pellikart" className="w-14 h-14 rounded-xl object-cover animate-pulse" />
+          <p className="text-[13px] text-gray-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Not logged in — show auth screen
+  if (!user) {
+    return <AuthPage />
+  }
+
+  // Logged in — show the app with real data
+  // For now, this uses the same mock-data routes as the demo.
+  // Phase 2+ will swap these to use Supabase-backed stores.
   return <AppRoutes />
 }
 
+/** Demo app routes — mock data, no auth required */
+const DemoAppRoutes = AppRoutes
+
+/** Shared app routes (used by both demo and live app for now) */
 function AppRoutes() {
   const { role, onboardingComplete } = useStore()
   const { vendorOnboardingComplete } = useVendorStore()
