@@ -30,17 +30,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function fetchProfile(userId: string) {
     if (!supabase) return null
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, role, subscription_tier')
-      .eq('id', userId)
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, role, subscription_tier')
+        .eq('id', userId)
+        .single()
 
-    if (error) {
-      console.error('[auth] Failed to fetch profile:', error.message)
+      if (error) {
+        console.error('[auth] Failed to fetch profile:', error.message)
+        return null
+      }
+      console.log('[auth] Profile loaded:', data)
+      return data as Profile
+    } catch (err) {
+      console.error('[auth] Profile fetch threw:', err)
       return null
     }
-    return data as Profile
   }
 
   useEffect(() => {
@@ -49,54 +55,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // Safety timeout — never stay on loading screen forever
-    const timeout = setTimeout(() => {
-      console.warn('[auth] Timed out — clearing loading state')
-      setLoading(false)
-    }, 4000)
-
     // Listen for auth changes (catches OAuth callback + initial session)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, s) => {
+      (event, s) => {
         console.log('[auth] event:', event, s?.user?.email ?? 'no user')
         setSession(s)
         setUser(s?.user ?? null)
-
-        if (s?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
-          const p = await fetchProfile(s.user.id)
-          setProfile(p)
-        }
 
         if (event === 'SIGNED_OUT') {
           setProfile(null)
         }
 
-        clearTimeout(timeout)
+        // Clear loading immediately when we know the auth state.
+        // Profile is fetched in the background — the app can render
+        // without it (we have the user object).
         setLoading(false)
+
+        // Fetch profile in background (non-blocking)
+        if (s?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+          fetchProfile(s.user.id).then(p => setProfile(p))
+        }
       }
     )
 
-    // Also check for existing session directly
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      console.log('[auth] getSession:', s?.user?.email ?? 'no session')
-      setSession(s)
-      setUser(s?.user ?? null)
-      if (s?.user) {
-        const p = await fetchProfile(s.user.id)
-        setProfile(p)
-      }
-      clearTimeout(timeout)
-      setLoading(false)
-    }).catch((err) => {
-      console.error('[auth] getSession error:', err)
-      clearTimeout(timeout)
-      setLoading(false)
-    })
-
-    return () => {
-      clearTimeout(timeout)
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
   async function signOut() {
