@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
 import { formatINR } from '@/lib/helpers'
-import { getListingConfig, type SelectField } from '@/lib/vendor-category-config'
+import { getListingConfig, RITUALS, type SelectField } from '@/lib/vendor-category-config'
 
 export default function VendorAddListing() {
   const navigate = useNavigate()
@@ -17,11 +17,12 @@ export default function VendorAddListing() {
   const [style, setStyle] = useState('')
   const [price, setPrice] = useState(config.priceRange.min + Math.floor((config.priceRange.max - config.priceRange.min) / 3))
   const [includes, setIncludes] = useState<string[]>([])
+  const [rituals, setRituals] = useState<string[]>([])
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
 
-  // Steps: 1=Photos & Name, 2..N=Category-specific steps, N+1=Style & Price, N+2=Inclusions, N+3=Review
+  // Steps: 1=Photos & Name, 2=Rituals, 3..N=Category-specific steps, N+1=Style & Price, N+2=Inclusions, N+3=Review
   const categoryStepCount = config.steps.length
-  const stylePriceStep = 2 + categoryStepCount
+  const stylePriceStep = 3 + categoryStepCount
   const inclusionsStep = stylePriceStep + 1
   const reviewStep = inclusionsStep + 1
   const totalSteps = reviewStep
@@ -53,6 +54,10 @@ export default function VendorAddListing() {
     })
   }
 
+  function toggleRitual(r: string) {
+    setRituals(prev => prev.includes(r) ? prev.filter(v => v !== r) : [...prev, r])
+  }
+
   function handlePublish() {
     const listing: VendorListing = {
       id: `vl-${Date.now()}`,
@@ -61,6 +66,7 @@ export default function VendorAddListing() {
       category,
       price,
       style,
+      rituals,
       categoryFields,
       includes,
       createdAt: new Date().toISOString().split('T')[0],
@@ -142,9 +148,38 @@ export default function VendorAddListing() {
           </div>
         )}
 
+        {/* Step 2: Rituals / Events */}
+        {step === 2 && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">Which events is this for?</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Select all the rituals/events where couples can use this listing. This helps us match you with the right couples.</p>
+
+            <div className="flex flex-wrap gap-2">
+              {RITUALS.map((r) => {
+                const selected = rituals.includes(r)
+                return (
+                  <button
+                    key={r} onClick={() => toggleRitual(r)}
+                    className={`py-2.5 px-4 rounded-xl text-[12px] font-medium transition-all ${selected ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-500'}`}
+                  >
+                    {selected && <span className="mr-1">✓</span>}{r}
+                  </button>
+                )
+              })}
+            </div>
+
+            {rituals.length > 0 && <p className="text-[9px] text-gray-400 mt-3">{rituals.length} selected</p>}
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              <button onClick={() => setStep(3)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
+            </div>
+          </div>
+        )}
+
         {/* Category-specific steps */}
         {config.steps.map((stepConfig, idx) => {
-          const stepNum = 2 + idx
+          const stepNum = 3 + idx
           if (step !== stepNum) return null
           return (
             <div key={stepNum} className="animate-fadeIn">
@@ -256,6 +291,15 @@ export default function VendorAddListing() {
                 <p className="text-[14px] font-bold text-dark">{name || `${category} Listing`}</p>
                 <p className="text-[10px] text-gray-400 mt-0.5">{style || 'No style selected'} · {vendorProfile?.area}</p>
                 <p className="text-[16px] font-bold text-mustard mt-1">{formatINR(price)}{category === 'Catering' ? ' /plate' : category === 'Invitations' ? ' /invite' : ''}</p>
+
+                {/* Rituals */}
+                {rituals.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {rituals.map((r, i) => (
+                      <span key={i} className="bg-magenta-light text-magenta text-[8px] font-medium px-1.5 py-0.5 rounded-full">{r}</span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Category-specific details */}
                 {Object.entries(categoryFields).filter(([, v]) => v && (typeof v === 'string' ? v : v.length > 0)).length > 0 && (

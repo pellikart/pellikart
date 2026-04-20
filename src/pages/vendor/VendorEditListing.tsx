@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { formatINR } from '@/lib/helpers'
-import { getListingConfig, type SelectField } from '@/lib/vendor-category-config'
+import { getListingConfig, RITUALS, type SelectField } from '@/lib/vendor-category-config'
 
 export default function VendorEditListing() {
   const { listingId } = useParams<{ listingId: string }>()
@@ -19,6 +19,7 @@ export default function VendorEditListing() {
   const [style, setStyle] = useState('')
   const [price, setPrice] = useState(pr.min)
   const [includes, setIncludes] = useState<string[]>([])
+  const [rituals, setRituals] = useState<string[]>([])
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function VendorEditListing() {
       setStyle(listing.style)
       setPrice(listing.price)
       setIncludes(listing.includes)
+      setRituals(listing.rituals || [])
       setCategoryFields(listing.categoryFields || {})
     }
   }, [listing])
@@ -62,11 +64,15 @@ export default function VendorEditListing() {
     })
   }
 
+  function toggleRitual(r: string) {
+    setRituals(prev => prev.includes(r) ? prev.filter(v => v !== r) : [...prev, r])
+  }
+
   function handleSave() {
     if (!listing) return
     updateListing({
       ...listing,
-      name, photos, style, price, includes, categoryFields,
+      name, photos, style, price, rituals, includes, categoryFields,
     })
     navigate('/vendor/listings')
   }
@@ -88,6 +94,21 @@ export default function VendorEditListing() {
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1">Listing name</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard" />
+        </div>
+
+        {/* Rituals */}
+        <div>
+          <label className="text-[11px] font-medium text-dark block mb-1.5">Events this listing is for</label>
+          <div className="flex flex-wrap gap-1.5">
+            {RITUALS.map((r) => {
+              const selected = rituals.includes(r)
+              return (
+                <button key={r} onClick={() => toggleRitual(r)}
+                  className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${selected ? 'bg-magenta text-white' : 'bg-empty-bg text-gray-600'}`}
+                >{selected && '✓ '}{r}</button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Photos */}

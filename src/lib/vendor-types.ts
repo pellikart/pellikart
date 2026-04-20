@@ -48,6 +48,8 @@ export interface VendorListing {
   category: string
   price: number
   style: string
+  /** Which rituals/events this listing is suitable for */
+  rituals?: string[]
   /** Category-specific selectable field values (key → selected value(s)) */
   categoryFields?: Record<string, string | string[]>
   includes: string[]
