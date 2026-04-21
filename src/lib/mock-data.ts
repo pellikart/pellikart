@@ -17,7 +17,7 @@ const categoryVendorPrefix: Record<string, string> = {
   "Invitations": "v-invite",
 };
 
-function getCategoriesForEvent(eventName: string): string[] {
+export function getCategoriesForEvent(eventName: string): string[] {
   const lower = eventName.toLowerCase();
   if (lower === 'mehendi') return ["Venue", "Catering", "Mehendi", "Photography", "Decor"];
   if (lower === 'sangeeth') return ["Venue", "Catering", "DJ / Music", "Photography", "Decor"];
@@ -29,7 +29,7 @@ function getCategoriesForEvent(eventName: string): string[] {
 }
 
 // Rough weight per category (venue/catering are expensive, others less)
-const categoryWeight: Record<string, number> = {
+export const categoryWeight: Record<string, number> = {
   "Venue": 0.30, "Catering": 0.25, "Decor": 0.15, "Photography": 0.10,
   "Makeup": 0.05, "DJ / Music": 0.05, "Mehendi": 0.03, "Pandit": 0.02,
   "Invitations": 0.05,

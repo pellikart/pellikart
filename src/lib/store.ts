@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard } from "./types";
-import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns } from "./mock-data";
+import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
 import {
   fetchCouple, upsertCouple,
   fetchRitualBoards, insertRitualBoard,
@@ -141,57 +141,133 @@ export const useStore = create<AppState & LiveModeState & {
     const { _liveMode, _userId } = get()
 
     if (_liveMode && _userId) {
-      // Generate boards from onboarding
-      const boards = generateBoardsFromOnboarding(data)
+      // Show onboarding complete immediately with empty boards
+      const placeholderBoards = generateBoardsFromOnboarding(data)
+      set({ onboardingComplete: true, onboardingData: data, ritualBoards: placeholderBoards })
 
-      // Save couple + boards to Supabase in background
-      upsertCouple(_userId, data).then(async (coupleData) => {
+      // Fetch live listings, build vendor map, pre-populate boards, then save to DB
+      Promise.all([fetchAllLiveVendors(), fetchAllListings()]).then(async ([liveVendors, listings]) => {
+        // Build vendor map from live listings
+        const vendorMap: Record<string, typeof mockVendors[string]> = {}
+        const lvMap: Record<string, string> = {}
+        const categoryCounts: Record<string, number> = {}
+
+        for (const l of listings) {
+          const parentVendor = liveVendors.find((v: Record<string, unknown>) => v.id === l.vendor_id)
+          const cat = (l.category as string) || ''
+          categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+          const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
+          if (l.vendor_id) lvMap[l.id] = l.vendor_id as string
+          vendorMap[l.id] = {
+            id: l.id, code, name: parentVendor?.business_name || l.name,
+            photo: (l.photos as string[])?.[0] || '', style: l.style || '',
+            area: parentVendor?.area || '', price: l.price,
+            rating: parentVendor?.rating || 0,
+            packageTier: (l.includes as string[])?.slice(0, 4).join(' · ') || '',
+            likes: [], booked: false, amountPaid: 0,
+          }
+        }
+
+        // Pre-populate boards with live vendors (same logic as demo)
+        const allEvents = [...data.events, ...data.customEvents]
+        const eventWeights: Record<string, number> = {}
+        let totalWeight = 0
+        for (const e of allEvents) {
+          const lower = e.toLowerCase()
+          const w = lower.includes('pelli') && lower.includes('wedding') ? 2.5 : lower === 'reception' ? 1.5 : 1
+          eventWeights[e] = w
+          totalWeight += w
+        }
+
+        const boards: RitualBoard[] = allEvents.map((eventName) => {
+          const id = `r-${eventName.toLowerCase().replace(/\s+/g, "-")}`
+          const dateInfo = data.eventDates[eventName]
+          const categories = getCategoriesForEvent(eventName)
+          const eventBudget = data.budget * (eventWeights[eventName] / totalWeight)
+          const totalCatWeight = categories.reduce((sum, c) => sum + (categoryWeight[c] || 0.05), 0)
+
+          const cats = categories.map((label) => {
+            const weight = categoryWeight[label] || 0.05
+            const catBudget = eventBudget * (weight / totalCatWeight)
+
+            // Find live listings matching this category + ritual
+            const matchingListings = listings.filter(l =>
+              (l.category as string) === label &&
+              ((l.rituals as string[]) || []).some(r =>
+                r.toLowerCase() === eventName.toLowerCase() ||
+                r.toLowerCase().includes(eventName.toLowerCase().split(' ')[0])
+              )
+            )
+
+            // Fall back to any listing in this category if no ritual match
+            const pool = matchingListings.length > 0
+              ? matchingListings
+              : listings.filter(l => (l.category as string) === label)
+
+            // Pick best vendor within budget
+            let selectedId: string | null = null
+            let shortlisted: string[] = []
+
+            if (pool.length > 0) {
+              const sorted = [...pool].sort((a, b) => (a.price as number) - (b.price as number))
+              const affordable = sorted.filter(l => (l.price as number) <= catBudget)
+              const best = affordable.length > 0 ? affordable : [sorted[0]]
+              const byPriceDesc = [...best].sort((a, b) => (b.price as number) - (a.price as number))
+              selectedId = byPriceDesc[0].id
+              shortlisted = byPriceDesc.slice(0, Math.min(3, byPriceDesc.length)).map(l => l.id)
+            }
+
+            return {
+              id: `${id}-c-${label.toLowerCase().replace(/[\s\/]+/g, "-")}`,
+              label,
+              selectedVendorId: selectedId,
+              shortlistedVendorIds: shortlisted,
+              suggestedVendors: [] as { vendorId: string; suggestedBy: string }[],
+              removed: false,
+            }
+          })
+
+          return { id, name: eventName, dateStart: dateInfo?.start, dateEnd: dateInfo?.end !== dateInfo?.start ? dateInfo?.end : undefined, categories: cats }
+        })
+
+        // If we have live vendors, use them; otherwise fall back to demo-style
+        if (Object.keys(vendorMap).length > 0) {
+          set({ vendors: vendorMap, _listingVendorMap: lvMap, ritualBoards: boards })
+        } else {
+          // No live vendors — use mock data so boards still look populated
+          const mockBoards = generateBoardsFromOnboarding(data)
+          const scale = getVendorPriceScale(mockBoards, data.budget)
+          const scaledVendors = cloneVendors()
+          for (const key of Object.keys(scaledVendors)) {
+            scaledVendors[key].price = Math.round(scaledVendors[key].price * scale)
+          }
+          for (const design of mockDesigns) {
+            const parentVendor = scaledVendors[design.vendorId] || mockVendors[design.vendorId]
+            scaledVendors[design.id] = {
+              id: design.id, code: design.name,
+              name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
+              photo: design.photo, style: design.style,
+              area: parentVendor?.area || '', capacity: parentVendor?.capacity,
+              price: Math.round(design.price * scale), rating: design.rating,
+              packageTier: design.description, likes: [], booked: false, amountPaid: 0,
+            }
+          }
+          set({ vendors: scaledVendors, ritualBoards: mockBoards })
+        }
+
+        // Save to Supabase in background
+        const coupleData = await upsertCouple(_userId!, data)
         if (coupleData) {
           set({ _coupleDbId: coupleData.id })
-          // Insert boards
-          for (let i = 0; i < boards.length; i++) {
-            await insertRitualBoard(coupleData.id, boards[i], i)
+          const currentBoards = get().ritualBoards
+          for (let i = 0; i < currentBoards.length; i++) {
+            await insertRitualBoard(coupleData.id, currentBoards[i], i)
           }
-          // Re-fetch boards to get DB IDs
           const dbBoards = await fetchRitualBoards(coupleData.id)
           if (dbBoards.length > 0) {
             set({ ritualBoards: dbBoards })
           }
         }
-      })
-
-      // Fetch live vendors for the explore feed
-      fetchAllLiveVendors().then(liveVendors => {
-        fetchAllListings().then(listings => {
-          const vendorMap: Record<string, typeof mockVendors[string]> = {}
-          const lvMap: Record<string, string> = {}
-          const categoryCounts: Record<string, number> = {}
-          for (const l of listings) {
-            const parentVendor = liveVendors.find((v: Record<string, unknown>) => v.id === l.vendor_id)
-            const cat = (l.category as string) || ''
-            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
-            const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
-            if (l.vendor_id) lvMap[l.id] = l.vendor_id as string
-            vendorMap[l.id] = {
-              id: l.id, code, name: parentVendor?.business_name || l.name,
-              photo: (l.photos as string[])?.[0] || '', style: l.style || '',
-              area: parentVendor?.area || '', price: l.price,
-              rating: parentVendor?.rating || 0,
-              packageTier: (l.includes as string[])?.slice(0, 4).join(' · ') || '',
-              likes: [], booked: false, amountPaid: 0,
-            }
-          }
-          if (Object.keys(vendorMap).length > 0) {
-            set({ vendors: vendorMap, _listingVendorMap: lvMap })
-          }
-        })
-      })
-
-      set({
-        onboardingComplete: true,
-        onboardingData: data,
-        ritualBoards: boards, // Use local boards until DB IDs arrive
-        // Keep existing vendors — live vendor fetch will override when ready
       })
     } else {
       // Demo mode — use mock data
