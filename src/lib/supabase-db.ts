@@ -338,6 +338,187 @@ export async function deletePhoto(publicUrl: string): Promise<void> {
   await supabase.storage.from('vendor-photos').remove([match[1]])
 }
 
+// ─── ANALYTICS TRACKING ─────────────────────
+
+export type AnalyticsEventType =
+  | 'explore_impression' | 'detail_view' | 'profile_view' | 'compare_view'
+  | 'shortlist_add' | 'shortlist_remove' | 'like' | 'unlike'
+  | 'suggest' | 'trial_request' | 'vendor_select' | 'booking'
+
+/**
+ * Fire-and-forget analytics event. Never blocks UI.
+ * vendorId = the vendors table UUID (not a listing ID).
+ */
+export function trackEvent(
+  vendorId: string,
+  eventType: AnalyticsEventType,
+  actorId?: string | null,
+  listingId?: string | null,
+  metadata?: Record<string, unknown>
+) {
+  if (!supabase) return
+  supabase
+    .from('analytics_events')
+    .insert({
+      vendor_id: vendorId,
+      listing_id: listingId || null,
+      actor_id: actorId || null,
+      event_type: eventType,
+      metadata: metadata || {},
+    })
+    .then(({ error }) => {
+      if (error) console.warn('[analytics] event failed:', error.message)
+    })
+}
+
+/** Batch-track impressions for multiple vendors at once */
+export function trackImpressions(
+  vendorIds: string[],
+  actorId?: string | null,
+  metadata?: Record<string, unknown>
+) {
+  if (!supabase || vendorIds.length === 0) return
+  const rows = vendorIds.map(vid => ({
+    vendor_id: vid,
+    actor_id: actorId || null,
+    event_type: 'explore_impression' as const,
+    metadata: metadata || {},
+  }))
+  supabase.from('analytics_events').insert(rows).then(({ error }) => {
+    if (error) console.warn('[analytics] batch impression failed:', error.message)
+  })
+}
+
+// ─── ANALYTICS QUERIES (for vendor dashboard) ─
+
+export interface AnalyticsSummary {
+  totalImpressions: number
+  totalDetailViews: number
+  totalProfileViews: number
+  totalCompareViews: number
+  totalShortlists: number
+  totalLikes: number
+  totalTrialRequests: number
+  totalSelections: number
+  totalBookings: number
+}
+
+export interface DailyCount {
+  date: string
+  impressions: number
+  detailViews: number
+}
+
+export interface ListingPerformance {
+  listingId: string
+  listingName: string
+  views: number
+  shortlists: number
+}
+
+export async function fetchAnalyticsSummary(vendorId: string): Promise<AnalyticsSummary> {
+  const empty: AnalyticsSummary = {
+    totalImpressions: 0, totalDetailViews: 0, totalProfileViews: 0,
+    totalCompareViews: 0, totalShortlists: 0, totalLikes: 0,
+    totalTrialRequests: 0, totalSelections: 0, totalBookings: 0,
+  }
+  if (!supabase) return empty
+
+  const { data } = await supabase
+    .from('analytics_events')
+    .select('event_type')
+    .eq('vendor_id', vendorId)
+
+  if (!data) return empty
+
+  for (const row of data) {
+    switch (row.event_type) {
+      case 'explore_impression': empty.totalImpressions++; break
+      case 'detail_view': empty.totalDetailViews++; break
+      case 'profile_view': empty.totalProfileViews++; break
+      case 'compare_view': empty.totalCompareViews++; break
+      case 'shortlist_add': empty.totalShortlists++; break
+      case 'like': empty.totalLikes++; break
+      case 'trial_request': empty.totalTrialRequests++; break
+      case 'vendor_select': empty.totalSelections++; break
+      case 'booking': empty.totalBookings++; break
+    }
+  }
+  return empty
+}
+
+/** Get daily impression + detail view counts for the last N days */
+export async function fetchDailyViews(vendorId: string, days: number = 30): Promise<DailyCount[]> {
+  if (!supabase) return []
+
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+
+  const { data } = await supabase
+    .from('analytics_events')
+    .select('event_type, created_at')
+    .eq('vendor_id', vendorId)
+    .in('event_type', ['explore_impression', 'detail_view'])
+    .gte('created_at', since.toISOString())
+    .order('created_at')
+
+  if (!data) return []
+
+  // Group by date
+  const map: Record<string, DailyCount> = {}
+  for (let d = 0; d < days; d++) {
+    const date = new Date(since)
+    date.setDate(date.getDate() + d)
+    const key = date.toISOString().split('T')[0]
+    map[key] = { date: key, impressions: 0, detailViews: 0 }
+  }
+
+  for (const row of data) {
+    const key = (row.created_at as string).split('T')[0]
+    if (!map[key]) map[key] = { date: key, impressions: 0, detailViews: 0 }
+    if (row.event_type === 'explore_impression') map[key].impressions++
+    else if (row.event_type === 'detail_view') map[key].detailViews++
+  }
+
+  return Object.values(map).sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/** Get view counts per listing */
+export async function fetchListingPerformance(vendorId: string): Promise<ListingPerformance[]> {
+  if (!supabase) return []
+
+  const { data: events } = await supabase
+    .from('analytics_events')
+    .select('listing_id, event_type')
+    .eq('vendor_id', vendorId)
+    .not('listing_id', 'is', null)
+    .in('event_type', ['detail_view', 'shortlist_add'])
+
+  const { data: listings } = await supabase
+    .from('vendor_listings')
+    .select('id, name')
+    .eq('vendor_id', vendorId)
+
+  if (!events || !listings) return []
+
+  const nameMap: Record<string, string> = {}
+  for (const l of listings) nameMap[l.id] = l.name
+
+  const perfMap: Record<string, ListingPerformance> = {}
+  for (const l of listings) {
+    perfMap[l.id] = { listingId: l.id, listingName: l.name, views: 0, shortlists: 0 }
+  }
+
+  for (const e of events) {
+    const lid = e.listing_id as string
+    if (!perfMap[lid]) perfMap[lid] = { listingId: lid, listingName: nameMap[lid] || 'Unknown', views: 0, shortlists: 0 }
+    if (e.event_type === 'detail_view') perfMap[lid].views++
+    else if (e.event_type === 'shortlist_add') perfMap[lid].shortlists++
+  }
+
+  return Object.values(perfMap)
+}
+
 // ─── ALL LIVE VENDORS (for couple explore) ──
 
 export async function fetchAllLiveVendors() {

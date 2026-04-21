@@ -6,6 +6,7 @@ import {
   fetchRitualBoards, insertRitualBoard,
   updateBoardCategory, updateBoardDatesDb,
   fetchAllLiveVendors, fetchAllListings,
+  trackEvent,
 } from "./supabase-db";
 
 function cloneVendors() {
@@ -37,6 +38,8 @@ interface LiveModeState {
   _liveMode: boolean
   _userId: string | null
   _coupleDbId: string | null
+  /** Maps listing UUID → vendor UUID (for analytics tracking) */
+  _listingVendorMap: Record<string, string>
 }
 
 export const useStore = create<AppState & LiveModeState & {
@@ -46,6 +49,7 @@ export const useStore = create<AppState & LiveModeState & {
   _liveMode: false,
   _userId: null,
   _coupleDbId: null,
+  _listingVendorMap: {},
 
   // App state
   role: 'none',
@@ -89,15 +93,17 @@ export const useStore = create<AppState & LiveModeState & {
 
         // Build vendor map from live data
         const vendorMap: Record<string, typeof mockVendors[string]> = {}
+        const lvMap: Record<string, string> = {} // listing → vendor mapping
         const categoryCounts: Record<string, number> = {}
 
         // Map listings as the primary vendor entries (each listing = one browsable option)
         for (const l of listings) {
-          // Find the parent vendor for area info
           const parentVendor = liveVendors.find((v: Record<string, unknown>) => v.id === l.vendor_id)
           const cat = (l.category as string) || ''
           categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
           const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
+
+          if (l.vendor_id) lvMap[l.id] = l.vendor_id as string
 
           vendorMap[l.id] = {
             id: l.id,
@@ -117,6 +123,7 @@ export const useStore = create<AppState & LiveModeState & {
 
         set({
           _coupleDbId: couple.id,
+          _listingVendorMap: lvMap,
           onboardingComplete: true,
           onboardingData: onboardingData,
           ritualBoards: boards.length > 0 ? boards : [],
@@ -157,12 +164,14 @@ export const useStore = create<AppState & LiveModeState & {
       fetchAllLiveVendors().then(liveVendors => {
         fetchAllListings().then(listings => {
           const vendorMap: Record<string, typeof mockVendors[string]> = {}
+          const lvMap: Record<string, string> = {}
           const categoryCounts: Record<string, number> = {}
           for (const l of listings) {
             const parentVendor = liveVendors.find((v: Record<string, unknown>) => v.id === l.vendor_id)
             const cat = (l.category as string) || ''
             categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
             const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
+            if (l.vendor_id) lvMap[l.id] = l.vendor_id as string
             vendorMap[l.id] = {
               id: l.id, code, name: parentVendor?.business_name || l.name,
               photo: (l.photos as string[])?.[0] || '', style: l.style || '',
@@ -173,7 +182,7 @@ export const useStore = create<AppState & LiveModeState & {
             }
           }
           if (Object.keys(vendorMap).length > 0) {
-            set({ vendors: vendorMap })
+            set({ vendors: vendorMap, _listingVendorMap: lvMap })
           }
         })
       })
@@ -220,7 +229,7 @@ export const useStore = create<AppState & LiveModeState & {
   getMaxTrials: () => maxTrialsForTier(get().subscription),
 
   selectVendor: (ritualId, categoryId, vendorId) => {
-    const { _liveMode } = get()
+    const { _liveMode, _userId, _listingVendorMap } = get()
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
@@ -230,11 +239,13 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       updateBoardCategory(categoryId, { selectedVendorId: vendorId })
+      const vid = _listingVendorMap[vendorId]
+      if (vid) trackEvent(vid, 'vendor_select', _userId, vendorId)
     }
   },
 
   addToShortlist: (ritualId, categoryId, vendorId) => {
-    const { _liveMode } = get()
+    const { _liveMode, _userId, _listingVendorMap } = get()
     let newList: string[] = []
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
@@ -251,11 +262,13 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode && newList.length > 0) {
       updateBoardCategory(categoryId, { shortlistedVendorIds: newList })
+      const vid = _listingVendorMap[vendorId]
+      if (vid) trackEvent(vid, 'shortlist_add', _userId, vendorId)
     }
   },
 
   removeFromShortlist: (ritualId, categoryId, vendorId) => {
-    const { _liveMode } = get()
+    const { _liveMode, _userId, _listingVendorMap } = get()
     let newList: string[] = []
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
@@ -272,18 +285,24 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       updateBoardCategory(categoryId, { shortlistedVendorIds: newList, selectedVendorId: undefined })
+      const vid = _listingVendorMap[vendorId]
+      if (vid) trackEvent(vid, 'shortlist_remove', _userId, vendorId)
     }
   },
 
-  toggleLike: (vendorId, userName, userId) =>
-    set((s) => {
-      const vendor = s.vendors[vendorId];
-      if (!vendor) return s;
-      const alreadyLiked = vendor.likes.some((l) => l.userId === userId);
-      return {
-        vendors: { ...s.vendors, [vendorId]: { ...vendor, likes: alreadyLiked ? vendor.likes.filter((l) => l.userId !== userId) : [...vendor.likes, { userId, name: userName }] } },
-      };
-    }),
+  toggleLike: (vendorId, userName, userId) => {
+    const { _liveMode, _userId, _listingVendorMap } = get()
+    const vendor = get().vendors[vendorId]
+    if (!vendor) return
+    const alreadyLiked = vendor.likes.some((l) => l.userId === userId)
+    set((s) => ({
+      vendors: { ...s.vendors, [vendorId]: { ...vendor, likes: alreadyLiked ? vendor.likes.filter((l) => l.userId !== userId) : [...vendor.likes, { userId, name: userName }] } },
+    }))
+    if (_liveMode) {
+      const vid = _listingVendorMap[vendorId]
+      if (vid) trackEvent(vid, alreadyLiked ? 'unlike' : 'like', _userId, vendorId)
+    }
+  },
 
   removeCategory: (ritualId, categoryId) => {
     const { _liveMode } = get()
@@ -299,11 +318,17 @@ export const useStore = create<AppState & LiveModeState & {
     }
   },
 
-  bookVendor: (vendorId, amount) =>
+  bookVendor: (vendorId, amount) => {
+    const { _liveMode, _userId, _listingVendorMap } = get()
     set((s) => ({
       vendors: { ...s.vendors, [vendorId]: { ...s.vendors[vendorId], booked: true, amountPaid: amount } },
       milestoneProgress: { ...s.milestoneProgress, [vendorId]: 1 },
-    })),
+    }))
+    if (_liveMode) {
+      const vid = _listingVendorMap[vendorId]
+      if (vid) trackEvent(vid, 'booking', _userId, vendorId, { amount })
+    }
+  },
 
   bookAllVendors: (ritualId) => {
     const state = get();
@@ -368,7 +393,8 @@ export const useStore = create<AppState & LiveModeState & {
     }
   },
 
-  requestTrial: (ritualId, categoryId, vendorId, date, time) =>
+  requestTrial: (ritualId, categoryId, vendorId, date, time) => {
+    const { _liveMode, _userId, _listingVendorMap } = get()
     set((s) => {
       const catKey = `${ritualId}-${categoryId}`;
       const trialKey = `${ritualId}-${categoryId}-${vendorId}`;
@@ -396,7 +422,12 @@ export const useStore = create<AppState & LiveModeState & {
         },
         trialsUsed: { ...s.trialsUsed, [catKey]: used + 1 },
       };
-    }),
+    })
+    if (_liveMode) {
+      const vid = _listingVendorMap[vendorId]
+      if (vid) trackEvent(vid, 'trial_request', _userId, vendorId)
+    }
+  },
 
   acceptTrial: (ritualId, categoryId, vendorId) =>
     set((s) => {

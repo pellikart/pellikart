@@ -1,10 +1,11 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatINR, bgStyle } from '@/lib/helpers'
 import { Vendor, Design } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
+import { trackEvent, trackImpressions } from '@/lib/supabase-db'
 
 export default function CategoryBoardPage() {
   const { ritualId, categoryId } = useParams<{ ritualId: string; categoryId: string }>()
@@ -44,6 +45,9 @@ export default function CategoryBoardPage() {
     )
   }
 
+  const { _liveMode, _userId, _listingVendorMap } = useStore()
+  const impressionsFired = useRef(false)
+
   const shortlisted = category.shortlistedVendorIds
     .map((id) => vendors[id])
     .filter(Boolean)
@@ -56,6 +60,26 @@ export default function CategoryBoardPage() {
   const suggestedVendors = category.suggestedVendors
     .map((s) => ({ ...(vendors[s.vendorId] || mockVendors[s.vendorId]), suggestedBy: s.suggestedBy }))
     .filter((s) => s.id)
+
+  // Track explore impressions (fire once per page load)
+  useEffect(() => {
+    if (!_liveMode || impressionsFired.current) return
+    const allVendorIds = [...shortlisted.map(v => v.id), ...exploreDesigns.map(d => d.id)]
+    const vendorDbIds = allVendorIds
+      .map(id => _listingVendorMap[id])
+      .filter(Boolean)
+    if (vendorDbIds.length > 0) {
+      trackImpressions([...new Set(vendorDbIds)], _userId, { category: category.label, ritual: board.name })
+      impressionsFired.current = true
+    }
+  }, [_liveMode, shortlisted, exploreDesigns, _listingVendorMap, _userId, category.label, board.name])
+
+  // Track detail view when a vendor detail is opened
+  useEffect(() => {
+    if (!_liveMode || !detailVendorId) return
+    const vid = _listingVendorMap[detailVendorId]
+    if (vid) trackEvent(vid, 'detail_view', _userId, detailVendorId, { category: category.label })
+  }, [detailVendorId, _liveMode, _listingVendorMap, _userId, category.label])
 
   let ritualTotal = 0
   for (const cat of board.categories) {
