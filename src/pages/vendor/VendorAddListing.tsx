@@ -4,21 +4,24 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
 import { formatINR } from '@/lib/helpers'
 import { getListingConfig, RITUALS, type SelectField } from '@/lib/vendor-category-config'
+import { uploadPhotos } from '@/lib/supabase-db'
 
 export default function VendorAddListing() {
   const navigate = useNavigate()
-  const { vendorProfile, addListing } = useVendorStore()
+  const { vendorProfile, addListing, _vendorDbId, _liveMode } = useVendorStore()
   const category = vendorProfile?.category || 'Photography'
   const config = getListingConfig(category)
 
   const [step, setStep] = useState(1)
   const [name, setName] = useState('')
-  const [photos, setPhotos] = useState<string[]>([])
+  const [photoFiles, setPhotoFiles] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [style, setStyle] = useState('')
   const [price, setPrice] = useState(config.priceRange.min + Math.floor((config.priceRange.max - config.priceRange.min) / 3))
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
+  const [publishing, setPublishing] = useState(false)
 
   // Steps: 1=Photos & Name, 2=Rituals, 3..N=Category-specific steps, N+1=Style & Price, N+2=Inclusions, N+3=Review
   const categoryStepCount = config.steps.length
@@ -31,8 +34,10 @@ export default function VendorAddListing() {
 
   function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files) {
-      const newPhotos = Array.from(e.target.files).map((f) => URL.createObjectURL(f))
-      setPhotos((prev) => [...prev, ...newPhotos].slice(0, 10))
+      const files = Array.from(e.target.files)
+      setPhotoFiles(prev => [...prev, ...files].slice(0, 10))
+      const previews = files.map(f => URL.createObjectURL(f))
+      setPhotoPreviews(prev => [...prev, ...previews].slice(0, 10))
     }
   }
 
@@ -58,11 +63,20 @@ export default function VendorAddListing() {
     setRituals(prev => prev.includes(r) ? prev.filter(v => v !== r) : [...prev, r])
   }
 
-  function handlePublish() {
+  async function handlePublish() {
+    setPublishing(true)
+
+    // Upload photos to Supabase Storage if in live mode
+    let photoUrls = photoPreviews
+    if (_liveMode && _vendorDbId && photoFiles.length > 0) {
+      const uploaded = await uploadPhotos(_vendorDbId, photoFiles, 'listing')
+      if (uploaded.length > 0) photoUrls = uploaded
+    }
+
     const listing: VendorListing = {
       id: `vl-${Date.now()}`,
       name: name || `${category} Listing`,
-      photos,
+      photos: photoUrls,
       category,
       price,
       style,
@@ -72,6 +86,7 @@ export default function VendorAddListing() {
       createdAt: new Date().toISOString().split('T')[0],
     }
     addListing(listing)
+    setPublishing(false)
     navigate('/vendor/listings')
   }
 
@@ -117,13 +132,13 @@ export default function VendorAddListing() {
 
             {/* Photo upload */}
             <div className="grid grid-cols-3 gap-2 mb-4">
-              {photos.map((p, i) => (
+              {photoPreviews.map((p, i) => (
                 <div key={i} className="aspect-square rounded-xl overflow-hidden relative">
                   <img src={p} alt="" className="w-full h-full object-cover" />
                   {i === 0 && <span className="absolute top-1 left-1 bg-mustard text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">COVER</span>}
                 </div>
               ))}
-              {photos.length < 10 && (
+              {photoPreviews.length < 10 && (
                 <label className="aspect-square rounded-xl border-2 border-dashed border-mustard/30 flex flex-col items-center justify-center cursor-pointer active:bg-mustard-light/20">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
                   <span className="text-[8px] text-gray-400 mt-1">Add photo</span>
@@ -282,8 +297,8 @@ export default function VendorAddListing() {
 
             {/* Preview card */}
             <div className="rounded-2xl border border-card-border overflow-hidden mb-4">
-              {photos.length > 0 ? (
-                <img src={photos[0]} alt="" className="w-full h-40 object-cover" />
+              {photoPreviews.length > 0 ? (
+                <img src={photoPreviews[0]} alt="" className="w-full h-40 object-cover" />
               ) : (
                 <div className="w-full h-40 bg-empty-bg flex items-center justify-center text-gray-400 text-xs">No photo added</div>
               )}
@@ -328,8 +343,8 @@ export default function VendorAddListing() {
 
             <div className="flex gap-2">
               <button onClick={() => setStep(inclusionsStep)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
-              <button onClick={handlePublish} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">
-                Publish listing
+              <button onClick={handlePublish} disabled={publishing} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-50">
+                {publishing ? 'Publishing...' : 'Publish listing'}
               </button>
             </div>
           </div>

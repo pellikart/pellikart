@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage } from '@/lib/vendor-types'
 import { getOnboardingConfig, type SelectField } from '@/lib/vendor-category-config'
+import { uploadPhotos } from '@/lib/supabase-db'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
@@ -24,9 +25,12 @@ export default function VendorOnboarding() {
   const [experience, setExperience] = useState('')
   const [teamSize, setTeamSize] = useState('')
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
+  const [photoFiles, setPhotoFiles] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
 
-  // Steps: 1=Welcome, 2=Business Basics, 3=Category-specific, 4=Contact, 5=About, 6=Ready
-  const totalSteps = 6
+  // Steps: 1=Welcome, 2=Business Basics, 3=Category-specific, 4=Contact, 5=About, 6=Portfolio Photos, 7=Ready
+  const totalSteps = 7
   const onboardingConfig = getOnboardingConfig(category)
 
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
@@ -46,7 +50,34 @@ export default function VendorOnboarding() {
     })
   }
 
-  function handleGoLive() {
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) {
+      const files = Array.from(e.target.files)
+      setPhotoFiles(prev => [...prev, ...files].slice(0, 10))
+      const previews = files.map(f => URL.createObjectURL(f))
+      setPhotoPreviews(prev => [...prev, ...previews].slice(0, 10))
+    }
+  }
+
+  function removePhoto(index: number) {
+    setPhotoFiles(prev => prev.filter((_, i) => i !== index))
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function handleGoLive() {
+    setUploading(true)
+
+    // Upload photos if in live mode and we have a vendor DB ID
+    const vendorDbId = useVendorStore.getState()._vendorDbId
+    let portfolioUrls: string[] = photoPreviews // fallback to previews for demo
+
+    if (vendorDbId && photoFiles.length > 0) {
+      const uploaded = await uploadPhotos(vendorDbId, photoFiles, 'portfolio')
+      if (uploaded.length > 0) portfolioUrls = uploaded
+    } else if (photoFiles.length === 0) {
+      portfolioUrls = []
+    }
+
     const profile: VendorProfile = {
       businessName: businessName || 'My Business',
       category: category || 'Photography',
@@ -58,16 +89,14 @@ export default function VendorOnboarding() {
       description: description || 'Professional wedding services',
       experience: parseInt(experience) || 5,
       teamSize: teamSize || '2-5',
-      portfolioPhotos: ['/images/gallery/photo/1.jpg', '/images/gallery/photo/2.jpg', '/images/gallery/photo/3.jpg', '/images/gallery/photo/4.jpg', '/images/gallery/photo/5.jpg', '/images/gallery/photo/6.jpg'],
-      rating: 4.7,
-      profileCompleteness: 85,
+      portfolioPhotos: portfolioUrls,
+      rating: 0,
+      profileCompleteness: portfolioUrls.length > 0 ? 90 : 70,
       categoryFields,
     }
-    const defaultPackages: VendorPackage[] = [
-      { id: 'pkg-0', name: 'Standard Package', price: 120000, features: ['Full coverage', '500 edited photos', '1 album'], capacity: 'Full day' },
-      { id: 'pkg-1', name: 'Premium Package', price: 180000, features: ['Full coverage', '1000 edited photos', '2 albums', 'Pre-wedding shoot'], capacity: '2 days' },
-    ]
+    const defaultPackages: VendorPackage[] = []
     completeVendorOnboarding(profile, defaultPackages)
+    setUploading(false)
     navigate('/vendor')
   }
 
@@ -224,8 +253,42 @@ export default function VendorOnboarding() {
           </div>
         )}
 
-        {/* Screen 6: Ready */}
+        {/* Screen 6: Portfolio Photos */}
         {step === 6 && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[22px] font-bold text-dark">Show your work</h1>
+            <p className="text-[12px] text-gray-400 mt-1 mb-5">Upload photos of your best work. This is what couples see first. (You can add more later)</p>
+
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {photoPreviews.map((p, i) => (
+                <div key={i} className="aspect-square rounded-xl overflow-hidden relative group">
+                  <img src={p} alt="" className="w-full h-full object-cover" />
+                  {i === 0 && <span className="absolute top-1 left-1 bg-mustard text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">COVER</span>}
+                  <button
+                    onClick={() => removePhoto(i)}
+                    className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                  >×</button>
+                </div>
+              ))}
+              {photoPreviews.length < 10 && (
+                <label className="aspect-square rounded-xl border-2 border-dashed border-mustard/30 flex flex-col items-center justify-center cursor-pointer active:bg-mustard-light/20">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                  <span className="text-[9px] text-gray-400 mt-1">Add photos</span>
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
+                </label>
+              )}
+            </div>
+
+            <p className="text-[10px] text-gray-400">{photoPreviews.length}/10 photos · JPG, PNG, WebP · Max 5MB each</p>
+
+            <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">
+              {photoPreviews.length === 0 ? 'Skip for now' : 'Next'}
+            </button>
+          </div>
+        )}
+
+        {/* Screen 7: Ready */}
+        {step === 7 && (
           <div className="animate-fadeIn text-center">
             <div className="text-4xl mb-4">🎉</div>
             <h1 className="text-[22px] font-bold text-dark leading-tight">Your profile is ready!</h1>
@@ -263,8 +326,8 @@ export default function VendorOnboarding() {
                 </div>
               )}
             </div>
-            <button onClick={handleGoLive} className="mt-8 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">
-              Go live
+            <button onClick={handleGoLive} disabled={uploading} className="mt-8 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform disabled:opacity-50">
+              {uploading ? 'Setting up...' : 'Go live'}
             </button>
           </div>
         )}

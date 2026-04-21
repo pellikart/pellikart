@@ -89,35 +89,26 @@ export const useStore = create<AppState & LiveModeState & {
 
         // Build vendor map from live data
         const vendorMap: Record<string, typeof mockVendors[string]> = {}
-        for (const v of liveVendors) {
-          vendorMap[v.id] = {
-            id: v.id,
-            code: v.business_name,
-            name: v.business_name,
-            photo: '',
-            style: '',
-            area: v.area || '',
-            price: 0,
-            rating: v.rating || 0,
-            packageTier: '',
-            likes: [],
-            booked: false,
-            amountPaid: 0,
-          }
-        }
+        const categoryCounts: Record<string, number> = {}
 
-        // Also map listings as vendor entries (for board matching)
+        // Map listings as the primary vendor entries (each listing = one browsable option)
         for (const l of listings) {
+          // Find the parent vendor for area info
+          const parentVendor = liveVendors.find((v: Record<string, unknown>) => v.id === l.vendor_id)
+          const cat = (l.category as string) || ''
+          categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+          const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
+
           vendorMap[l.id] = {
             id: l.id,
-            code: l.name,
-            name: l.name,
+            code,
+            name: parentVendor?.business_name || l.name,
             photo: (l.photos as string[])?.[0] || '',
             style: l.style || '',
-            area: '',
+            area: parentVendor?.area || '',
             price: l.price,
-            rating: 0,
-            packageTier: (l.includes as string[])?.join(', ') || '',
+            rating: parentVendor?.rating || 0,
+            packageTier: (l.includes as string[])?.slice(0, 4).join(' · ') || '',
             likes: [],
             booked: false,
             amountPaid: 0,
@@ -166,20 +157,18 @@ export const useStore = create<AppState & LiveModeState & {
       fetchAllLiveVendors().then(liveVendors => {
         fetchAllListings().then(listings => {
           const vendorMap: Record<string, typeof mockVendors[string]> = {}
-          for (const v of liveVendors) {
-            vendorMap[v.id] = {
-              id: v.id, code: v.business_name, name: v.business_name,
-              photo: '', style: '', area: v.area || '',
-              price: 0, rating: v.rating || 0, packageTier: '',
-              likes: [], booked: false, amountPaid: 0,
-            }
-          }
+          const categoryCounts: Record<string, number> = {}
           for (const l of listings) {
+            const parentVendor = liveVendors.find((v: Record<string, unknown>) => v.id === l.vendor_id)
+            const cat = (l.category as string) || ''
+            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+            const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
             vendorMap[l.id] = {
-              id: l.id, code: l.name, name: l.name,
+              id: l.id, code, name: parentVendor?.business_name || l.name,
               photo: (l.photos as string[])?.[0] || '', style: l.style || '',
-              area: '', price: l.price, rating: 0,
-              packageTier: (l.includes as string[])?.join(', ') || '',
+              area: parentVendor?.area || '', price: l.price,
+              rating: parentVendor?.rating || 0,
+              packageTier: (l.includes as string[])?.slice(0, 4).join(' · ') || '',
               likes: [], booked: false, amountPaid: 0,
             }
           }

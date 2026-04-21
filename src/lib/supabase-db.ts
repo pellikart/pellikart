@@ -275,6 +275,67 @@ export async function updateBoardDatesDb(boardId: string, dateStart: string, dat
     .eq('id', boardId)
 }
 
+// ─── PHOTO UPLOADS ─────────────────────────
+
+/**
+ * Upload a photo to Supabase Storage.
+ * Returns the public URL, or null on failure.
+ * Path: vendor-photos/{vendorId}/{type}/{timestamp}-{filename}
+ */
+export async function uploadPhoto(
+  vendorId: string,
+  file: File,
+  type: 'portfolio' | 'listing'
+): Promise<string | null> {
+  if (!supabase) return null
+
+  const ext = file.name.split('.').pop() || 'jpg'
+  const path = `${vendorId}/${type}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('vendor-photos')
+    .upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+
+  if (error) {
+    console.error('[storage] Upload failed:', error.message)
+    return null
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('vendor-photos')
+    .getPublicUrl(path)
+
+  return urlData.publicUrl
+}
+
+/**
+ * Upload multiple photos. Returns array of public URLs (skips failures).
+ */
+export async function uploadPhotos(
+  vendorId: string,
+  files: File[],
+  type: 'portfolio' | 'listing'
+): Promise<string[]> {
+  const results = await Promise.all(
+    files.map(f => uploadPhoto(vendorId, f, type))
+  )
+  return results.filter((url): url is string => url !== null)
+}
+
+/**
+ * Delete a photo from Supabase Storage by its full URL.
+ */
+export async function deletePhoto(publicUrl: string): Promise<void> {
+  if (!supabase) return
+  // Extract path from URL: https://xxx.supabase.co/storage/v1/object/public/vendor-photos/PATH
+  const match = publicUrl.match(/vendor-photos\/(.+)$/)
+  if (!match) return
+  await supabase.storage.from('vendor-photos').remove([match[1]])
+}
+
 // ─── ALL LIVE VENDORS (for couple explore) ──
 
 export async function fetchAllLiveVendors() {
