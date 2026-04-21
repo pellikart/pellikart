@@ -21,8 +21,9 @@ export async function fetchVendor(userId: string) {
 }
 
 export async function upsertVendor(userId: string, profile: VendorProfile, isLive: boolean) {
-  if (!supabase) return null
-  const { data } = await supabase
+  if (!supabase) { console.error('[db] No supabase client'); return null }
+  console.log('[db] upsertVendor for user:', userId)
+  const { data, error } = await supabase
     .from('vendors')
     .upsert({
       user_id: userId,
@@ -44,6 +45,7 @@ export async function upsertVendor(userId: string, profile: VendorProfile, isLiv
     }, { onConflict: 'user_id' })
     .select()
     .maybeSingle()
+  if (error) console.error('[db] upsertVendor failed:', error.message, error.details, error.hint)
   return data
 }
 
@@ -78,8 +80,9 @@ export async function fetchVendorListings(vendorId: string) {
 }
 
 export async function insertListing(vendorId: string, listing: VendorListing) {
-  if (!supabase) return null
-  const { data } = await supabase
+  if (!supabase) { console.error('[db] No supabase client'); return null }
+  console.log('[db] insertListing for vendor:', vendorId)
+  const { data, error } = await supabase
     .from('vendor_listings')
     .insert({
       vendor_id: vendorId,
@@ -94,6 +97,7 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
     })
     .select()
     .maybeSingle()
+  if (error) console.error('[db] insertListing failed:', error.message, error.details, error.hint)
   return data
 }
 
