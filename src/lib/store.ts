@@ -191,7 +191,7 @@ export const useStore = create<AppState & LiveModeState & {
         onboardingComplete: true,
         onboardingData: data,
         ritualBoards: boards, // Use local boards until DB IDs arrive
-        vendors: {}, // Will be populated by live vendor fetch
+        // Keep existing vendors — live vendor fetch will override when ready
       })
     } else {
       // Demo mode — use mock data

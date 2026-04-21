@@ -22,8 +22,8 @@ export default function RitualBoard({ board }: Props) {
   const { updateBoardDates } = useStore()
 
   const activeCategories = board.categories.filter((c) => !c.removed)
-  const filledCategories = activeCategories.filter((c) => c.selectedVendorId)
-  const emptyCategories = activeCategories.filter((c) => !c.selectedVendorId)
+  const filledCategories = activeCategories.filter((c) => c.selectedVendorId && vendors[c.selectedVendorId])
+  const emptyCategories = activeCategories.filter((c) => !c.selectedVendorId || !vendors[c.selectedVendorId])
 
   const filledCount = filledCategories.length
   const totalCount = activeCategories.length
