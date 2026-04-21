@@ -52,8 +52,17 @@ export default function CategoryBoardPage() {
     .map((id) => vendors[id])
     .filter(Boolean)
 
-  // All categories use listing-based explore feed
-  const allDesigns = getDesignsForCategory(category.label)
+  // Explore feed: use live vendors in live mode, mock designs in demo
+  const allDesigns = _liveMode
+    ? Object.values(vendors)
+        .filter(v => {
+          // In live mode, vendor IDs are listing UUIDs. Match by checking
+          // if the vendor's style/packageTier/category matches this board category.
+          // The vendor map is keyed by listing ID, and the "code" field contains "Category NNN"
+          return v.code.toLowerCase().startsWith(category.label.toLowerCase())
+        })
+        .map(v => ({ id: v.id, vendorId: v.id, name: v.name, photo: v.photo, style: v.style, price: v.price, rating: v.rating, description: v.packageTier }))
+    : getDesignsForCategory(category.label)
   const exploreDesigns = allDesigns.filter((d) => !category.shortlistedVendorIds.includes(d.id))
   const isDesignCategory = true
 

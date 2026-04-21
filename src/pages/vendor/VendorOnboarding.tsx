@@ -95,7 +95,7 @@ export default function VendorOnboarding() {
       categoryFields,
     }
     const defaultPackages: VendorPackage[] = []
-    completeVendorOnboarding(profile, defaultPackages)
+    await completeVendorOnboarding(profile, defaultPackages)
     setUploading(false)
     navigate('/vendor')
   }

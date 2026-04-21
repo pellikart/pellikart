@@ -123,14 +123,15 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     // If no vendor record, user hasn't onboarded yet — state stays empty
   },
 
-  completeVendorOnboarding: (profile, packages) => {
+  completeVendorOnboarding: async (profile, packages) => {
     const { _liveMode, _userId } = get()
 
     if (_liveMode && _userId) {
-      // Persist to Supabase in background
-      upsertVendor(_userId, profile, true).then(data => {
-        if (data) set({ _vendorDbId: data.id })
-      })
+      // Save vendor to Supabase FIRST so we have the DB ID for photo uploads
+      const vendorData = await upsertVendor(_userId, profile, true)
+      if (vendorData) {
+        set({ _vendorDbId: vendorData.id })
+      }
 
       set({
         vendorOnboardingComplete: true,
