@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .select('id, role, subscription_tier')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('[auth] Failed to fetch profile:', error.message)

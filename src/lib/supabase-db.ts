@@ -16,7 +16,7 @@ export async function fetchVendor(userId: string) {
     .from('vendors')
     .select('*')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   return data
 }
 
@@ -42,7 +42,7 @@ export async function upsertVendor(userId: string, profile: VendorProfile, isLiv
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
     .select()
-    .single()
+    .maybeSingle()
   return data
 }
 
@@ -91,7 +91,7 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       includes: listing.includes,
     })
     .select()
-    .single()
+    .maybeSingle()
   return data
 }
 
@@ -159,7 +159,7 @@ export async function fetchCouple(userId: string) {
     .from('couples')
     .select('*')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   return data
 }
 
@@ -181,7 +181,7 @@ export async function upsertCouple(userId: string, onboarding: OnboardingData) {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
     .select()
-    .single()
+    .maybeSingle()
   return data
 }
 
@@ -235,7 +235,7 @@ export async function insertRitualBoard(coupleId: string, board: RitualBoard, so
       sort_order: sortOrder,
     })
     .select()
-    .single()
+    .maybeSingle()
 
   if (!dbBoard) return null
 
