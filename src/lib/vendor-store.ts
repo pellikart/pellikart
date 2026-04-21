@@ -67,7 +67,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         description: vendor.description || '',
         experience: parseInt(vendor.years_experience) || 0,
         teamSize: vendor.team_size || '',
-        portfolioPhotos: [],
+        portfolioPhotos: vendor.portfolio_photos || [],
         rating: vendor.rating || 0,
         profileCompleteness: 0,
         categoryFields: vendor.category_fields || {},

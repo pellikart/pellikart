@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
+import { uploadPhotos, deletePhoto } from '@/lib/supabase-db'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Other']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
@@ -8,8 +9,9 @@ const TEAM_SIZES = ['Solo', '2-5', '5-10', '10+']
 
 export default function VendorProfile() {
   const navigate = useNavigate()
-  const { vendorProfile, vendorReviews, updateVendorProfile } = useVendorStore()
+  const { vendorProfile, vendorReviews, updateVendorProfile, _vendorDbId, _liveMode } = useVendorStore()
   const [editSheet, setEditSheet] = useState(false)
+  const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const p = vendorProfile
 
   // Edit form state
@@ -107,6 +109,63 @@ export default function VendorProfile() {
           </div>
           <span className="text-[10px] text-mustard font-medium">Edit</span>
         </button>
+      </div>
+
+      {/* Portfolio Photos */}
+      <div className="px-4 mb-3">
+        <div className="border border-card-border rounded-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-[12px] font-medium text-dark">Portfolio Photos</p>
+              <p className="text-[10px] text-gray-400">{p.portfolioPhotos.length}/10 photos</p>
+            </div>
+            {p.portfolioPhotos.length < 10 && (
+              <label className={`text-[10px] font-medium text-mustard cursor-pointer ${uploadingPhotos ? 'opacity-50' : ''}`}>
+                {uploadingPhotos ? 'Uploading...' : '+ Add'}
+                <input
+                  type="file" accept="image/*" multiple className="hidden"
+                  disabled={uploadingPhotos}
+                  onChange={async (e) => {
+                    if (!e.target.files || e.target.files.length === 0) return
+                    const files = Array.from(e.target.files)
+                    if (_liveMode && _vendorDbId) {
+                      setUploadingPhotos(true)
+                      const urls = await uploadPhotos(_vendorDbId, files, 'portfolio')
+                      if (urls.length > 0) {
+                        updateVendorProfile({ portfolioPhotos: [...p.portfolioPhotos, ...urls].slice(0, 10) })
+                      }
+                      setUploadingPhotos(false)
+                    } else {
+                      const previews = files.map(f => URL.createObjectURL(f))
+                      updateVendorProfile({ portfolioPhotos: [...p.portfolioPhotos, ...previews].slice(0, 10) })
+                    }
+                  }}
+                />
+              </label>
+            )}
+          </div>
+          {p.portfolioPhotos.length > 0 ? (
+            <div className="grid grid-cols-4 gap-1.5">
+              {p.portfolioPhotos.map((photo, i) => (
+                <div key={i} className="aspect-square rounded-lg overflow-hidden relative group">
+                  <img src={photo} alt="" className="w-full h-full object-cover" />
+                  {i === 0 && <span className="absolute top-0.5 left-0.5 bg-mustard text-white text-[6px] font-bold px-1 py-0.5 rounded">COVER</span>}
+                  <button
+                    onClick={async () => {
+                      if (_liveMode) await deletePhoto(photo)
+                      updateVendorProfile({ portfolioPhotos: p.portfolioPhotos.filter((_, idx) => idx !== i) })
+                    }}
+                    className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/50 rounded-full flex items-center justify-center text-white text-[8px] opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity"
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-4 text-center">
+              <p className="text-[10px] text-gray-400">No photos yet. Add your best work to attract couples.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Other sections */}

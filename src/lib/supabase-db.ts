@@ -37,6 +37,7 @@ export async function upsertVendor(userId: string, profile: VendorProfile, isLiv
       years_experience: String(profile.experience),
       team_size: profile.teamSize,
       category_fields: profile.categoryFields || {},
+      portfolio_photos: profile.portfolioPhotos || [],
       is_live: isLive,
       onboarding_complete: true,
       updated_at: new Date().toISOString(),
@@ -59,6 +60,7 @@ export async function updateVendorFields(userId: string, updates: Partial<Vendor
   if (updates.experience !== undefined) mapped.years_experience = String(updates.experience)
   if (updates.teamSize !== undefined) mapped.team_size = updates.teamSize
   if (updates.categoryFields !== undefined) mapped.category_fields = updates.categoryFields
+  if (updates.portfolioPhotos !== undefined) mapped.portfolio_photos = updates.portfolioPhotos
 
   await supabase.from('vendors').update(mapped).eq('user_id', userId)
 }
