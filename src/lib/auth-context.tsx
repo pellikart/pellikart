@@ -41,6 +41,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[auth] Failed to fetch profile:', error.message)
         return null
       }
+
+      // If profile doesn't exist (trigger didn't fire or row was deleted), create it
+      if (!data) {
+        console.log('[auth] Profile missing — creating one')
+        const { data: newProfile, error: insertErr } = await supabase
+          .from('profiles')
+          .insert({ id: userId, role: 'couple' })
+          .select('id, role, subscription_tier')
+          .maybeSingle()
+        if (insertErr) {
+          console.error('[auth] Failed to create profile:', insertErr.message)
+          return null
+        }
+        return newProfile as Profile
+      }
+
       console.log('[auth] Profile loaded:', data)
       return data as Profile
     } catch (err) {
