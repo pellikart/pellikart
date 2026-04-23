@@ -8,7 +8,10 @@ import {
   fetchAllLiveVendors, fetchAllListings, fetchAllAvailability,
   trackEvent,
   createTrial, confirmTrialDb, markTrialDoneDb,
-  createBids, type BidRow,
+  createBids, selectBidDb, type BidRow,
+  addLikeDb, removeLikeDb,
+  updateSubscriptionDb, fetchSubscriptionTier,
+  createBooking, createMilestones, createEarning, createNotification,
 } from "./supabase-db";
 import type { Vendor } from "./types";
 
@@ -131,6 +134,9 @@ export const useStore = create<AppState & LiveModeState & {
    */
   initLiveMode: async (userId: string, role: 'couple' | 'vendor') => {
     set({ _liveMode: true, _userId: userId, role: role === 'couple' ? 'user' : 'vendor' })
+
+    // Load subscription tier from DB
+    fetchSubscriptionTier(userId).then(tier => set({ subscription: tier }))
 
     if (role === 'couple') {
       const couple = await fetchCouple(userId)
@@ -316,7 +322,13 @@ export const useStore = create<AppState & LiveModeState & {
     }
   },
 
-  subscribe: (tier) => set({ subscription: tier }),
+  subscribe: (tier) => {
+    set({ subscription: tier })
+    const { _liveMode, _userId } = get()
+    if (_liveMode && _userId) {
+      updateSubscriptionDb(_userId, tier)
+    }
+  },
 
   getMaxTrials: () => maxTrialsForTier(get().subscription),
 
@@ -390,9 +402,14 @@ export const useStore = create<AppState & LiveModeState & {
     set((s) => ({
       vendors: { ...s.vendors, [vendorId]: { ...vendor, likes: alreadyLiked ? vendor.likes.filter((l) => l.userId !== userId) : [...vendor.likes, { userId, name: userName }] } },
     }))
-    if (_liveMode) {
+    if (_liveMode && _userId) {
       const vid = _listingVendorMap[vendorId]
       if (vid) trackEvent(vid, alreadyLiked ? 'unlike' : 'like', _userId, vendorId)
+      if (alreadyLiked) {
+        removeLikeDb(_userId, vendorId, userId)
+      } else {
+        addLikeDb(_userId, vendorId, userName, userId)
+      }
     }
   },
 
@@ -412,13 +429,23 @@ export const useStore = create<AppState & LiveModeState & {
 
   bookVendor: (vendorId, amount) => {
     const { _liveMode, _userId, _listingVendorMap } = get()
+    const vendor = get().vendors[vendorId]
     set((s) => ({
       vendors: { ...s.vendors, [vendorId]: { ...s.vendors[vendorId], booked: true, amountPaid: amount } },
       milestoneProgress: { ...s.milestoneProgress, [vendorId]: 1 },
     }))
-    if (_liveMode) {
+    if (_liveMode && _userId) {
       const vid = _listingVendorMap[vendorId]
-      if (vid) trackEvent(vid, 'booking', _userId, vendorId, { amount })
+      if (vid) {
+        trackEvent(vid, 'booking', _userId, vendorId, { amount })
+        const price = vendor?.price || amount * 20
+        createBooking(_userId, vid, vendorId, '', '', price, amount, 5).then(booking => {
+          if (booking) {
+            createMilestones(booking.id, ['Slot booked', 'Planning started', 'Final confirmation', 'Event day', 'Completed'])
+            createEarning(vid, booking.id, '', '', amount, 'slot')
+          }
+        })
+      }
     }
   },
 
@@ -441,7 +468,8 @@ export const useStore = create<AppState & LiveModeState & {
     set({ vendors: updatedVendors, milestoneProgress: updatedProgress });
   },
 
-  swapVendor: (ritualId, categoryId, newVendorId) =>
+  swapVendor: (ritualId, categoryId, newVendorId) => {
+    const { _liveMode } = get()
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
@@ -452,7 +480,11 @@ export const useStore = create<AppState & LiveModeState & {
             ) }
           : b
       ),
-    })),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { selectedVendorId: newVendorId })
+    }
+  },
 
   completeMilestone: (vendorId, totalMilestones) =>
     set((s) => {

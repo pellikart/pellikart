@@ -5,7 +5,7 @@ import { formatINR, bgStyle } from '@/lib/helpers'
 import { Vendor, Design } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
-import { trackEvent, trackImpressions } from '@/lib/supabase-db'
+import { trackEvent, trackImpressions, selectBidDb } from '@/lib/supabase-db'
 
 export default function CategoryBoardPage() {
   const { ritualId, categoryId } = useParams<{ ritualId: string; categoryId: string }>()
@@ -374,6 +374,11 @@ export default function CategoryBoardPage() {
                 setBidsGenerated(true)
               }}
               onSelectBid={(vendorId, price) => {
+                // Persist bid selection to DB if in live mode
+                if (_liveMode) {
+                  const bid = customBids.find(b => b.vendorId === vendorId)
+                  if (bid && (bid as Record<string, unknown>).id) selectBidDb((bid as Record<string, unknown>).id as string)
+                }
                 // Create a custom vendor entry from the uploaded image
                 const id = `custom-${Date.now()}`
                 const vendor = vendors[vendorId] || mockVendors[vendorId]

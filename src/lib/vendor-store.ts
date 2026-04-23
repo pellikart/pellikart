@@ -13,6 +13,8 @@ import {
   fetchVendorAvailability, upsertAvailability,
   fetchVendorTrials as fetchVendorTrialsDb, acceptTrialDb, proposeNewTrialTimeDb,
   fetchVendorBidsDb, submitBidDb,
+  fetchVendorBookingsDb, fetchVendorReviewsDb, fetchVendorEarningsDb,
+  fetchNotifications, markNotificationReadDb, markAllNotificationsReadDb,
   type TrialRow, type BidRow,
 } from './supabase-db'
 
@@ -107,10 +109,14 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         }
       }
 
-      // Fetch trials and bids from DB
-      const [dbTrials, dbBids] = await Promise.all([
+      // Fetch trials, bids, bookings, reviews, earnings, notifications from DB
+      const [dbTrials, dbBids, dbBookings, dbReviews, dbEarnings, dbNotifications] = await Promise.all([
         fetchVendorTrialsDb(vendor.id),
         fetchVendorBidsDb(vendor.id),
+        fetchVendorBookingsDb(vendor.id),
+        fetchVendorReviewsDb(vendor.id),
+        fetchVendorEarningsDb(vendor.id),
+        fetchNotifications(userId),
       ])
 
       // Map DB trials to vendor store format
@@ -136,6 +142,58 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         bidNote: b.bid_note || undefined,
       }))
 
+      // Map DB bookings
+      const mappedBookings = dbBookings.map((b: Record<string, unknown>) => ({
+        id: b.id as string,
+        coupleNames: '',
+        eventName: (b.category_label as string) || '',
+        eventDate: (b.booked_at as string)?.split('T')[0] || '',
+        category: (b.category_label as string) || '',
+        packageTier: '',
+        totalValue: (b.total_value as number) || 0,
+        slotAmountPaid: (b.slot_amount as number) || 0,
+        totalPaid: (b.slot_amount as number) || 0,
+        remainingBalance: ((b.total_value as number) || 0) - ((b.slot_amount as number) || 0),
+        milestoneProgress: 1,
+        totalMilestones: 5,
+        status: (b.status as 'active' | 'completed' | 'cancelled') || 'active',
+        phone: '',
+        whatsapp: '',
+      }))
+
+      // Map DB reviews
+      const mappedReviews = dbReviews.map((r: Record<string, unknown>) => ({
+        id: r.id as string,
+        coupleNames: (r.couple_names as string) || '',
+        eventName: (r.event_name as string) || '',
+        eventDate: (r.event_date as string) || '',
+        rating: (r.rating as number) || 5,
+        text: (r.text as string) || '',
+        datePosted: (r.created_at as string)?.split('T')[0] || '',
+      }))
+
+      // Map DB earnings
+      const mappedEarnings = dbEarnings.map((e: Record<string, unknown>) => ({
+        id: e.id as string,
+        bookingId: (e.booking_id as string) || '',
+        coupleNames: (e.couple_names as string) || '',
+        eventName: (e.event_name as string) || '',
+        amount: (e.amount as number) || 0,
+        type: (e.type as 'slot' | 'milestone' | 'final') || 'slot',
+        date: (e.created_at as string)?.split('T')[0] || '',
+      }))
+
+      // Map DB notifications
+      const mappedNotifications = dbNotifications.map((n: Record<string, unknown>) => ({
+        id: n.id as string,
+        type: (n.type as string) || 'system',
+        title: (n.title as string) || '',
+        body: (n.body as string) || '',
+        timestamp: (n.created_at as string) || '',
+        read: (n.is_read as boolean) || false,
+        link: (n.deep_link as string) || undefined,
+      }))
+
       set({
         _vendorDbId: vendor.id,
         _listingIdMap: listingIdMap,
@@ -143,12 +201,12 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         vendorProfile: profile,
         vendorListings: listings,
         vendorAvailability: availability,
-        vendorBookings: [],
+        vendorBookings: mappedBookings,
         vendorTrials: mappedTrials,
         vendorBidRequests: mappedBids,
-        vendorNotifications: [],
-        vendorReviews: [],
-        vendorEarnings: [],
+        vendorNotifications: mappedNotifications,
+        vendorReviews: mappedReviews,
+        vendorEarnings: mappedEarnings,
       })
     }
     // If no vendor record, user hasn't onboarded yet — state stays empty
@@ -272,17 +330,23 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     }
   },
 
-  markNotificationRead: (id) =>
+  markNotificationRead: (id) => {
+    const { _liveMode } = get()
     set((s) => ({
       vendorNotifications: s.vendorNotifications.map((n) =>
         n.id === id ? { ...n, read: true } : n
       ),
-    })),
+    }))
+    if (_liveMode) markNotificationReadDb(id)
+  },
 
-  markAllNotificationsRead: () =>
+  markAllNotificationsRead: () => {
+    const { _liveMode, _userId } = get()
     set((s) => ({
       vendorNotifications: s.vendorNotifications.map((n) => ({ ...n, read: true })),
-    })),
+    }))
+    if (_liveMode && _userId) markAllNotificationsReadDb(_userId)
+  },
 
   addListing: (listing) => {
     const { _liveMode, _vendorDbId } = get()

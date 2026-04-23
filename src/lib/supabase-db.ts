@@ -118,6 +118,34 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
     .eq('id', listingDbId)
 }
 
+// ─── LIKES ──────────────────────────────────
+
+export async function addLikeDb(userId: string, vendorId: string, likerName: string, likerUserId: string) {
+  if (!supabase) return
+  await supabase.from('vendor_likes').upsert({
+    user_id: userId, vendor_id: vendorId, liker_name: likerName, liker_user_id: likerUserId,
+  }, { onConflict: 'user_id,vendor_id,liker_user_id' })
+}
+
+export async function removeLikeDb(userId: string, vendorId: string, likerUserId: string) {
+  if (!supabase) return
+  await supabase.from('vendor_likes').delete()
+    .eq('user_id', userId).eq('vendor_id', vendorId).eq('liker_user_id', likerUserId)
+}
+
+// ─── SUBSCRIPTION ───────────────────────────
+
+export async function updateSubscriptionDb(userId: string, tier: 'free' | 'silver' | 'gold') {
+  if (!supabase) return
+  await supabase.from('profiles').update({ subscription_tier: tier }).eq('id', userId)
+}
+
+export async function fetchSubscriptionTier(userId: string): Promise<'free' | 'silver' | 'gold'> {
+  if (!supabase) return 'free'
+  const { data } = await supabase.from('profiles').select('subscription_tier').eq('id', userId).maybeSingle()
+  return (data?.subscription_tier as 'free' | 'silver' | 'gold') || 'free'
+}
+
 // ─── VENDOR AVAILABILITY ────────────────────
 
 export async function fetchVendorAvailability(vendorId: string) {
@@ -709,4 +737,121 @@ export async function submitBidDb(bidId: string, price: number, note: string) {
 export async function selectBidDb(bidId: string) {
   if (!supabase) return
   await supabase.from('bids').update({ status: 'selected', updated_at: new Date().toISOString() }).eq('id', bidId)
+}
+
+// ─── BOOKINGS ───────────────────────────────
+
+export async function createBooking(
+  coupleId: string, vendorId: string, listingId: string,
+  ritualBoardId: string, categoryLabel: string,
+  totalValue: number, slotAmount: number, slotPercentage: number
+) {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('bookings')
+    .insert({
+      couple_id: coupleId, vendor_id: vendorId, listing_id: listingId,
+      ritual_board_id: ritualBoardId, category_label: categoryLabel,
+      total_value: totalValue, slot_amount: slotAmount, slot_percentage: slotPercentage,
+    })
+    .select().maybeSingle()
+  if (error) console.error('[db] createBooking failed:', error.message)
+  return data
+}
+
+export async function fetchCoupleBookings(coupleId: string) {
+  if (!supabase) return []
+  const { data } = await supabase.from('bookings').select('*').eq('couple_id', coupleId).order('booked_at', { ascending: false })
+  return data || []
+}
+
+export async function fetchVendorBookingsDb(vendorId: string) {
+  if (!supabase) return []
+  const { data } = await supabase.from('bookings').select('*').eq('vendor_id', vendorId).order('booked_at', { ascending: false })
+  return data || []
+}
+
+// ─── MILESTONES ─────────────────────────────
+
+export async function createMilestones(bookingId: string, titles: string[]) {
+  if (!supabase) return
+  const rows = titles.map((title, i) => ({ booking_id: bookingId, title, sort_order: i }))
+  await supabase.from('milestones').insert(rows)
+}
+
+export async function fetchMilestones(bookingId: string) {
+  if (!supabase) return []
+  const { data } = await supabase.from('milestones').select('*').eq('booking_id', bookingId).order('sort_order')
+  return data || []
+}
+
+export async function completeMilestoneDb(milestoneId: string) {
+  if (!supabase) return
+  await supabase.from('milestones').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', milestoneId)
+}
+
+// ─── NOTIFICATIONS ──────────────────────────
+
+export async function createNotification(
+  userId: string, title: string, body: string,
+  type: 'booking' | 'trial' | 'bid' | 'milestone' | 'review' | 'system',
+  deepLink?: string
+) {
+  if (!supabase) return
+  await supabase.from('notifications').insert({ user_id: userId, title, body, type, deep_link: deepLink })
+}
+
+export async function fetchNotifications(userId: string) {
+  if (!supabase) return []
+  const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50)
+  return data || []
+}
+
+export async function markNotificationReadDb(notificationId: string) {
+  if (!supabase) return
+  await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId)
+}
+
+export async function markAllNotificationsReadDb(userId: string) {
+  if (!supabase) return
+  await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false)
+}
+
+// ─── REVIEWS ────────────────────────────────
+
+export async function createReview(
+  coupleId: string, vendorId: string, bookingId: string | null,
+  coupleNames: string, eventName: string, eventDate: string,
+  rating: number, text: string
+) {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('reviews')
+    .insert({ couple_id: coupleId, vendor_id: vendorId, booking_id: bookingId, couple_names: coupleNames, event_name: eventName, event_date: eventDate, rating, text })
+    .select().maybeSingle()
+  if (error) console.error('[db] createReview failed:', error.message)
+  return data
+}
+
+export async function fetchVendorReviewsDb(vendorId: string) {
+  if (!supabase) return []
+  const { data } = await supabase.from('reviews').select('*').eq('vendor_id', vendorId).order('created_at', { ascending: false })
+  return data || []
+}
+
+// ─── EARNINGS ───────────────────────────────
+
+export async function createEarning(
+  vendorId: string, bookingId: string | null,
+  coupleNames: string, eventName: string,
+  amount: number, type: 'slot' | 'milestone' | 'final'
+) {
+  if (!supabase) return
+  await supabase.from('earnings').insert({ vendor_id: vendorId, booking_id: bookingId, couple_names: coupleNames, event_name: eventName, amount, type })
+}
+
+export async function fetchVendorEarningsDb(vendorId: string) {
+  if (!supabase) return []
+  const { data } = await supabase.from('earnings').select('*').eq('vendor_id', vendorId).order('created_at', { ascending: false })
+  return data || []
 }
