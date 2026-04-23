@@ -67,22 +67,25 @@ function LiveApp() {
 
   // Apply pending role + initialize stores
   useEffect(() => {
-    if (!user || !profile) return
+    if (!user) return
 
-    // Check for pending role from Google OAuth redirect
+    // Determine the effective role:
+    // 1. Pending role from OAuth redirect (highest priority)
+    // 2. Profile role from DB
+    // 3. Default to 'couple'
     const pendingRole = localStorage.getItem('pellikart_pending_role')
-    let effectiveRole = profile.role as 'couple' | 'vendor'
+    let effectiveRole: 'couple' | 'vendor' = (profile?.role as 'couple' | 'vendor') || 'couple'
 
     if (pendingRole && (pendingRole === 'couple' || pendingRole === 'vendor')) {
       effectiveRole = pendingRole
-      if (profile.role !== pendingRole) {
+      if (profile && profile.role !== pendingRole) {
         updateRole(pendingRole)
       }
       localStorage.removeItem('pellikart_pending_role')
     }
 
-    // Initialize stores with the correct role
-    console.log('[LiveApp] init stores — role:', effectiveRole, 'userId:', user.id)
+    // Initialize stores with the correct role (don't wait for profile)
+    console.log('[LiveApp] init stores — role:', effectiveRole, 'userId:', user.id, 'profile:', profile?.role || 'null')
     initStore(user.id, effectiveRole)
     if (effectiveRole === 'vendor') {
       initVendorStore(user.id)

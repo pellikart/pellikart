@@ -73,7 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Fetch profile in background (non-blocking)
         if (s?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
-          fetchProfile(s.user.id).then(p => setProfile(p))
+          fetchProfile(s.user.id).then(p => {
+            console.log('[auth] Profile result:', p ? `role=${p.role}` : 'NULL — profile not found in DB')
+            setProfile(p)
+          })
         }
       }
     )
