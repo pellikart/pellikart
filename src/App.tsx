@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { useVendorStore } from '@/lib/vendor-store'
@@ -65,27 +65,34 @@ function LiveApp() {
   const initStore = useStore(s => s.initLiveMode)
   const initVendorStore = useVendorStore(s => s.initLiveMode)
 
+  // Track the pending role across re-renders so it doesn't get lost
+  // when profile loads from DB with the old role ('couple')
+  const pendingRoleRef = useRef<string | null>(localStorage.getItem('pellikart_pending_role'))
+
   // Apply pending role + initialize stores
   useEffect(() => {
     if (!user) return
 
-    // Determine the effective role:
-    // 1. Pending role from OAuth redirect (highest priority)
-    // 2. Profile role from DB
-    // 3. Default to 'couple'
-    const pendingRole = localStorage.getItem('pellikart_pending_role')
+    // Use pending role until the DB profile catches up
     let effectiveRole: 'couple' | 'vendor' = (profile?.role as 'couple' | 'vendor') || 'couple'
 
-    if (pendingRole && (pendingRole === 'couple' || pendingRole === 'vendor')) {
-      effectiveRole = pendingRole
-      if (profile && profile.role !== pendingRole) {
-        updateRole(pendingRole)
+    if (pendingRoleRef.current && (pendingRoleRef.current === 'couple' || pendingRoleRef.current === 'vendor')) {
+      effectiveRole = pendingRoleRef.current
+
+      // Update DB if profile doesn't match yet
+      if (profile && profile.role !== pendingRoleRef.current) {
+        updateRole(pendingRoleRef.current)
       }
-      localStorage.removeItem('pellikart_pending_role')
+
+      // Only clear pending role once the profile in DB has caught up
+      if (profile && profile.role === pendingRoleRef.current) {
+        pendingRoleRef.current = null
+        localStorage.removeItem('pellikart_pending_role')
+      }
     }
 
-    // Initialize stores with the correct role (don't wait for profile)
-    console.log('[LiveApp] init stores — role:', effectiveRole, 'userId:', user.id, 'profile:', profile?.role || 'null')
+    // Initialize stores with the correct role
+    console.log('[LiveApp] init stores — role:', effectiveRole, 'userId:', user.id, 'profile:', profile?.role || 'null', 'pending:', pendingRoleRef.current)
     initStore(user.id, effectiveRole)
     if (effectiveRole === 'vendor') {
       initVendorStore(user.id)
