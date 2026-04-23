@@ -32,7 +32,7 @@ function cloneBoards() {
 }
 
 /** Build enriched vendor map from live Supabase data */
-function buildLiveVendorMap(
+export function buildLiveVendorMap(
   liveVendors: Record<string, unknown>[],
   listings: Record<string, unknown>[],
   availability: Record<string, unknown>[]
