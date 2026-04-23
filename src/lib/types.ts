@@ -25,6 +25,19 @@ export interface Vendor {
   likes: Like[];
   booked: boolean;
   amountPaid: number;
+  // Extended fields (populated in live mode from Supabase)
+  description?: string;
+  portfolioPhotos?: string[];
+  listingPhotos?: string[];
+  categoryFields?: Record<string, string | string[]>;
+  includes?: string[];
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  experience?: number;
+  teamSize?: string;
+  availableDates?: string[];  // dates that are NOT blocked/booked
+  blockedDates?: string[];
 }
 
 export interface Like {

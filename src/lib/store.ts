@@ -5,9 +5,10 @@ import {
   fetchCouple, upsertCouple,
   fetchRitualBoards, insertRitualBoard,
   updateBoardCategory, updateBoardDatesDb,
-  fetchAllLiveVendors, fetchAllListings,
+  fetchAllLiveVendors, fetchAllListings, fetchAllAvailability,
   trackEvent,
 } from "./supabase-db";
+import type { Vendor } from "./types";
 
 function cloneVendors() {
   const cloned: Record<string, typeof mockVendors[string]> = {};
@@ -26,6 +27,63 @@ function cloneBoards() {
       suggestedVendors: c.suggestedVendors.map((s) => ({ ...s })),
     })),
   }));
+}
+
+/** Build enriched vendor map from live Supabase data */
+function buildLiveVendorMap(
+  liveVendors: Record<string, unknown>[],
+  listings: Record<string, unknown>[],
+  availability: Record<string, unknown>[]
+): { vendorMap: Record<string, Vendor>; lvMap: Record<string, string> } {
+  const vendorMap: Record<string, Vendor> = {}
+  const lvMap: Record<string, string> = {}
+  const categoryCounts: Record<string, number> = {}
+
+  // Build availability lookup: vendorId → blocked dates
+  const blockedByVendor: Record<string, string[]> = {}
+  for (const a of availability) {
+    const vid = a.vendor_id as string
+    if (!blockedByVendor[vid]) blockedByVendor[vid] = []
+    blockedByVendor[vid].push(a.date as string)
+  }
+
+  for (const l of listings) {
+    const parentVendor = liveVendors.find((v) => v.id === l.vendor_id)
+    const cat = (l.category as string) || ''
+    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+    const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
+    const vendorDbId = l.vendor_id as string
+    if (vendorDbId) lvMap[l.id as string] = vendorDbId
+
+    vendorMap[l.id as string] = {
+      id: l.id as string,
+      code,
+      name: (parentVendor?.business_name as string) || (l.name as string),
+      photo: ((l.photos as string[]) || [])[0] || '',
+      style: (l.style as string) || '',
+      area: (parentVendor?.area as string) || '',
+      price: l.price as number,
+      rating: (parentVendor?.rating as number) || 0,
+      packageTier: ((l.includes as string[]) || []).slice(0, 4).join(' · '),
+      likes: [],
+      booked: false,
+      amountPaid: 0,
+      // Extended fields
+      description: (parentVendor?.description as string) || '',
+      portfolioPhotos: (parentVendor?.portfolio_photos as string[]) || [],
+      listingPhotos: (l.photos as string[]) || [],
+      categoryFields: (l.category_fields as Record<string, string | string[]>) || {},
+      includes: (l.includes as string[]) || [],
+      phone: (parentVendor?.phone as string) || '',
+      whatsapp: (parentVendor?.whatsapp as string) || '',
+      email: (parentVendor?.email as string) || '',
+      experience: parseInt((parentVendor?.years_experience as string) || '0') || 0,
+      teamSize: (parentVendor?.team_size as string) || '',
+      blockedDates: blockedByVendor[vendorDbId] || [],
+    }
+  }
+
+  return { vendorMap, lvMap }
 }
 
 function maxTrialsForTier(tier: SubscriptionTier): number {
@@ -87,39 +145,11 @@ export const useStore = create<AppState & LiveModeState & {
         // Fetch boards from DB
         const boards = await fetchRitualBoards(couple.id)
 
-        // Fetch live vendors to show in explore
-        const liveVendors = await fetchAllLiveVendors()
-        const listings = await fetchAllListings()
-
-        // Build vendor map from live data
-        const vendorMap: Record<string, typeof mockVendors[string]> = {}
-        const lvMap: Record<string, string> = {} // listing → vendor mapping
-        const categoryCounts: Record<string, number> = {}
-
-        // Map listings as the primary vendor entries (each listing = one browsable option)
-        for (const l of listings) {
-          const parentVendor = liveVendors.find((v: Record<string, unknown>) => v.id === l.vendor_id)
-          const cat = (l.category as string) || ''
-          categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
-          const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
-
-          if (l.vendor_id) lvMap[l.id] = l.vendor_id as string
-
-          vendorMap[l.id] = {
-            id: l.id,
-            code,
-            name: parentVendor?.business_name || l.name,
-            photo: (l.photos as string[])?.[0] || '',
-            style: l.style || '',
-            area: parentVendor?.area || '',
-            price: l.price,
-            rating: parentVendor?.rating || 0,
-            packageTier: (l.includes as string[])?.slice(0, 4).join(' · ') || '',
-            likes: [],
-            booked: false,
-            amountPaid: 0,
-          }
-        }
+        // Fetch live vendors, listings, and availability
+        const [liveVendors, listings, availability] = await Promise.all([
+          fetchAllLiveVendors(), fetchAllListings(), fetchAllAvailability(),
+        ])
+        const { vendorMap, lvMap } = buildLiveVendorMap(liveVendors, listings, availability)
 
         set({
           _coupleDbId: couple.id,
@@ -146,27 +176,8 @@ export const useStore = create<AppState & LiveModeState & {
       set({ onboardingComplete: true, onboardingData: data, ritualBoards: placeholderBoards })
 
       // Fetch live listings, build vendor map, pre-populate boards, then save to DB
-      Promise.all([fetchAllLiveVendors(), fetchAllListings()]).then(async ([liveVendors, listings]) => {
-        // Build vendor map from live listings
-        const vendorMap: Record<string, typeof mockVendors[string]> = {}
-        const lvMap: Record<string, string> = {}
-        const categoryCounts: Record<string, number> = {}
-
-        for (const l of listings) {
-          const parentVendor = liveVendors.find((v: Record<string, unknown>) => v.id === l.vendor_id)
-          const cat = (l.category as string) || ''
-          categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
-          const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
-          if (l.vendor_id) lvMap[l.id] = l.vendor_id as string
-          vendorMap[l.id] = {
-            id: l.id, code, name: parentVendor?.business_name || l.name,
-            photo: (l.photos as string[])?.[0] || '', style: l.style || '',
-            area: parentVendor?.area || '', price: l.price,
-            rating: parentVendor?.rating || 0,
-            packageTier: (l.includes as string[])?.slice(0, 4).join(' · ') || '',
-            likes: [], booked: false, amountPaid: 0,
-          }
-        }
+      Promise.all([fetchAllLiveVendors(), fetchAllListings(), fetchAllAvailability()]).then(async ([liveVendors, listings, availability]) => {
+        const { vendorMap, lvMap } = buildLiveVendorMap(liveVendors, listings, availability)
 
         // Pre-populate boards with live vendors (same logic as demo)
         const allEvents = [...data.events, ...data.customEvents]

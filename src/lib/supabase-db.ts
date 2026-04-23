@@ -542,3 +542,13 @@ export async function fetchAllListings() {
     .order('created_at', { ascending: false })
   return data || []
 }
+
+/** Fetch blocked/booked dates for all live vendors (for couple availability display) */
+export async function fetchAllAvailability() {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('vendor_availability')
+    .select('vendor_id, date, status')
+    .in('status', ['blocked', 'booked'])
+  return data || []
+}
