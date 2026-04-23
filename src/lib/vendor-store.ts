@@ -11,6 +11,9 @@ import {
   fetchVendor, upsertVendor, updateVendorFields,
   fetchVendorListings, insertListing, updateListingDb,
   fetchVendorAvailability, upsertAvailability,
+  fetchVendorTrials as fetchVendorTrialsDb, acceptTrialDb, proposeNewTrialTimeDb,
+  fetchVendorBidsDb, submitBidDb,
+  type TrialRow, type BidRow,
 } from './supabase-db'
 
 interface LiveModeState {
@@ -104,6 +107,35 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         }
       }
 
+      // Fetch trials and bids from DB
+      const [dbTrials, dbBids] = await Promise.all([
+        fetchVendorTrialsDb(vendor.id),
+        fetchVendorBidsDb(vendor.id),
+      ])
+
+      // Map DB trials to vendor store format
+      const mappedTrials = dbTrials.map((t: TrialRow) => ({
+        id: t.id,
+        coupleNames: 'Couple', // We don't have couple names yet in the trial row
+        eventName: t.ritual_name,
+        category: t.category_label,
+        status: (t.status === 'requested' ? 'pending' : t.status === 'done' ? 'completed' : t.status === 'accepted' || t.status === 'confirmed' ? 'scheduled' : 'pending') as 'pending' | 'scheduled' | 'completed' | 'declined',
+        requestedDate: t.requested_date,
+        scheduledDate: t.scheduled_date || undefined,
+      }))
+
+      // Map DB bids to vendor store format
+      const mappedBids = dbBids.map((b: BidRow) => ({
+        id: b.id,
+        coupleNames: 'Couple',
+        eventName: b.ritual_name,
+        category: b.category_label,
+        uploadedImage: b.uploaded_image,
+        status: b.status,
+        bidPrice: b.bid_price || undefined,
+        bidNote: b.bid_note || undefined,
+      }))
+
       set({
         _vendorDbId: vendor.id,
         _listingIdMap: listingIdMap,
@@ -111,10 +143,9 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         vendorProfile: profile,
         vendorListings: listings,
         vendorAvailability: availability,
-        // These don't exist in DB yet — show empty states
         vendorBookings: [],
-        vendorTrials: [],
-        vendorBidRequests: [],
+        vendorTrials: mappedTrials,
+        vendorBidRequests: mappedBids,
         vendorNotifications: [],
         vendorReviews: [],
         vendorEarnings: [],
@@ -216,19 +247,30 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       }
     }),
 
-  submitBid: (bidId, price, note) =>
+  submitBid: (bidId, price, note) => {
+    const { _liveMode } = get()
     set((s) => ({
       vendorBidRequests: s.vendorBidRequests.map((b) =>
         b.id === bidId ? { ...b, status: 'submitted' as const, bidPrice: price, bidNote: note } : b
       ),
-    })),
+    }))
+    if (_liveMode) {
+      submitBidDb(bidId, price, note)
+    }
+  },
 
-  scheduleTrial: (trialId, date) =>
+  scheduleTrial: (trialId, _date) => {
+    const { _liveMode } = get()
     set((s) => ({
       vendorTrials: s.vendorTrials.map((t) =>
-        t.id === trialId ? { ...t, status: 'scheduled' as const, scheduledDate: date } : t
+        t.id === trialId ? { ...t, status: 'scheduled' as const, scheduledDate: _date } : t
       ),
-    })),
+    }))
+    if (_liveMode) {
+      // scheduleTrial on vendor side = accepting the trial
+      acceptTrialDb(trialId)
+    }
+  },
 
   markNotificationRead: (id) =>
     set((s) => ({

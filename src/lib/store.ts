@@ -7,6 +7,8 @@ import {
   updateBoardCategory, updateBoardDatesDb,
   fetchAllLiveVendors, fetchAllListings, fetchAllAvailability,
   trackEvent,
+  createTrial, confirmTrialDb, markTrialDoneDb,
+  createBids, type BidRow,
 } from "./supabase-db";
 import type { Vendor } from "./types";
 
@@ -98,6 +100,8 @@ interface LiveModeState {
   _coupleDbId: string | null
   /** Maps listing UUID → vendor UUID (for analytics tracking) */
   _listingVendorMap: Record<string, string>
+  /** Maps local trial key → DB trial UUID */
+  _trialIdMap: Record<string, string>
 }
 
 export const useStore = create<AppState & LiveModeState & {
@@ -108,6 +112,7 @@ export const useStore = create<AppState & LiveModeState & {
   _userId: null,
   _coupleDbId: null,
   _listingVendorMap: {},
+  _trialIdMap: {},
 
   // App state
   role: 'none',
@@ -512,11 +517,19 @@ export const useStore = create<AppState & LiveModeState & {
     })
     if (_liveMode) {
       const vid = _listingVendorMap[vendorId]
-      if (vid) trackEvent(vid, 'trial_request', _userId, vendorId)
+      if (vid) {
+        trackEvent(vid, 'trial_request', _userId, vendorId)
+        const board = get().ritualBoards.find(b => b.id === ritualId)
+        const cat = board?.categories.find(c => c.id === categoryId)
+        createTrial(_userId!, vid, vendorId, board?.name || '', cat?.label || '', date, time).then(row => {
+          if (row) set(s => ({ _trialIdMap: { ...s._trialIdMap, [`${ritualId}-${categoryId}-${vendorId}`]: row.id } }))
+        })
+      }
     }
   },
 
-  acceptTrial: (ritualId, categoryId, vendorId) =>
+  acceptTrial: (ritualId, categoryId, vendorId) => {
+    // This is called from vendor side — handled in vendor store for live mode
     set((s) => {
       const trialKey = `${ritualId}-${categoryId}-${vendorId}`;
       const trial = s.trialSessions[trialKey];
@@ -524,9 +537,11 @@ export const useStore = create<AppState & LiveModeState & {
       return {
         trialSessions: { ...s.trialSessions, [trialKey]: { ...trial, status: 'accepted' as const } },
       };
-    }),
+    })
+  },
 
-  proposeNewTrialTime: (ritualId, categoryId, vendorId, newDate, newTime) =>
+  proposeNewTrialTime: (ritualId, categoryId, vendorId, newDate, newTime) => {
+    // This is called from vendor side — handled in vendor store for live mode
     set((s) => {
       const trialKey = `${ritualId}-${categoryId}-${vendorId}`;
       const trial = s.trialSessions[trialKey];
@@ -537,9 +552,11 @@ export const useStore = create<AppState & LiveModeState & {
           [trialKey]: { ...trial, status: 'rescheduled' as const, vendorProposedDate: newDate, vendorProposedTime: newTime },
         },
       };
-    }),
+    })
+  },
 
-  confirmReschedule: (ritualId, categoryId, vendorId) =>
+  confirmReschedule: (ritualId, categoryId, vendorId) => {
+    const { _liveMode, _trialIdMap } = get()
     set((s) => {
       const trialKey = `${ritualId}-${categoryId}-${vendorId}`;
       const trial = s.trialSessions[trialKey];
@@ -555,9 +572,15 @@ export const useStore = create<AppState & LiveModeState & {
           },
         },
       };
-    }),
+    })
+    if (_liveMode) {
+      const dbId = _trialIdMap[`${ritualId}-${categoryId}-${vendorId}`]
+      if (dbId) confirmTrialDb(dbId)
+    }
+  },
 
-  markTrialDone: (ritualId, categoryId, vendorId) =>
+  markTrialDone: (ritualId, categoryId, vendorId) => {
+    const { _liveMode, _trialIdMap } = get()
     set((s) => {
       const trialKey = `${ritualId}-${categoryId}-${vendorId}`;
       const trial = s.trialSessions[trialKey];
@@ -565,7 +588,12 @@ export const useStore = create<AppState & LiveModeState & {
       return {
         trialSessions: { ...s.trialSessions, [trialKey]: { ...trial, status: 'done' as const } },
       };
-    }),
+    })
+    if (_liveMode) {
+      const dbId = _trialIdMap[`${ritualId}-${categoryId}-${vendorId}`]
+      if (dbId) markTrialDoneDb(dbId)
+    }
+  },
 
   addDesignAsVendor: (design) =>
     set((s) => {

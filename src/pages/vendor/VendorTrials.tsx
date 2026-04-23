@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { useVendorStore } from '@/lib/vendor-store'
 import { formatDate } from '@/lib/helpers'
+import { acceptTrialDb, proposeNewTrialTimeDb } from '@/lib/supabase-db'
 
 export default function VendorTrials() {
   const navigate = useNavigate()
-  const { trialSessions, acceptTrial, proposeNewTrialTime } = useStore()
-  const { vendorTrials } = useVendorStore()
+  const { trialSessions, acceptTrial, proposeNewTrialTime, _liveMode } = useStore()
+  const { vendorTrials, scheduleTrial: vendorAcceptTrial } = useVendorStore()
 
   const [proposeId, setProposeId] = useState<{ ritualId: string; categoryId: string; vendorId: string } | null>(null)
   const [proposeDate, setProposeDate] = useState('')
@@ -126,15 +127,55 @@ export default function VendorTrials() {
           </div>
         )}
 
-        {/* Mock vendor trials for demo */}
+        {/* Vendor trials from DB (live) or mock (demo) */}
         {mockPending.length > 0 && (
           <div className="mb-4">
-            <p className="text-[10px] font-semibold text-magenta uppercase tracking-wider mb-2">Other Requests ({mockPending.length})</p>
+            <p className="text-[10px] font-semibold text-magenta uppercase tracking-wider mb-2">{_liveMode ? 'Trial Requests' : 'Other Requests'} ({mockPending.length})</p>
             {mockPending.map((t) => (
-              <div key={t.id} className="p-3 rounded-xl border border-card-border mb-2">
+              <div key={t.id} className="p-3 rounded-xl border-2 border-magenta/20 bg-magenta-light/10 mb-2">
                 <p className="text-[12px] font-semibold text-dark">{t.coupleNames}</p>
                 <p className="text-[10px] text-gray-500">{t.eventName} · {t.category}</p>
                 <p className="text-[10px] text-gray-400 mt-0.5">Requested: {formatDate(t.requestedDate)}</p>
+                {_liveMode && (
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => {
+                        vendorAcceptTrial(t.id, t.requestedDate)
+                        acceptTrialDb(t.id)
+                      }}
+                      className="flex-1 py-2 rounded-lg bg-green-500 text-white text-[10px] font-semibold active:scale-[0.97] transition-transform"
+                    >Accept</button>
+                    <button
+                      onClick={() => setProposeId({ ritualId: t.id, categoryId: '', vendorId: '' })}
+                      className="flex-1 py-2 rounded-lg border border-mustard text-mustard text-[10px] font-semibold"
+                    >Propose new time</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {mockScheduled.length > 0 && (
+          <div className="mb-4">
+            <p className="text-[10px] font-semibold text-green-600 uppercase tracking-wider mb-2">Scheduled ({mockScheduled.length})</p>
+            {mockScheduled.map((t) => (
+              <div key={t.id} className="p-3 rounded-xl border border-green-200 mb-2">
+                <p className="text-[12px] font-semibold text-dark">{t.coupleNames}</p>
+                <p className="text-[10px] text-gray-500">{t.eventName} · {t.category}</p>
+                <p className="text-[10px] text-green-600 mt-0.5">Scheduled: {formatDate(t.scheduledDate || t.requestedDate)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {mockCompleted.length > 0 && (
+          <div className="mb-4">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Completed ({mockCompleted.length})</p>
+            {mockCompleted.map((t) => (
+              <div key={t.id} className="p-3 rounded-xl border border-card-border mb-2 opacity-70">
+                <p className="text-[12px] font-semibold text-dark">{t.coupleNames} · {t.eventName}</p>
+                <span className="inline-block mt-1 bg-green-100 text-green-600 text-[9px] font-medium px-2 py-0.5 rounded-full">Done</span>
               </div>
             ))}
           </div>
@@ -180,7 +221,12 @@ export default function VendorTrials() {
             <button
               onClick={() => {
                 if (proposeDate && proposeTime && proposeId) {
-                  proposeNewTrialTime(proposeId.ritualId, proposeId.categoryId, proposeId.vendorId, proposeDate, proposeTime)
+                  if (_liveMode && !proposeId.categoryId) {
+                    // Live mode: proposeId.ritualId is actually the DB trial UUID
+                    proposeNewTrialTimeDb(proposeId.ritualId, proposeDate, proposeTime)
+                  } else {
+                    proposeNewTrialTime(proposeId.ritualId, proposeId.categoryId, proposeId.vendorId, proposeDate, proposeTime)
+                  }
                   setProposeId(null)
                 }
               }}
