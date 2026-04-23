@@ -30,7 +30,6 @@ export default function OnboardingPage() {
   const [customEvent, setCustomEvent] = useState('')
   const [customEvents, setCustomEvents] = useState<string[]>([])
   const [eventDates, setEventDates] = useState<Record<string, { start: string; end: string } | null>>({})
-  const [notDecided, setNotDecided] = useState<Record<string, boolean>>({})
   const [eventGuests, setEventGuests] = useState<Record<string, string>>({})
   const [budget, setBudget] = useState(1500000)
   const [activePreset, setActivePreset] = useState<number | null>(null)
@@ -60,8 +59,8 @@ export default function OnboardingPage() {
 
   function handleComplete() {
     const data: OnboardingData = {
-      partner1: partner1 || 'Partner 1',
-      partner2: partner2 || 'Partner 2',
+      partner1: partner1.trim(),
+      partner2: partner2.trim(),
       events: selectedEvents,
       customEvents,
       eventDates,
@@ -123,7 +122,13 @@ export default function OnboardingPage() {
               </div>
             </div>
             <p className="text-[12px] text-gray-400 mt-4">This personalizes your wedding boards and sharing invites.</p>
-            <button onClick={next} className="mt-8 w-full py-3.5 rounded-xl bg-magenta text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">
+            <button
+              onClick={next}
+              disabled={!partner1.trim() || !partner2.trim()}
+              className={`mt-8 w-full py-3.5 rounded-xl font-semibold text-[15px] active:scale-[0.98] transition-transform ${
+                partner1.trim() && partner2.trim() ? 'bg-magenta text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
               Next
             </button>
           </div>
@@ -186,58 +191,52 @@ export default function OnboardingPage() {
             <div className="space-y-4">
               {allEvents.map((e) => (
                 <div key={e} className="py-2.5 border-b border-card-border/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[13px] font-medium text-dark">{e}</span>
-                    <label className="flex items-center gap-1 cursor-pointer">
+                  <span className="text-[13px] font-medium text-dark block mb-2">{e}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <label className="text-[9px] text-gray-400 block mb-0.5">Start date</label>
                       <input
-                        type="checkbox" checked={!!notDecided[e]}
-                        onChange={() => {
-                          setNotDecided((prev) => ({ ...prev, [e]: !prev[e] }))
-                          if (!notDecided[e]) setEventDates((prev) => ({ ...prev, [e]: null }))
-                        }}
-                        className="w-3.5 h-3.5 rounded accent-magenta"
+                        type="date"
+                        value={eventDates[e]?.start || ''}
+                        onChange={(ev) => setEventDates((prev) => ({
+                          ...prev,
+                          [e]: { start: ev.target.value, end: prev[e]?.end || ev.target.value }
+                        }))}
+                        className="w-full text-[11px] text-dark border border-card-border rounded-lg px-2 py-1.5 outline-none focus:border-magenta"
                       />
-                      <span className="text-[9px] text-gray-400">TBD</span>
-                    </label>
-                  </div>
-                  {!notDecided[e] ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <label className="text-[9px] text-gray-400 block mb-0.5">Start</label>
-                        <input
-                          type="date"
-                          value={eventDates[e]?.start || ''}
-                          onChange={(ev) => setEventDates((prev) => ({
-                            ...prev,
-                            [e]: { start: ev.target.value, end: prev[e]?.end || ev.target.value }
-                          }))}
-                          className="w-full text-[11px] text-dark border border-card-border rounded-lg px-2 py-1.5 outline-none focus:border-magenta"
-                        />
-                      </div>
-                      <span className="text-gray-300 mt-3">→</span>
-                      <div className="flex-1">
-                        <label className="text-[9px] text-gray-400 block mb-0.5">End</label>
-                        <input
-                          type="date"
-                          value={eventDates[e]?.end || eventDates[e]?.start || ''}
-                          min={eventDates[e]?.start || ''}
-                          onChange={(ev) => setEventDates((prev) => ({
-                            ...prev,
-                            [e]: { start: prev[e]?.start || ev.target.value, end: ev.target.value }
-                          }))}
-                          className="w-full text-[11px] text-dark border border-card-border rounded-lg px-2 py-1.5 outline-none focus:border-magenta"
-                        />
-                      </div>
                     </div>
-                  ) : (
-                    <span className="text-[11px] text-gray-400">Not decided yet</span>
-                  )}
+                    <span className="text-gray-300 mt-3">→</span>
+                    <div className="flex-1">
+                      <label className="text-[9px] text-gray-400 block mb-0.5">End date</label>
+                      <input
+                        type="date"
+                        value={eventDates[e]?.end || eventDates[e]?.start || ''}
+                        min={eventDates[e]?.start || ''}
+                        onChange={(ev) => setEventDates((prev) => ({
+                          ...prev,
+                          [e]: { start: prev[e]?.start || ev.target.value, end: ev.target.value }
+                        }))}
+                        className="w-full text-[11px] text-dark border border-card-border rounded-lg px-2 py-1.5 outline-none focus:border-magenta"
+                      />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
-            <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-magenta text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">
-              Next
-            </button>
+            {(() => {
+              const allDatesSet = allEvents.every(e => eventDates[e]?.start)
+              return (
+                <button
+                  onClick={next}
+                  disabled={!allDatesSet}
+                  className={`mt-6 w-full py-3.5 rounded-xl font-semibold text-[15px] active:scale-[0.98] transition-transform ${
+                    allDatesSet ? 'bg-magenta text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Next
+                </button>
+              )
+            })()}
           </div>
         )}
 
@@ -266,15 +265,20 @@ export default function OnboardingPage() {
                 </div>
               ))}
             </div>
-            <button
-              onClick={next}
-              disabled={Object.keys(eventGuests).length === 0}
-              className={`mt-6 w-full py-3.5 rounded-xl font-semibold text-[15px] active:scale-[0.98] transition-transform ${
-                Object.keys(eventGuests).length > 0 ? 'bg-magenta text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              Next
-            </button>
+            {(() => {
+              const allGuestsSet = allEvents.every(e => eventGuests[e])
+              return (
+                <button
+                  onClick={next}
+                  disabled={!allGuestsSet}
+                  className={`mt-6 w-full py-3.5 rounded-xl font-semibold text-[15px] active:scale-[0.98] transition-transform ${
+                    allGuestsSet ? 'bg-magenta text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Next
+                </button>
+              )
+            })()}
           </div>
         )}
 
@@ -340,12 +344,12 @@ export default function OnboardingPage() {
                 </button>
               ))}
             </div>
-            <button onClick={() => { setStyle(null); next() }} className="mt-4 text-[12px] text-gray-500 underline w-full text-center">
-              Show me everything
-            </button>
             <button
               onClick={next}
-              className="mt-4 w-full py-3.5 rounded-xl bg-magenta text-white font-semibold text-[15px] active:scale-[0.98] transition-transform"
+              disabled={!style}
+              className={`mt-6 w-full py-3.5 rounded-xl font-semibold text-[15px] active:scale-[0.98] transition-transform ${
+                style ? 'bg-magenta text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
             >
               Next
             </button>
