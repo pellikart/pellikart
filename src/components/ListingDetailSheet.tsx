@@ -48,9 +48,9 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
     : []
   const hasVendorProfile = parentVendor || siblingListings.length > 0
 
-  // Gallery: use listing photos + portfolio photos in live mode, fallback in demo
+  // Gallery: use only listing photos in live mode, fallback in demo
   const gallery = _liveMode
-    ? [...(vendor.listingPhotos || []), ...(vendor.portfolioPhotos || [])].filter(Boolean)
+    ? (vendor.listingPhotos || []).filter(Boolean)
     : getFallbackGallery(vendor.id)
 
   const likeNames = vendor.likes.map((l) => l.name)
