@@ -7,15 +7,19 @@ interface Props {
   unlocked: boolean
   onClose: () => void
   onViewListing?: (designId: string) => void
+  /** In live mode, pass sibling listings directly */
+  liveListings?: Vendor[]
 }
 
-export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onViewListing }: Props) {
+export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onViewListing, liveListings }: Props) {
   // Find all listings by this vendor
-  const vendorListings = mockDesigns.filter((d) => d.vendorId === vendor.id)
+  const vendorListings = liveListings
+    ? liveListings.map(v => ({ id: v.id, vendorId: v.id, name: v.name, photo: v.photo, style: v.style, price: v.price, rating: v.rating, description: v.description || '' }))
+    : mockDesigns.filter((d) => d.vendorId === vendor.id)
 
-  // Mock vendor details (in real app this comes from vendor profile)
-  const experience = 5 + Math.floor(vendor.rating * 2) % 8
-  const teamSize = vendor.price > 200000 ? '5-10' : vendor.price > 100000 ? '2-5' : 'Solo'
+  // Use real data if available, fallback to derived mock values
+  const experience = vendor.experience || (5 + Math.floor(vendor.rating * 2) % 8)
+  const teamSize = vendor.teamSize || (vendor.price > 200000 ? '5-10' : vendor.price > 100000 ? '2-5' : 'Solo')
   const totalBookings = 20 + Math.floor(vendor.rating * 15)
 
   return (
@@ -57,11 +61,25 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
           <div className="mb-4">
             <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">About</p>
             <p className="text-[11px] text-gray-600 leading-relaxed">
-              {unlocked ? vendor.name : 'This vendor'} specializes in {vendor.style.toLowerCase()} wedding services in {vendor.area}.
-              With {experience} years of experience and a team of {teamSize}, they've successfully delivered {totalBookings}+ events.
-              Known for attention to detail and personalized service.
+              {vendor.description || (
+                `${unlocked ? vendor.name : 'This vendor'} specializes in ${vendor.style.toLowerCase()} wedding services in ${vendor.area}. With ${experience} years of experience and a team of ${teamSize}, they've successfully delivered ${totalBookings}+ events. Known for attention to detail and personalized service.`
+              )}
             </p>
           </div>
+
+          {/* Portfolio photos (live mode) */}
+          {vendor.portfolioPhotos && vendor.portfolioPhotos.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Portfolio</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {vendor.portfolioPhotos.slice(0, 9).map((src, i) => (
+                  <div key={i} className="aspect-square rounded-lg overflow-hidden">
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Listings by this vendor */}
           {vendorListings.length > 0 && (
@@ -87,7 +105,12 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
 
           {/* Contact info hint */}
           <div className="p-3 rounded-xl bg-empty-bg text-center">
-            {unlocked ? (
+            {unlocked && (vendor.phone || vendor.whatsapp) ? (
+              <div className="flex gap-2">
+                {vendor.phone && <a href={`tel:${vendor.phone}`} className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">Call</a>}
+                {vendor.whatsapp && <a href={`https://wa.me/${vendor.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">WhatsApp</a>}
+              </div>
+            ) : unlocked ? (
               <div className="flex gap-2">
                 <a href="tel:+919876543210" className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">Call</a>
                 <a href="https://wa.me/919876543210" target="_blank" rel="noopener noreferrer" className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">WhatsApp</a>

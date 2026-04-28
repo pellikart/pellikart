@@ -33,13 +33,20 @@ function getFallbackGallery(vendorId: string): string[] {
 
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
-  const { _liveMode } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors } = useStore()
 
   // In live mode, the vendor object has all the data. In demo mode, look up parent vendor.
   const parentVendor = _liveMode ? null : (() => {
     const design = mockDesigns.find((d) => d.id === vendor.id)
     return design ? mockVendors[design.vendorId] || null : null
   })()
+
+  // In live mode, find sibling listings from the same vendor
+  const vendorDbId = _liveMode ? _listingVendorMap[vendor.id] : null
+  const siblingListings = _liveMode && vendorDbId
+    ? Object.values(allVendors).filter(v => _listingVendorMap[v.id] === vendorDbId)
+    : []
+  const hasVendorProfile = parentVendor || siblingListings.length > 0
 
   // Gallery: use listing photos + portfolio photos in live mode, fallback in demo
   const gallery = _liveMode
@@ -204,8 +211,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               <p className="text-[10px] text-gray-400 mb-4">Liked by {likeNames.join(', ')}</p>
             )}
 
-            {/* Vendor Portfolio Button (demo mode only — live mode has all data inline) */}
-            {parentVendor && (
+            {/* View Vendor Portfolio — shows all listings by this vendor */}
+            {hasVendorProfile && (
               <button
                 onClick={() => setShowPortfolio(true)}
                 className="w-full py-2.5 rounded-xl border border-mustard text-mustard text-[11px] font-semibold mb-3 active:bg-mustard-light transition-colors"
@@ -217,16 +224,17 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
         </div>
       </div>
 
-      {/* Vendor Portfolio Sheet (demo mode) */}
-      {showPortfolio && parentVendor && (
+      {/* Vendor Portfolio Sheet */}
+      {showPortfolio && (parentVendor || siblingListings.length > 0) && (
         <VendorPortfolioSheet
-          vendor={parentVendor}
+          vendor={parentVendor || vendor}
           unlocked={unlocked}
           onClose={() => setShowPortfolio(false)}
           onViewListing={(id) => {
             setShowPortfolio(false)
             if (onSwitchListing) onSwitchListing(id)
           }}
+          liveListings={siblingListings.length > 0 ? siblingListings : undefined}
         />
       )}
     </>
