@@ -20,12 +20,14 @@ export default function VendorEditListing() {
   const [price, setPrice] = useState(pr.min)
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
+  const [coverIndex, setCoverIndex] = useState(0)
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
 
   useEffect(() => {
     if (listing) {
       setName(listing.name)
       setPhotos(listing.photos)
+      setCoverIndex(listing.coverPhotoIndex ?? 0)
       setStyle(listing.style)
       setPrice(listing.price)
       setIncludes(listing.includes)
@@ -72,7 +74,7 @@ export default function VendorEditListing() {
     if (!listing) return
     updateListing({
       ...listing,
-      name, photos, style, price, rituals, includes, categoryFields,
+      name, photos, coverPhotoIndex: coverIndex, style, price, rituals, includes, categoryFields,
     })
     navigate('/vendor/listings')
   }
@@ -113,12 +115,14 @@ export default function VendorEditListing() {
 
         {/* Photos */}
         <div>
-          <label className="text-[11px] font-medium text-dark block mb-1.5">Photos</label>
+          <label className="text-[11px] font-medium text-dark block mb-1">Photos</label>
+          <p className="text-[10px] text-gray-400 mb-1.5">Tap any photo to set it as your listing cover.</p>
           <div className="grid grid-cols-4 gap-1.5">
             {photos.map((p, i) => (
-              <div key={i} className="aspect-square rounded-lg overflow-hidden relative">
+              <div key={i} className="aspect-square rounded-lg overflow-hidden relative cursor-pointer" onClick={() => setCoverIndex(i)}>
                 <img src={p} alt="" className="w-full h-full object-cover" />
-                {i === 0 && <span className="absolute top-0.5 left-0.5 bg-mustard text-white text-[6px] font-bold px-1 py-0.5 rounded">COVER</span>}
+                {i === coverIndex && <span className="absolute top-0.5 left-0.5 bg-mustard text-white text-[6px] font-bold px-1 py-0.5 rounded">COVER</span>}
+                {i !== coverIndex && <div className="absolute inset-0 bg-black/20" />}
               </div>
             ))}
             {photos.length < 10 && (

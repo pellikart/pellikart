@@ -21,6 +21,7 @@ export default function VendorAddListing() {
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
+  const [coverIndex, setCoverIndex] = useState(0)
   const [publishing, setPublishing] = useState(false)
 
   // Steps: 1=Photos & Name, 2=Rituals, 3..N=Category-specific steps, N+1=Style & Price, N+2=Inclusions, N+3=Review
@@ -77,6 +78,7 @@ export default function VendorAddListing() {
       id: `vl-${Date.now()}`,
       name: name || `${category} Listing`,
       photos: photoUrls,
+      coverPhotoIndex: coverIndex,
       category,
       price,
       style,
@@ -131,11 +133,13 @@ export default function VendorAddListing() {
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Add photos and a name for your {category.toLowerCase()} listing.</p>
 
             {/* Photo upload */}
+            <p className="text-[10px] text-gray-400 mb-2">Tap any photo to set it as your listing cover.</p>
             <div className="grid grid-cols-3 gap-2 mb-4">
               {photoPreviews.map((p, i) => (
-                <div key={i} className="aspect-square rounded-xl overflow-hidden relative">
+                <div key={i} className="aspect-square rounded-xl overflow-hidden relative cursor-pointer" onClick={() => setCoverIndex(i)}>
                   <img src={p} alt="" className="w-full h-full object-cover" />
-                  {i === 0 && <span className="absolute top-1 left-1 bg-mustard text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">COVER</span>}
+                  {i === coverIndex && <span className="absolute top-1 left-1 bg-mustard text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">COVER</span>}
+                  {i !== coverIndex && <div className="absolute inset-0 bg-black/20" />}
                 </div>
               ))}
               {photoPreviews.length < 10 && (
@@ -298,7 +302,7 @@ export default function VendorAddListing() {
             {/* Preview card */}
             <div className="rounded-2xl border border-card-border overflow-hidden mb-4">
               {photoPreviews.length > 0 ? (
-                <img src={photoPreviews[0]} alt="" className="w-full h-40 object-cover" />
+                <img src={photoPreviews[coverIndex] || photoPreviews[0]} alt="" className="w-full h-40 object-cover" />
               ) : (
                 <div className="w-full h-40 bg-empty-bg flex items-center justify-center text-gray-400 text-xs">No photo added</div>
               )}

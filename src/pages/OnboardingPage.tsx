@@ -30,6 +30,7 @@ export default function OnboardingPage() {
   const [customEvent, setCustomEvent] = useState('')
   const [customEvents, setCustomEvents] = useState<string[]>([])
   const [eventDates, setEventDates] = useState<Record<string, { start: string; end: string } | null>>({})
+  const [tbdDates, setTbdDates] = useState<Record<string, boolean>>({})
   const [eventGuests, setEventGuests] = useState<Record<string, string>>({})
   const [budget, setBudget] = useState(1500000)
   const [activePreset, setActivePreset] = useState<number | null>(null)
@@ -191,46 +192,65 @@ export default function OnboardingPage() {
             <div className="space-y-4">
               {allEvents.map((e) => (
                 <div key={e} className="py-2.5 border-b border-card-border/50">
-                  <span className="text-[13px] font-medium text-dark block mb-2">{e}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <label className="text-[9px] text-gray-400 block mb-0.5">Start date</label>
-                      <input
-                        type="date"
-                        value={eventDates[e]?.start || ''}
-                        onChange={(ev) => setEventDates((prev) => ({
-                          ...prev,
-                          [e]: { start: ev.target.value, end: prev[e]?.end || ev.target.value }
-                        }))}
-                        className="w-full text-[11px] text-dark border border-card-border rounded-lg px-2 py-1.5 outline-none focus:border-magenta"
-                      />
-                    </div>
-                    <span className="text-gray-300 mt-3">→</span>
-                    <div className="flex-1">
-                      <label className="text-[9px] text-gray-400 block mb-0.5">End date</label>
-                      <input
-                        type="date"
-                        value={eventDates[e]?.end || eventDates[e]?.start || ''}
-                        min={eventDates[e]?.start || ''}
-                        onChange={(ev) => setEventDates((prev) => ({
-                          ...prev,
-                          [e]: { start: prev[e]?.start || ev.target.value, end: ev.target.value }
-                        }))}
-                        className="w-full text-[11px] text-dark border border-card-border rounded-lg px-2 py-1.5 outline-none focus:border-magenta"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[13px] font-medium text-dark">{e}</span>
+                    <button
+                      onClick={() => {
+                        setTbdDates((prev) => ({ ...prev, [e]: !prev[e] }))
+                        if (!tbdDates[e]) {
+                          setEventDates((prev) => ({ ...prev, [e]: null }))
+                        }
+                      }}
+                      className={`text-[10px] px-2.5 py-1 rounded-full transition-colors ${
+                        tbdDates[e] ? 'bg-magenta/10 text-magenta font-semibold' : 'bg-gray-100 text-gray-400'
+                      }`}
+                    >
+                      Not decided yet
+                    </button>
                   </div>
+                  {tbdDates[e] ? (
+                    <p className="text-[11px] text-gray-400 italic">Dates TBD — you can set this later</p>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <label className="text-[9px] text-gray-400 block mb-0.5">Start date</label>
+                        <input
+                          type="date"
+                          value={eventDates[e]?.start || ''}
+                          onChange={(ev) => setEventDates((prev) => ({
+                            ...prev,
+                            [e]: { start: ev.target.value, end: prev[e]?.end || ev.target.value }
+                          }))}
+                          className="w-full text-[11px] text-dark border border-card-border rounded-lg px-2 py-1.5 outline-none focus:border-magenta"
+                        />
+                      </div>
+                      <span className="text-gray-300 mt-3">→</span>
+                      <div className="flex-1">
+                        <label className="text-[9px] text-gray-400 block mb-0.5">End date</label>
+                        <input
+                          type="date"
+                          value={eventDates[e]?.end || eventDates[e]?.start || ''}
+                          min={eventDates[e]?.start || ''}
+                          onChange={(ev) => setEventDates((prev) => ({
+                            ...prev,
+                            [e]: { start: prev[e]?.start || ev.target.value, end: ev.target.value }
+                          }))}
+                          className="w-full text-[11px] text-dark border border-card-border rounded-lg px-2 py-1.5 outline-none focus:border-magenta"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
             {(() => {
-              const allDatesSet = allEvents.every(e => eventDates[e]?.start)
+              const allHandled = allEvents.every(e => tbdDates[e] || eventDates[e]?.start)
               return (
                 <button
                   onClick={next}
-                  disabled={!allDatesSet}
+                  disabled={!allHandled}
                   className={`mt-6 w-full py-3.5 rounded-xl font-semibold text-[15px] active:scale-[0.98] transition-transform ${
-                    allDatesSet ? 'bg-magenta text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    allHandled ? 'bg-magenta text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >
                   Next
@@ -352,6 +372,12 @@ export default function OnboardingPage() {
               }`}
             >
               Next
+            </button>
+            <button
+              onClick={() => { setStyle(null); next() }}
+              className="mt-3 w-full text-center text-[13px] text-gray-400 hover:text-magenta transition-colors"
+            >
+              Show me everything
             </button>
           </div>
         )}

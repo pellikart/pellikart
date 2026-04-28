@@ -45,6 +45,8 @@ export interface VendorListing {
   id: string
   name: string
   photos: string[]
+  /** Index of the photo to use as listing cover (defaults to 0 / first photo) */
+  coverPhotoIndex?: number
   category: string
   price: number
   style: string

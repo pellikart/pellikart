@@ -64,7 +64,11 @@ export function buildLiveVendorMap(
       id: l.id as string,
       code,
       name: (parentVendor?.business_name as string) || (l.name as string),
-      photo: ((l.photos as string[]) || [])[0] || '',
+      photo: (() => {
+        const photos = (l.photos as string[]) || []
+        const coverIdx = (l.cover_photo_index as number) ?? 0
+        return photos[coverIdx] || photos[0] || ''
+      })(),
       style: (l.style as string) || '',
       area: (parentVendor?.area as string) || '',
       price: l.price as number,

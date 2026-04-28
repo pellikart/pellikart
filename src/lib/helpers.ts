@@ -1,5 +1,7 @@
 export function bgStyle(photo: string): { background: string } {
-  return { background: `${photo} center/cover no-repeat` };
+  if (!photo) return { background: '#f3f4f6' }
+  const val = photo.startsWith('url(') ? photo : `url(${photo})`
+  return { background: `${val} center/cover no-repeat` };
 }
 
 export function formatINR(amount: number): string {

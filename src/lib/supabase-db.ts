@@ -88,6 +88,7 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       vendor_id: vendorId,
       name: listing.name,
       photos: listing.photos,
+      cover_photo_index: listing.coverPhotoIndex ?? 0,
       category: listing.category,
       price: listing.price,
       style: listing.style,
@@ -108,6 +109,7 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
     .update({
       name: listing.name,
       photos: listing.photos,
+      cover_photo_index: listing.coverPhotoIndex ?? 0,
       price: listing.price,
       style: listing.style,
       rituals: listing.rituals || [],
