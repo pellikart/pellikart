@@ -12,12 +12,6 @@ const BUDGET_PRESETS = [
   { label: '₹20-40L', min: 2000000, max: 4000000, mid: 3000000 },
   { label: '₹40L+', min: 4000000, max: 10000000, mid: 5000000 },
 ]
-const STYLES = [
-  { id: 'traditional', label: 'Traditional', desc: 'Classic mandapam, gold & red tones', image: '/images/gallery/decor/1.jpg' },
-  { id: 'contemporary', label: 'Contemporary', desc: 'Minimal floral, clean lines, pastels', image: '/images/gallery/decor/2.jpg' },
-  { id: 'fusion', label: 'Fusion', desc: 'Modern meets traditional', image: '/images/gallery/decor/3.jpg' },
-  { id: 'royal', label: 'Royal Heritage', desc: 'Grand palace setup, heavy decor', image: '/images/gallery/venue/1.jpg' },
-]
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -34,9 +28,7 @@ export default function OnboardingPage() {
   const [eventGuests, setEventGuests] = useState<Record<string, string>>({})
   const [budget, setBudget] = useState(1500000)
   const [activePreset, setActivePreset] = useState<number | null>(null)
-  const [style, setStyle] = useState<string | null>(null)
-
-  const totalSteps = 8
+  const totalSteps = 7
   const allEvents = [...selectedEvents, ...customEvents]
 
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
@@ -67,7 +59,7 @@ export default function OnboardingPage() {
       eventDates,
       eventGuests,
       budget,
-      style,
+      style: null,
     }
     completeOnboarding(data)
     navigate('/')
@@ -75,8 +67,8 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-dvh flex flex-col bg-white">
-      {/* Progress bar — screens 2-7 */}
-      {step > 1 && step < 8 && (
+      {/* Progress bar — screens 2-6 */}
+      {step > 1 && step < 7 && (
         <div className="h-1 bg-gray-100">
           <div className="h-full bg-magenta transition-all duration-300" style={{ width: `${(step / totalSteps) * 100}%` }} />
         </div>
@@ -340,50 +332,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Screen 7: Style */}
+        {/* Screen 7: Ready */}
         {step === 7 && (
-          <div className="animate-fadeIn">
-            <h1 className="text-[22px] font-bold text-dark">What's your style?</h1>
-            <p className="text-[12px] text-gray-400 mt-1 mb-5">This helps us surface vendors and inspiration that match your vibe.</p>
-            <div className="grid grid-cols-2 gap-3">
-              {STYLES.map((s) => (
-                <button
-                  key={s.id} onClick={() => setStyle(s.label)}
-                  className={`rounded-xl overflow-hidden transition-all ${
-                    style === s.label ? 'ring-2 ring-magenta ring-offset-2' : ''
-                  }`}
-                >
-                  <div className="h-24 relative overflow-hidden">
-                    <img src={s.image} alt={s.label} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/20" />
-                  </div>
-                  <div className={`p-2.5 text-left ${style === s.label ? 'bg-magenta-light' : 'bg-white border border-card-border border-t-0'}`}>
-                    <p className={`text-[12px] font-semibold ${style === s.label ? 'text-magenta' : 'text-dark'}`}>{s.label}</p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">{s.desc}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={next}
-              disabled={!style}
-              className={`mt-6 w-full py-3.5 rounded-xl font-semibold text-[15px] active:scale-[0.98] transition-transform ${
-                style ? 'bg-magenta text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              Next
-            </button>
-            <button
-              onClick={() => { setStyle(null); next() }}
-              className="mt-3 w-full text-center text-[13px] text-gray-400 hover:text-magenta transition-colors"
-            >
-              Show me everything
-            </button>
-          </div>
-        )}
-
-        {/* Screen 8: Ready */}
-        {step === 8 && (
           <div className="animate-fadeIn text-center">
             <div className="text-4xl mb-4">🎉</div>
             <h1 className="text-[22px] font-bold text-dark leading-tight">
@@ -404,10 +354,6 @@ export default function OnboardingPage() {
                 <div>
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">Budget</p>
                   <p className="text-[13px] font-semibold text-dark mt-0.5">{formatINR(budget)}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">Style</p>
-                  <p className="text-[13px] font-semibold text-dark mt-0.5">{style || 'All styles'}</p>
                 </div>
               </div>
             </div>

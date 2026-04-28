@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '@/lib/store'
-import { formatDate } from '@/lib/helpers'
+import { formatDate, bgStyle } from '@/lib/helpers'
 
 export default function TrialsBanner() {
   const { subscription, trialSessions, vendors } = useStore()
@@ -57,7 +57,7 @@ export default function TrialsBanner() {
                     const vendor = vendors[trial.vendorId]
                     return (
                       <div key={key} className="flex items-center gap-3 py-2.5 border-b border-card-border/30">
-                        <div className="w-10 h-10 rounded-lg shrink-0" style={{ background: `${vendor?.photo || '#eee'} center/cover no-repeat` }} />
+                        <div className="w-10 h-10 rounded-lg shrink-0" style={bgStyle(vendor?.photo || '')} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="bg-magenta-light text-magenta text-[8px] font-medium px-1.5 py-0.5 rounded-full">{trial.categoryLabel}</span>
@@ -85,7 +85,7 @@ export default function TrialsBanner() {
                     const vendor = vendors[trial.vendorId]
                     return (
                       <div key={key} className="flex items-center gap-3 py-2.5 border-b border-card-border/30 opacity-70">
-                        <div className="w-10 h-10 rounded-lg shrink-0" style={{ background: `${vendor?.photo || '#eee'} center/cover no-repeat` }} />
+                        <div className="w-10 h-10 rounded-lg shrink-0" style={bgStyle(vendor?.photo || '')} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="bg-magenta-light text-magenta text-[8px] font-medium px-1.5 py-0.5 rounded-full">{trial.categoryLabel}</span>

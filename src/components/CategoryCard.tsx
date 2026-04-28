@@ -3,23 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { Category, Vendor } from '@/lib/types'
 import { formatINR, bgStyle } from '@/lib/helpers'
 
-const galleryMap: Record<string, { folder: string; count: number }> = {
-  venue: { folder: 'venue', count: 8 },
-  catering: { folder: 'catering', count: 7 },
-  decor: { folder: 'decor', count: 9 },
-  photo: { folder: 'photo', count: 8 },
-  mehendi: { folder: 'mehendi', count: 8 },
-  makeup: { folder: 'makeup', count: 9 },
-  dj: { folder: 'dj', count: 9 },
-}
-
-function getGalleryImages(categoryLabel: string): string[] {
-  const key = categoryLabel.toLowerCase().split(' ')[0].replace('/', '')
-  const info = galleryMap[key === 'photography' ? 'photo' : key]
-  if (!info) return []
-  return Array.from({ length: Math.min(info.count, 6) }, (_, i) => `/images/gallery/${info.folder}/${i + 1}.jpg`)
-}
-
 interface Props {
   category: Category
   ritualId: string
@@ -120,14 +103,22 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
               </div>
 
               {/* Photo gallery */}
-              <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Gallery</p>
-              <div className="grid grid-cols-3 gap-1.5 mb-4">
-                {getGalleryImages(category.label).map((src, i) => (
-                  <div key={i} className="aspect-square rounded-lg overflow-hidden">
-                    <img src={src} alt="" className="w-full h-full object-cover" />
+              {(vendor.listingPhotos?.length || vendor.portfolioPhotos?.length) ? (
+                <>
+                  <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Gallery</p>
+                  <div className="grid grid-cols-3 gap-1.5 mb-4">
+                    {[...(vendor.listingPhotos || []), ...(vendor.portfolioPhotos || [])].filter(Boolean).slice(0, 9).map((src, i) => (
+                      <div key={i} className="aspect-square rounded-lg overflow-hidden">
+                        <img src={src} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              ) : (
+                <div className="mb-4 py-4 text-center rounded-xl bg-empty-bg">
+                  <p className="text-[10px] text-gray-400">No photos uploaded yet</p>
+                </div>
+              )}
 
               {/* Package details */}
               <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Package Details</p>

@@ -12,24 +12,6 @@ interface Props {
   onSwitchListing?: (id: string) => void
 }
 
-// Fallback gallery for demo mode
-const galleryMap: Record<string, { folder: string; count: number }> = {
-  venue: { folder: 'venue', count: 8 }, catering: { folder: 'catering', count: 7 },
-  decor: { folder: 'decor', count: 9 }, photo: { folder: 'photo', count: 8 },
-  mehendi: { folder: 'mehendi', count: 8 }, makeup: { folder: 'makeup', count: 9 },
-  dj: { folder: 'dj', count: 9 },
-}
-
-function getFallbackGallery(vendorId: string): string[] {
-  let key = ''
-  for (const k of Object.keys(galleryMap)) {
-    if (vendorId.includes(k) || (k === 'photo' && vendorId.includes('photo'))) { key = k; break }
-  }
-  if (vendorId.includes('pandit') || vendorId.includes('invite')) key = 'decor'
-  const info = galleryMap[key]
-  if (!info) return []
-  return Array.from({ length: Math.min(info.count, 6) }, (_, i) => `/images/gallery/${info.folder}/${i + 1}.jpg`)
-}
 
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
@@ -48,10 +30,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
     : []
   const hasVendorProfile = parentVendor || siblingListings.length > 0
 
-  // Gallery: use only listing photos in live mode, fallback in demo
-  const gallery = _liveMode
-    ? (vendor.listingPhotos || []).filter(Boolean)
-    : getFallbackGallery(vendor.id)
+  // Gallery: use only listing photos
+  const gallery = (vendor.listingPhotos || []).filter(Boolean)
 
   const likeNames = vendor.likes.map((l) => l.name)
 
