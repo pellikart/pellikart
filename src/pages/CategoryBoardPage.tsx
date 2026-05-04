@@ -55,7 +55,9 @@ export default function CategoryBoardPage() {
     .map((id) => vendors[id])
     .filter(Boolean)
 
-  // Explore feed: use live vendors in live mode, mock designs in demo
+  // Explore feed: use live vendors in live mode, mock designs in demo.
+  // In demo mode the vendor map already holds scaled prices for every
+  // design — read price from there so explore matches the board.
   const allDesigns = _liveMode
     ? Object.values(vendors)
         .filter(v => {
@@ -65,7 +67,10 @@ export default function CategoryBoardPage() {
           return v.code.toLowerCase().startsWith(category.label.toLowerCase())
         })
         .map(v => ({ id: v.id, vendorId: v.id, name: v.name, photo: v.photo, style: v.style, price: v.price, rating: v.rating, description: v.packageTier }))
-    : getDesignsForCategory(category.label)
+    : getDesignsForCategory(category.label).map(d => {
+        const v = vendors[d.id]
+        return v ? { ...d, price: v.price } : d
+      })
   const exploreDesigns = allDesigns.filter((d) => !category.shortlistedVendorIds.includes(d.id))
   const isDesignCategory = true
 
