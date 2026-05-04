@@ -116,6 +116,7 @@ export interface AppState {
   removeFromShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   toggleLike: (vendorId: string, userName: string, userId: string) => void;
   removeCategory: (ritualId: string, categoryId: string) => void;
+  restoreCategory: (ritualId: string, categoryId: string) => void;
   bookVendor: (vendorId: string, amount: number) => void;
   bookAllVendors: (ritualId: string) => void;
   swapVendor: (ritualId: string, categoryId: string, newVendorId: string) => void;

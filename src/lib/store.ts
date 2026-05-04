@@ -434,6 +434,20 @@ export const useStore = create<AppState & LiveModeState & {
     }
   },
 
+  restoreCategory: (ritualId, categoryId) => {
+    const { _liveMode } = get()
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, removed: false } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { removed: false })
+    }
+  },
+
   bookVendor: (vendorId, amount) => {
     const { _liveMode, _userId, _listingVendorMap } = get()
     const vendor = get().vendors[vendorId]

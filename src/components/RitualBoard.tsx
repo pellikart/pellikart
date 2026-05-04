@@ -11,7 +11,7 @@ interface Props {
 }
 
 export default function RitualBoard({ board }: Props) {
-  const { vendors, subscription, removeCategory, subscribe } = useStore()
+  const { vendors, subscription, removeCategory, restoreCategory, subscribe } = useStore()
   const unlocked = subscription !== 'free'
   const navigate = useNavigate()
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
@@ -24,6 +24,8 @@ export default function RitualBoard({ board }: Props) {
   const activeCategories = board.categories.filter((c) => !c.removed)
   const filledCategories = activeCategories.filter((c) => c.selectedVendorId && vendors[c.selectedVendorId])
   const emptyCategories = activeCategories.filter((c) => !c.selectedVendorId || !vendors[c.selectedVendorId])
+  const removedCategories = board.categories.filter((c) => c.removed)
+  const addableCount = emptyCategories.length + removedCategories.length
 
   const filledCount = filledCategories.length
   const totalCount = activeCategories.length
@@ -74,7 +76,7 @@ export default function RitualBoard({ board }: Props) {
           />
         ))}
 
-        {emptyCategories.length > 0 && (
+        {addableCount > 0 && (
           <div className="relative rounded-xl overflow-hidden min-h-[90px]">
             <button
               onClick={() => setShowCategoryPicker(true)}
@@ -83,7 +85,7 @@ export default function RitualBoard({ board }: Props) {
               <div className="w-8 h-8 rounded-full border-[1.5px] border-dashed border-magenta flex items-center justify-center">
                 <span className="text-magenta text-base leading-none">+</span>
               </div>
-              <span className="text-[10px] text-gray-500">{emptyCategories.length} more</span>
+              <span className="text-[10px] text-gray-500">{addableCount} more</span>
             </button>
           </div>
         )}
@@ -142,6 +144,32 @@ export default function RitualBoard({ board }: Props) {
                   </div>
                 </button>
               ))}
+
+              {removedCategories.length > 0 && (
+                <>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-3 mb-1">Recently removed</p>
+                  {removedCategories.map((cat) => (
+                    <div key={cat.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-empty-bg">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                        <span className="text-gray-500 text-xs font-semibold">{cat.label.charAt(0)}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium text-dark">{cat.label}</p>
+                        <p className="text-[10px] text-gray-400">Removed — tap restore to bring it back</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          restoreCategory(board.id, cat.id)
+                          setShowCategoryPicker(false)
+                        }}
+                        className="px-3 py-1.5 rounded-lg border border-magenta text-magenta text-[11px] font-medium active:bg-magenta-light transition-colors shrink-0"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </div>
