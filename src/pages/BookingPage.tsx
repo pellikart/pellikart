@@ -40,7 +40,7 @@ export default function BookingPage() {
   return (
     <div className="min-h-dvh bg-white page-enter">
       {/* Top Bar */}
-      <div className="px-4 py-3 bg-white border-b border-card-border flex items-center gap-3 sticky top-0 z-20">
+      <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center gap-3 sticky top-0 z-20">
         <button onClick={() => navigate(-1)} className="text-sm">←</button>
         <div>
           <span className="font-semibold text-dark text-[13px]">{board.name}</span>

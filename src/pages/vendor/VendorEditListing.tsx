@@ -83,7 +83,7 @@ export default function VendorEditListing() {
 
   return (
     <div className="min-h-dvh bg-white page-enter flex flex-col">
-      <div className="px-4 py-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
+      <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/vendor/listings')} className="text-sm">←</button>
           <p className="text-[14px] font-bold text-dark">Edit Listing</p>

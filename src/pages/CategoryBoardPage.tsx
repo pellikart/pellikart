@@ -101,7 +101,7 @@ export default function CategoryBoardPage() {
   return (
     <div className="flex flex-col h-dvh page-enter">
       {/* Top Bar */}
-      <div className="px-4 py-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
+      <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="text-sm">←</button>
           <div>

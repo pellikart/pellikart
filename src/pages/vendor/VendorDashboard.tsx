@@ -24,7 +24,7 @@ export default function VendorDashboard() {
   return (
     <div className="pb-20 page-enter">
       {/* Header */}
-      <div className="px-4 py-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
+      <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
         <div>
           <p className="text-[10px] text-gray-400 uppercase tracking-wider">Dashboard</p>
           <p className="text-[14px] font-bold text-dark">{vendorProfile?.businessName}</p>
