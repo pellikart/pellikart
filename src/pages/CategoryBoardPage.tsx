@@ -32,6 +32,9 @@ export default function CategoryBoardPage() {
   const [trialPickerVendorId, setTrialPickerVendorId] = useState<string | null>(null)
   const [trialDate, setTrialDate] = useState('')
   const [trialTime, setTrialTime] = useState('')
+  const [priceChange, setPriceChange] = useState<{
+    oldName: string; oldPrice: number; newName: string; newPrice: number
+  } | null>(null)
 
   const board = ritualBoards.find((b) => b.id === ritualId)
   const category = board?.categories.find((c) => c.id === categoryId)
@@ -98,6 +101,21 @@ export default function CategoryBoardPage() {
   }
   const bookingAmount = Math.round(ritualTotal * 0.04)
 
+  function handleSwap(newVendorId: string) {
+    const prevId = category!.selectedVendorId
+    const prev = prevId ? vendors[prevId] : null
+    const next = vendors[newVendorId]
+    selectVendor(ritualId!, categoryId!, newVendorId)
+    if (prev && next && prevId !== newVendorId && prev.price !== next.price) {
+      setPriceChange({
+        oldName: unlocked ? (prev.name || prev.code) : prev.code,
+        oldPrice: prev.price,
+        newName: unlocked ? (next.name || next.code) : next.code,
+        newPrice: next.price,
+      })
+    }
+  }
+
   return (
     <div className="flex flex-col h-dvh page-enter">
       {/* Top Bar */}
@@ -161,7 +179,7 @@ export default function CategoryBoardPage() {
                 vendors={shortlisted}
                 selectedId={category.selectedVendorId}
                 unlocked={unlocked}
-                onSelect={(id) => selectVendor(ritualId!, categoryId!, id)}
+                onSelect={handleSwap}
                 onLike={(id) => toggleLike(id, 'You', 'u-user')}
                 onRemove={(id) => removeFromShortlist(ritualId!, categoryId!, id)}
                 onTap={(id) => setDetailVendorId(id)}
@@ -174,7 +192,7 @@ export default function CategoryBoardPage() {
                 vendors={shortlisted}
                 selectedId={category.selectedVendorId}
                 unlocked={unlocked}
-                onSelect={(id) => selectVendor(ritualId!, categoryId!, id)}
+                onSelect={handleSwap}
               />
             )}
           </div>
@@ -485,6 +503,45 @@ export default function CategoryBoardPage() {
           onSwitchListing={(id) => { addDesignAsVendor(mockDesigns.find((d) => d.id === id)!); setDetailVendorId(id) }}
         />
       )}
+
+      {/* Price-change toast on swap */}
+      {priceChange && (() => {
+        const diff = priceChange.newPrice - priceChange.oldPrice
+        const isIncrease = diff > 0
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setPriceChange(null)}>
+            <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+              <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
+              <p className="text-[14px] font-bold text-dark">{category.label} price updated</p>
+              <p className="text-[11px] text-gray-500 mt-1">
+                Switched from {priceChange.oldName} to {priceChange.newName}.
+              </p>
+
+              <div className="mt-4 rounded-xl border border-card-border bg-empty-bg p-3 space-y-2">
+                <div className="flex items-center justify-between text-[12px]">
+                  <span className="text-gray-500 line-through">{priceChange.oldName}</span>
+                  <span className="text-gray-500 line-through">{formatINR(priceChange.oldPrice)}</span>
+                </div>
+                <div className="flex items-center justify-between text-[13px] font-semibold">
+                  <span className="text-dark">{priceChange.newName}</span>
+                  <span className="text-magenta">{formatINR(priceChange.newPrice)}</span>
+                </div>
+                <div className={`flex items-center justify-between pt-2 mt-2 border-t border-card-border text-[11px] font-medium ${isIncrease ? 'text-red-600' : 'text-green-600'}`}>
+                  <span>{isIncrease ? 'You\'re paying more' : 'You\'re saving'}</span>
+                  <span>{isIncrease ? '+' : '−'}{formatINR(Math.abs(diff))}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setPriceChange(null)}
+                className="mt-5 w-full py-2.5 rounded-xl bg-magenta text-white text-[13px] font-semibold active:opacity-90 transition-opacity"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
