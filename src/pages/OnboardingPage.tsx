@@ -74,7 +74,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-white">
+    <div className="min-h-dvh flex flex-col bg-white pt-[env(safe-area-inset-top)]">
       {/* Progress bar — screens 2-6 */}
       {step > 1 && step < 7 && (
         <div className="h-1 bg-gray-100">

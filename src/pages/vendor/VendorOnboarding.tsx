@@ -101,7 +101,7 @@ export default function VendorOnboarding() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-white">
+    <div className="min-h-dvh flex flex-col bg-white pt-[env(safe-area-inset-top)]">
       {step > 1 && step < totalSteps && (
         <div className="h-1 bg-gray-100">
           <div className="h-full bg-mustard transition-all duration-300" style={{ width: `${(step / totalSteps) * 100}%` }} />
