@@ -8,6 +8,7 @@ export interface OnboardingData {
   eventDates: Record<string, { start: string; end: string } | null>;
   eventGuests: Record<string, string>;
   budget: number;
+  eventBudgets?: Record<string, number>;
   style: string | null;
 }
 

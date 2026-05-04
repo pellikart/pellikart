@@ -67,7 +67,10 @@ export function generateBoardsFromOnboarding(data: OnboardingData): RitualBoard[
     const id = `r-${eventName.toLowerCase().replace(/\s+/g, "-")}`;
     const dateInfo = data.eventDates[eventName];
     const categories = getCategoriesForEvent(eventName);
-    const eventBudget = (data.budget * (eventWeights[eventName] / totalWeight));
+    const perEvent = data.eventBudgets?.[eventName];
+    const eventBudget = typeof perEvent === 'number'
+      ? perEvent
+      : (data.budget * (eventWeights[eventName] / totalWeight));
     const totalCatWeight = categories.reduce((sum, c) => sum + (categoryWeight[c] || 0.05), 0);
 
     const cats = categories.map((label) => {

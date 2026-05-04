@@ -6,12 +6,17 @@ import { formatINR } from '@/lib/helpers'
 
 const PRESET_EVENTS = ['Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
 const GUEST_OPTIONS = ['100-200', '200-500', '500-1000', '1000+']
-const BUDGET_PRESETS = [
-  { label: '₹5-10L', min: 500000, max: 1000000, mid: 750000 },
-  { label: '₹10-20L', min: 1000000, max: 2000000, mid: 1500000 },
-  { label: '₹20-40L', min: 2000000, max: 4000000, mid: 3000000 },
-  { label: '₹40L+', min: 4000000, max: 10000000, mid: 5000000 },
-]
+const EVENT_BUDGET_MIN = 25000
+const EVENT_BUDGET_MAX = 5000000
+const EVENT_BUDGET_STEP = 25000
+
+function defaultBudgetFor(event: string): number {
+  const lower = event.toLowerCase()
+  if (lower.includes('pelli') && lower.includes('wedding')) return 1000000
+  if (lower === 'reception') return 600000
+  if (lower === 'sangeeth' || lower === 'mehendi') return 300000
+  return 200000
+}
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -26,10 +31,10 @@ export default function OnboardingPage() {
   const [eventDates, setEventDates] = useState<Record<string, { start: string; end: string } | null>>({})
   const [tbdDates, setTbdDates] = useState<Record<string, boolean>>({})
   const [eventGuests, setEventGuests] = useState<Record<string, string>>({})
-  const [budget, setBudget] = useState(1500000)
-  const [activePreset, setActivePreset] = useState<number | null>(null)
+  const [eventBudgets, setEventBudgets] = useState<Record<string, number>>({})
   const totalSteps = 7
   const allEvents = [...selectedEvents, ...customEvents]
+  const totalBudget = allEvents.reduce((sum, e) => sum + (eventBudgets[e] ?? defaultBudgetFor(e)), 0)
 
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
   function back() { setStep((s) => Math.max(s - 1, 1)) }
@@ -51,6 +56,8 @@ export default function OnboardingPage() {
   }
 
   function handleComplete() {
+    const finalEventBudgets: Record<string, number> = {}
+    for (const e of allEvents) finalEventBudgets[e] = eventBudgets[e] ?? defaultBudgetFor(e)
     const data: OnboardingData = {
       partner1: partner1.trim(),
       partner2: partner2.trim(),
@@ -58,7 +65,8 @@ export default function OnboardingPage() {
       customEvents,
       eventDates,
       eventGuests,
-      budget,
+      budget: totalBudget,
+      eventBudgets: finalEventBudgets,
       style: null,
     }
     completeOnboarding(data)
@@ -294,38 +302,43 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Screen 6: Budget */}
+        {/* Screen 6: Budget per ritual */}
         {step === 6 && (
           <div className="animate-fadeIn">
-            <h1 className="text-[22px] font-bold text-dark">What's your total budget?</h1>
-            <div className="mt-6 text-center">
-              <p className="text-[28px] font-bold text-magenta">{formatINR(budget)}</p>
+            <h1 className="text-[22px] font-bold text-dark">Budget for each event?</h1>
+            <p className="text-[12px] text-gray-400 mt-1 mb-4">Set what you'd like to spend on each event. We'll suggest vendors that fit.</p>
+
+            <div className="text-center py-3 rounded-2xl bg-empty-bg border border-card-border mb-4">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total budget</p>
+              <p className="text-[24px] font-bold text-magenta mt-0.5">{formatINR(totalBudget)}</p>
             </div>
-            <div className="mt-5 px-1">
-              <input
-                type="range" min={500000} max={10000000} step={100000}
-                value={budget} onChange={(e) => { setBudget(Number(e.target.value)); setActivePreset(null) }}
-                className="w-full h-2 rounded-full appearance-none cursor-pointer accent-magenta"
-                style={{ background: `linear-gradient(to right, #E91E78 ${((budget - 500000) / 9500000) * 100}%, #eee ${((budget - 500000) / 9500000) * 100}%)` }}
-              />
-              <div className="flex justify-between text-[9px] text-gray-400 mt-1">
-                <span>₹5L</span><span>₹1Cr</span>
-              </div>
+
+            <div className="space-y-4">
+              {allEvents.map((e) => {
+                const v = eventBudgets[e] ?? defaultBudgetFor(e)
+                const pct = ((v - EVENT_BUDGET_MIN) / (EVENT_BUDGET_MAX - EVENT_BUDGET_MIN)) * 100
+                return (
+                  <div key={e} className="py-1">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[13px] font-medium text-dark">{e}</span>
+                      <span className="text-[13px] font-semibold text-magenta">{formatINR(v)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={EVENT_BUDGET_MIN}
+                      max={EVENT_BUDGET_MAX}
+                      step={EVENT_BUDGET_STEP}
+                      value={v}
+                      onChange={(ev) => setEventBudgets((prev) => ({ ...prev, [e]: Number(ev.target.value) }))}
+                      className="w-full h-2 rounded-full appearance-none cursor-pointer accent-magenta"
+                      style={{ background: `linear-gradient(to right, #E91E78 ${pct}%, #eee ${pct}%)` }}
+                    />
+                  </div>
+                )
+              })}
             </div>
-            <div className="mt-4 flex gap-2">
-              {BUDGET_PRESETS.map((p, i) => (
-                <button
-                  key={i}
-                  onClick={() => { setBudget(p.mid); setActivePreset(i) }}
-                  className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${
-                    activePreset === i ? 'bg-magenta text-white' : 'border border-magenta text-magenta'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-[12px] text-gray-400 mt-4">Your budget filters vendors to your range — so every option you see is one you can actually afford.</p>
+
+            <p className="text-[12px] text-gray-400 mt-4">Each event's budget filters vendors to your range — so every option you see is one you can actually afford.</p>
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-magenta text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">
               Next
             </button>
@@ -353,7 +366,7 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">Budget</p>
-                  <p className="text-[13px] font-semibold text-dark mt-0.5">{formatINR(budget)}</p>
+                  <p className="text-[13px] font-semibold text-dark mt-0.5">{formatINR(totalBudget)}</p>
                 </div>
               </div>
             </div>
