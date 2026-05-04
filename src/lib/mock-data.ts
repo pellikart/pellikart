@@ -21,10 +21,11 @@ export function getCategoriesForEvent(eventName: string): string[] {
   const lower = eventName.toLowerCase();
   if (lower === 'mehendi') return ["Venue", "Catering", "Mehendi", "Photography", "Decor"];
   if (lower === 'sangeeth') return ["Venue", "Catering", "DJ / Music", "Photography", "Decor"];
-  if (lower === 'nalugu') return ["Venue", "Catering", "Decor", "Photography"];
+  if (lower === 'haldi') return ["Venue", "Catering", "Decor", "Photography"];
+  if (lower === 'bottu') return ["Venue", "Catering", "Decor", "Photography"];
   if (lower === 'reception') return ["Venue", "Catering", "Decor", "Photography", "DJ / Music"];
   if (lower === 'pelli (wedding)') return ["Venue", "Catering", "Decor", "Photography", "Makeup", "Pandit", "Invitations"];
-  if (lower === 'nischitartham' || lower === 'pelli choopulu') return ["Venue", "Catering", "Decor", "Photography", "Makeup"];
+  if (lower === 'engagement' || lower === 'pelli choopulu') return ["Venue", "Catering", "Decor", "Photography", "Makeup"];
   return [...defaultCategories];
 }
 

@@ -109,22 +109,23 @@ describe('Vendor Category Config', () => {
   })
 
   describe('Rituals', () => {
-    it('has Telugu event names', () => {
-      expect(RITUALS).toContain('Nischitartham')
+    it('has expected event names', () => {
+      expect(RITUALS).toContain('Engagement')
       expect(RITUALS).toContain('Pelli Choopulu')
-      expect(RITUALS).toContain('Nalugu')
+      expect(RITUALS).toContain('Bottu')
+      expect(RITUALS).toContain('Haldi')
       expect(RITUALS).toContain('Sangeeth')
       expect(RITUALS).toContain('Pelli (Wedding)')
     })
 
-    it('does not have Hindi event names', () => {
-      expect(RITUALS).not.toContain('Engagement')
-      expect(RITUALS).not.toContain('Haldi')
+    it('does not have superseded event names', () => {
+      expect(RITUALS).not.toContain('Nischitartham')
+      expect(RITUALS).not.toContain('Nalugu')
       expect(RITUALS).not.toContain('Sangeet')
     })
 
     it('has correct count', () => {
-      expect(RITUALS.length).toBe(7)
+      expect(RITUALS.length).toBe(8)
     })
   })
 

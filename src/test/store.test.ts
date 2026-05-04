@@ -54,7 +54,7 @@ describe('Couple Store', () => {
     const data = {
       partner1: 'A',
       partner2: 'B',
-      events: ['Pelli (Wedding)', 'Sangeeth', 'Nalugu'],
+      events: ['Pelli (Wedding)', 'Sangeeth', 'Haldi'],
       customEvents: [],
       eventDates: {},
       eventGuests: {},

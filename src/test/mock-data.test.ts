@@ -69,15 +69,22 @@ describe('getCategoriesForEvent', () => {
     expect(cats).not.toContain('Pandit')
   })
 
-  it('returns correct categories for Nalugu', () => {
-    const cats = getCategoriesForEvent('Nalugu')
+  it('returns correct categories for Haldi', () => {
+    const cats = getCategoriesForEvent('Haldi')
     expect(cats).toContain('Venue')
     expect(cats).toContain('Photography')
     expect(cats).not.toContain('Makeup')
   })
 
-  it('returns correct categories for Nischitartham', () => {
-    const cats = getCategoriesForEvent('Nischitartham')
+  it('returns correct categories for Bottu', () => {
+    const cats = getCategoriesForEvent('Bottu')
+    expect(cats).toContain('Venue')
+    expect(cats).toContain('Photography')
+    expect(cats).not.toContain('Makeup')
+  })
+
+  it('returns correct categories for Engagement', () => {
+    const cats = getCategoriesForEvent('Engagement')
     expect(cats).toContain('Makeup')
     expect(cats).not.toContain('Pandit')
   })

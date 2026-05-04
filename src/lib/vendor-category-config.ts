@@ -351,7 +351,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         subtitle: 'What ceremonies does this cover?',
         fields: [
           { key: 'tradition', label: 'Tradition', type: 'single', options: ['Telugu Brahmin', 'Telugu Niyogi', 'Arya Vysya', 'Multi-tradition', 'North Indian', 'Other'] },
-          { key: 'ceremonies', label: 'Ceremonies covered', type: 'multi', options: ['Ganapathi Puja', 'Punyahavachanam', 'Nalugu', 'Snathakam', 'Kashi Yatra', 'Mangalsutra Dharana', 'Talambralu', 'Jeelakarra Bellam', 'Saptapadi', 'Appaginthalu', 'Gruha Pravesham', 'Nischitartham', 'Satyanarayana Vratham'] },
+          { key: 'ceremonies', label: 'Ceremonies covered', type: 'multi', options: ['Ganapathi Puja', 'Punyahavachanam', 'Haldi', 'Bottu', 'Snathakam', 'Kashi Yatra', 'Mangalsutra Dharana', 'Talambralu', 'Jeelakarra Bellam', 'Saptapadi', 'Appaginthalu', 'Gruha Pravesham', 'Engagement', 'Satyanarayana Vratham'] },
           { key: 'duration', label: 'Ceremony duration', type: 'single', options: ['1 hour', '2 hours', '3 hours', '4 hours', 'Full day'] },
           { key: 'languages', label: 'Languages', type: 'multi', options: ['Telugu', 'Sanskrit', 'Hindi', 'Tamil', 'Kannada', 'English'] },
         ],
@@ -412,7 +412,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
 // ─── RITUALS / EVENTS ───────────────────────
 
 /** All rituals/events a listing can be tagged for (used for couple-vendor matching) */
-export const RITUALS = ['Nischitartham', 'Pelli Choopulu', 'Nalugu', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
+export const RITUALS = ['Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
 
 /** Get the listing config for a category, with a safe fallback */
 export function getListingConfig(category: string): CategoryListingConfig {
