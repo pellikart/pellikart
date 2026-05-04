@@ -333,6 +333,9 @@ export default function OnboardingPage() {
                       className="w-full h-2 rounded-full appearance-none cursor-pointer accent-magenta"
                       style={{ background: `linear-gradient(to right, #E91E78 ${pct}%, #eee ${pct}%)` }}
                     />
+                    <div className="flex justify-between text-[9px] text-gray-400 mt-1">
+                      <span>₹25K</span><span>₹50L</span>
+                    </div>
                   </div>
                 )
               })}
