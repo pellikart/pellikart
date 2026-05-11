@@ -69,6 +69,33 @@ const milestonesMap: Record<string, Milestone[]> = {
     { label: 'Printing Starts', description: 'Cards sent to print', daysFromBooking: 18 },
     { label: 'Delivered', description: 'Invitations ready for distribution', daysFromBooking: 28 },
   ],
+  Banjantrilu: [
+    { label: 'Slot Booked', description: 'Booking confirmed, advance paid', daysFromBooking: 0 },
+    { label: 'Ceremonies Confirmed', description: 'Which rituals & timings finalized', daysFromBooking: 14 },
+    { label: 'Muhurtham Locked', description: 'Auspicious timings confirmed', daysFromBooking: -7 },
+    { label: 'Event Day', description: 'Ensemble arrives for performance', daysFromBooking: -1 },
+  ],
+  Reels: [
+    { label: 'Slot Booked', description: 'Booking confirmed, advance paid', daysFromBooking: 0 },
+    { label: 'Concept Discussion', description: 'Style, vibe & references finalized', daysFromBooking: 10 },
+    { label: 'Shot List Locked', description: 'Must-have moments confirmed', daysFromBooking: -7 },
+    { label: 'Event Day', description: 'Crew on-site for coverage', daysFromBooking: -1 },
+    { label: 'First Cut', description: 'Initial reels delivered for review', daysFromBooking: 7 },
+    { label: 'Final Delivery', description: 'All reels delivered in agreed formats', daysFromBooking: 14 },
+  ],
+  'Hair Stylist': [
+    { label: 'Slot Booked', description: 'Booking confirmed, advance paid', daysFromBooking: 0 },
+    { label: 'Trial Session', description: 'Bridal hair trial run', daysFromBooking: 14 },
+    { label: 'Look Finalized', description: 'Final hair looks confirmed', daysFromBooking: -14 },
+    { label: 'Full Payment', description: 'Balance payment due', daysFromBooking: -5 },
+    { label: 'Event Day', description: 'Stylist arrives for bridal prep', daysFromBooking: -1 },
+  ],
+  'Saree Draping': [
+    { label: 'Slot Booked', description: 'Booking confirmed, advance paid', daysFromBooking: 0 },
+    { label: 'Style Consultation', description: 'Drape styles & saree details discussed', daysFromBooking: 10 },
+    { label: 'Final Confirmation', description: 'Sarees & schedule confirmed', daysFromBooking: -7 },
+    { label: 'Event Day', description: 'Draper arrives on-site', daysFromBooking: -1 },
+  ],
 }
 
 // Default milestones for any category not explicitly mapped

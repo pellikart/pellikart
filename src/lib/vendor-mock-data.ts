@@ -39,6 +39,22 @@ const mockListingsData: Record<string, VendorListing[]> = {
     { id: 'ml-1', name: 'Luxury Box Set', photos: ['/images/gallery/decor/5.jpg'], category: 'Invitations', price: 110000, style: 'Luxury Boxed', includes: ['Design', 'Printing', 'Box Packaging', 'Digital Version', 'Envelope', 'Sweet Box'], createdAt: '2026-03-15' },
     { id: 'ml-2', name: 'Full Digital Suite', photos: ['/images/gallery/decor/6.jpg'], category: 'Invitations', price: 25000, style: 'Digital Only', includes: ['Design', 'Digital Version', 'RSVP Tracking'], createdAt: '2026-03-10' },
   ],
+  Banjantrilu: [
+    { id: 'ml-1', name: 'Traditional Nadaswaram Set', photos: ['/images/gallery/dj/1.jpg'], category: 'Banjantrilu', price: 35000, style: 'Traditional Telugu', includes: ['Nadaswaram', 'Tavil', 'Mela Talam', 'Traditional Attire', 'Muhurtham Set'], createdAt: '2026-03-15' },
+    { id: 'ml-2', name: 'Baraat Procession Band', photos: ['/images/gallery/dj/2.jpg'], category: 'Banjantrilu', price: 18000, style: 'Procession Special', includes: ['Dhol', 'Sannai', 'Travel within City', 'Baraat Set'], createdAt: '2026-03-10' },
+  ],
+  Reels: [
+    { id: 'ml-1', name: 'Cinematic Wedding Reels', photos: ['/images/gallery/photo/1.jpg', '/images/gallery/photo/2.jpg'], category: 'Reels', price: 75000, style: 'Cinematic', coverageHours: 8, includes: ['Pre-Wedding Reel', 'Wedding Day Reel', 'Same-Day Edit', 'Music Licensing', 'Multiple Aspect Ratios'], createdAt: '2026-03-15' },
+    { id: 'ml-2', name: 'Trend Pack — 3 Reels', photos: ['/images/gallery/photo/3.jpg'], category: 'Reels', price: 35000, style: 'Trend-based', coverageHours: 4, includes: ['Wedding Day Reel', 'Reception Reel', 'Trending Audio', 'Captions / Subtitles'], createdAt: '2026-03-10' },
+  ],
+  'Hair Stylist': [
+    { id: 'ml-1', name: 'Bridal 3-Look Hair Package', photos: ['/images/gallery/makeup/1.jpg'], category: 'Hair Stylist', price: 35000, style: 'Modern Glam', guestCount: 1, includes: ['Bridal Hair', 'Engagement Look', 'Reception Look', 'Hair Extensions', 'Touch-Up Kit'], createdAt: '2026-03-15' },
+    { id: 'ml-2', name: 'Boho Floral Bridal Hair', photos: ['/images/gallery/makeup/2.jpg'], category: 'Hair Stylist', price: 18000, style: 'Boho Floral', guestCount: 1, includes: ['Bridal Hair', 'Floral Setup', 'Hair Accessories Setup'], createdAt: '2026-03-10' },
+  ],
+  'Saree Draping': [
+    { id: 'ml-1', name: 'Bridal 3-Drape Package', photos: ['/images/gallery/makeup/3.jpg'], category: 'Saree Draping', price: 8000, style: 'Nivi Classic', guestCount: 1, includes: ['Bridal Drape', 'Reception Drape', 'Engagement Drape', 'Pins & Safety Pins', 'Touch-Up On-Site'], createdAt: '2026-03-15' },
+    { id: 'ml-2', name: 'Bride + Family Drapes', photos: ['/images/gallery/makeup/4.jpg'], category: 'Saree Draping', price: 12000, style: 'Modern Fusion', guestCount: 5, includes: ['Bridal Drape', 'Family Drapes', 'Pleat Setting', 'Travel to Venue'], createdAt: '2026-03-10' },
+  ],
 }
 
 export function getMockListingsForCategory(category: string): VendorListing[] {

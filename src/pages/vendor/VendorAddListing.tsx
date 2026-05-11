@@ -103,6 +103,10 @@ export default function VendorAddListing() {
     'DJ / Music': 'e.g. Bollywood + EDM Night',
     Pandit: 'e.g. Complete Vedic Ceremony',
     Invitations: 'e.g. Luxury Gold Foil Box Invite',
+    Banjantrilu: 'e.g. Traditional Nadaswaram Set',
+    Reels: 'e.g. Cinematic Wedding Reels',
+    'Hair Stylist': 'e.g. Bridal 3-Look Hair Package',
+    'Saree Draping': 'e.g. Bridal 3-Drape Package',
   }
 
   // Price label per category

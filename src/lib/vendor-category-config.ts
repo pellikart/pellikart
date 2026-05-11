@@ -136,6 +136,50 @@ export const ONBOARDING_CONFIG: Record<string, CategoryOnboardingConfig> = {
       { key: 'deliveryTimeline', label: 'Delivery timeline', type: 'single', options: ['7 days', '14 days', '21 days', '30 days'] },
     ],
   },
+  Banjantrilu: {
+    title: 'About your banjantrilu',
+    subtitle: 'Tell couples about your ensemble and tradition.',
+    fields: [
+      { key: 'instruments', label: 'Instruments', type: 'multi', options: ['Nadaswaram', 'Dhol', 'Tavil', 'Sannai', 'Mela Talam', 'Tabla', 'Mridangam', 'Shehnai'] },
+      { key: 'ensembleSize', label: 'Ensemble size', type: 'single', options: ['Solo', '2-3 artists', '4-6 artists', '7-10 artists', '10+ artists'] },
+      { key: 'ceremoniesPlayed', label: 'Ceremonies covered', type: 'multi', options: ['Baraat / Procession', 'Muhurtham', 'Mangalasnanam', 'Pelli Koduku/Kuthuru', 'Reception entry', 'Talambralu'] },
+      { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Yes, included', 'Yes, extra charge', 'Within city only'] },
+      { key: 'traditionalAttire', label: 'Traditional attire', type: 'single', options: ['Always worn', 'On request', 'Modern attire'] },
+    ],
+  },
+  Reels: {
+    title: 'About your reels',
+    subtitle: 'Tell couples about your style and turnaround.',
+    fields: [
+      { key: 'reelStyles', label: 'Reel style', type: 'multi', options: ['Cinematic', 'Candid', 'Trend-based', 'Story-driven', 'Couple POV', 'Vintage Film', 'Highlight Cuts'] },
+      { key: 'platforms', label: 'Delivery platforms', type: 'multi', options: ['Instagram', 'YouTube Shorts', 'Facebook', 'WhatsApp', 'Raw files'] },
+      { key: 'turnaroundTime', label: 'Turnaround time', type: 'single', options: ['Same day', '24 hours', '3 days', '7 days', '14 days'] },
+      { key: 'equipment', label: 'Equipment', type: 'multi', options: ['Mirrorless', 'Gimbal', 'Drone', 'Action Cam', 'Smartphone Pro', 'LED Panels'] },
+      { key: 'musicLicensing', label: 'Music licensing', type: 'single', options: ['Royalty-free included', 'Couple provides', 'Add-on'] },
+    ],
+  },
+  'Hair Stylist': {
+    title: 'About your hair styling',
+    subtitle: 'Help brides understand your style and services.',
+    fields: [
+      { key: 'styleTypes', label: 'Specialities', type: 'multi', options: ['Traditional Braids', 'Updos & Buns', 'Curls', 'Sleek Straight', 'Hair Accessories Styling', 'Floral Hair Setup', 'Modern Glam'] },
+      { key: 'hairExtensions', label: 'Hair extensions', type: 'single', options: ['Included', 'Add-on', 'Couple provides', 'Not used'] },
+      { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Yes, included', 'Yes, extra charge', 'Studio only'] },
+      { key: 'productsUsed', label: 'Products used', type: 'multi', options: ['L\'Oréal', 'Schwarzkopf', 'Wella', 'Streax', 'Matrix', 'Olaplex', 'Mix of brands'] },
+      { key: 'familyHair', label: 'Family hair styling', type: 'single', options: ['Yes, included', 'Add-on', 'Not available'] },
+    ],
+  },
+  'Saree Draping': {
+    title: 'About your saree draping',
+    subtitle: 'Tell brides about your draping styles and service.',
+    fields: [
+      { key: 'drapingStyles', label: 'Draping styles', type: 'multi', options: ['Nivi (Andhra)', 'Bengali', 'Maharashtrian Nauvari', 'Gujarati Seedha Pallu', 'Lehenga Saree', 'Mermaid', 'Butterfly', 'Modern Fusion'] },
+      { key: 'timePerDrape', label: 'Time per drape', type: 'single', options: ['15 min', '20 min', '30 min', '45 min'] },
+      { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Yes, included', 'Yes, extra charge', 'Studio only'] },
+      { key: 'pinsAndAccessories', label: 'Pins & accessories', type: 'single', options: ['Included', 'Add-on', 'Bride provides'] },
+      { key: 'familyDraping', label: 'Family / guests', type: 'single', options: ['Bride only', 'Bride + 3', 'Bride + 5', 'Bride + 10', 'Unlimited'] },
+    ],
+  },
 }
 
 // ─── LISTING CONFIG ─────────────────────────
@@ -403,6 +447,119 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'sweetBox', label: 'Sweet box option', type: 'single', options: ['Available', 'Not available'] },
           { key: 'waxSeal', label: 'Wax seal / ribbon', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
           { key: 'rsvpTracking', label: 'RSVP tracking (digital)', type: 'single', options: ['Included', 'Not available'] },
+        ],
+      },
+    ],
+  },
+  Banjantrilu: {
+    styles: ['Traditional Telugu', 'South Indian Classical', 'Carnatic Fusion', 'Procession Special', 'Temple Style'],
+    inclusions: ['Nadaswaram', 'Dhol', 'Tavil', 'Sannai', 'Mela Talam', 'Traditional Attire', 'Travel within City', 'Mangalasnanam Set', 'Baraat Set', 'Muhurtham Set', 'Stage Setup'],
+    priceRange: { min: 5000, max: 80000, step: 2500 },
+    steps: [
+      {
+        title: 'Ensemble details',
+        subtitle: 'What does this package cover?',
+        fields: [
+          { key: 'instruments', label: 'Instruments', type: 'multi', options: ['Nadaswaram', 'Dhol', 'Tavil', 'Sannai', 'Mela Talam', 'Tabla', 'Mridangam', 'Shehnai'] },
+          { key: 'ensembleSize', label: 'Group size', type: 'single', options: ['Solo', '2-3 artists', '4-6 artists', '7-10 artists', '10+ artists'] },
+          { key: 'ceremoniesCovered', label: 'Ceremonies covered', type: 'multi', options: ['Baraat / Procession', 'Muhurtham', 'Mangalasnanam', 'Pelli Koduku/Kuthuru', 'Reception entry', 'Talambralu'] },
+          { key: 'performanceDuration', label: 'Performance duration', type: 'single', options: ['1 hour', '2 hours', '3 hours', '4 hours', 'Full ceremony'] },
+        ],
+      },
+      {
+        title: 'Logistics & extras',
+        subtitle: 'What else comes with this?',
+        fields: [
+          { key: 'travelIncluded', label: 'Travel', type: 'single', options: ['Within city included', 'Up to 50km', 'Up to 100km', 'Extra charge'] },
+          { key: 'attire', label: 'Attire', type: 'single', options: ['Traditional included', 'Modern attire', 'Couple provides'] },
+          { key: 'soundAmplification', label: 'Sound amplification', type: 'single', options: ['Included', 'Add-on', "Use venue's"] },
+          { key: 'rehearsal', label: 'Pre-event rehearsal', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+        ],
+      },
+    ],
+  },
+  Reels: {
+    styles: ['Cinematic', 'Trend-based', 'Story-driven', 'Couple POV', 'Vintage Film', 'Highlight Cuts'],
+    inclusions: ['Pre-Wedding Reel', 'Wedding Day Reel', 'Reception Reel', 'Same-Day Edit', 'Music Licensing', 'Captions / Subtitles', 'Raw Footage', 'Multiple Aspect Ratios', 'Trending Audio', 'Drone Footage'],
+    priceRange: { min: 15000, max: 250000, step: 5000 },
+    steps: [
+      {
+        title: 'Coverage details',
+        subtitle: 'What does this package cover?',
+        fields: [
+          { key: 'reelsIncluded', label: 'Reels included', type: 'single', options: ['1 reel', '2 reels', '3 reels', '5 reels', '5+ reels'] },
+          { key: 'reelStyles', label: 'Style', type: 'multi', options: ['Cinematic', 'Candid', 'Trend-based', 'Story-driven', 'Couple POV', 'Vintage Film'] },
+          { key: 'reelDuration', label: 'Reel duration', type: 'single', options: ['Under 30s', '30-60s', '60-90s', '90s+'] },
+          { key: 'coverageHours', label: 'On-site coverage', type: 'single', options: ['2h', '4h', '6h', '8h', 'Full day'] },
+          { key: 'crewSize', label: 'Crew size', type: 'single', options: ['1', '2', '3', '4+'] },
+        ],
+      },
+      {
+        title: 'Deliverables',
+        subtitle: 'What do couples receive?',
+        fields: [
+          { key: 'turnaroundTime', label: 'Turnaround', type: 'single', options: ['Same day', '24 hours', '3 days', '7 days', '14 days'] },
+          { key: 'platforms', label: 'Platforms delivered', type: 'multi', options: ['Instagram', 'YouTube Shorts', 'Facebook', 'WhatsApp', 'Raw files'] },
+          { key: 'aspectRatios', label: 'Aspect ratios', type: 'multi', options: ['9:16 Vertical', '1:1 Square', '16:9 Landscape'] },
+          { key: 'droneFootage', label: 'Drone footage', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+          { key: 'sameDayEdit', label: 'Same-day reel', type: 'single', options: ['Yes', 'No'] },
+          { key: 'music', label: 'Music', type: 'single', options: ['Royalty-free included', 'Trending audio', 'Couple provides'] },
+        ],
+      },
+    ],
+  },
+  'Hair Stylist': {
+    styles: ['Traditional South Indian', 'Modern Glam', 'Boho Floral', 'Sleek & Polished', 'Vintage Curls'],
+    inclusions: ['Bridal Hair', 'Engagement Look', 'Reception Look', 'Hair Extensions', 'Floral Setup', 'Hair Accessories Setup', 'Family Hair', 'Touch-Up Kit', 'Pre-Bridal Hair Care', 'Travel to Venue'],
+    priceRange: { min: 5000, max: 80000, step: 2500 },
+    steps: [
+      {
+        title: 'Service details',
+        subtitle: 'What does this package include?',
+        fields: [
+          { key: 'looksIncluded', label: 'Looks included', type: 'single', options: ['1 look', '2 looks', '3 looks', '4 looks'] },
+          { key: 'styleTypes', label: 'Style', type: 'multi', options: ['Traditional Braids', 'Updos & Buns', 'Curls', 'Sleek Straight', 'Floral Hair Setup', 'Modern Glam'] },
+          { key: 'hairExtensions', label: 'Hair extensions', type: 'single', options: ['Included', 'Add-on', 'Couple provides', 'Not used'] },
+          { key: 'accessorySetup', label: 'Accessory / floral setup', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+        ],
+      },
+      {
+        title: 'Products & logistics',
+        subtitle: 'The finer details.',
+        fields: [
+          { key: 'products', label: 'Products used', type: 'multi', options: ['L\'Oréal', 'Schwarzkopf', 'Wella', 'Streax', 'Matrix', 'Olaplex', 'Mix of brands'] },
+          { key: 'trialSession', label: 'Trial session', type: 'single', options: ['Included', 'Extra cost', 'Not available'] },
+          { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Included', 'Extra charge', 'Studio only'] },
+          { key: 'familyHair', label: 'Family hair styling', type: 'single', options: ['Available', 'Add-on', 'Not available'] },
+          { key: 'preBridalCare', label: 'Pre-bridal hair care', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+        ],
+      },
+    ],
+  },
+  'Saree Draping': {
+    styles: ['Nivi Classic', 'Bengali Traditional', 'Lehenga Saree', 'Mermaid Drape', 'Maharashtrian Nauvari', 'Modern Fusion'],
+    inclusions: ['Bridal Drape', 'Reception Drape', 'Engagement Drape', 'Pins & Safety Pins', 'Pleat Setting', 'Family Drapes', 'Pre-Drape Consultation', 'Touch-Up On-Site', 'Travel to Venue'],
+    priceRange: { min: 2000, max: 40000, step: 500 },
+    steps: [
+      {
+        title: 'Service details',
+        subtitle: 'What does this package cover?',
+        fields: [
+          { key: 'drapesIncluded', label: 'Drapes included', type: 'single', options: ['1 drape', '2 drapes', '3 drapes', '4+ drapes'] },
+          { key: 'drapingStyles', label: 'Styles offered', type: 'multi', options: ['Nivi (Andhra)', 'Bengali', 'Maharashtrian Nauvari', 'Gujarati Seedha Pallu', 'Lehenga Saree', 'Mermaid', 'Butterfly', 'Modern Fusion'] },
+          { key: 'timePerDrape', label: 'Time per drape', type: 'single', options: ['15 min', '20 min', '30 min', '45 min'] },
+          { key: 'pleatSetting', label: 'Custom pleat setting', type: 'single', options: ['Included', 'Add-on', 'Standard only'] },
+        ],
+      },
+      {
+        title: 'Extras & logistics',
+        subtitle: 'How does service work?',
+        fields: [
+          { key: 'pins', label: 'Pins & accessories', type: 'single', options: ['Included', 'Add-on', 'Bride provides'] },
+          { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Included', 'Extra charge', 'Studio only'] },
+          { key: 'familyDrapes', label: 'Family / guest drapes', type: 'single', options: ['Bride only', 'Bride + 3', 'Bride + 5', 'Bride + 10', 'Unlimited add-on'] },
+          { key: 'consultation', label: 'Pre-event consultation', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+          { key: 'touchUp', label: 'On-site touch-up', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
         ],
       },
     ],
