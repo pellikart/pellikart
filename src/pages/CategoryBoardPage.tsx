@@ -791,10 +791,12 @@ function CustomizeTab({
   onSelectBid: (vendorId: string, price: number) => void
   vendors: Record<string, Vendor>
 }) {
-  // Minimum required to send to vendors: setting + coverage + size (both dimensions filled).
+  // All fields are required so vendors get a complete brief.
   // The event is implied by the board context.
   const sizeFilled = brief.size.width.trim().length > 0 && brief.size.height.trim().length > 0
-  const isValid = !!brief.setting && !!brief.coverage && sizeFilled
+  const hasImage = !!customImage
+  const hasNotes = brief.notes.trim().length > 0
+  const isValid = !!brief.setting && !!brief.coverage && sizeFilled && !!brief.flowers && hasImage && hasNotes
 
   function patch(p: Partial<DecorBrief>) { onBriefChange({ ...brief, ...p }) }
 
@@ -856,9 +858,30 @@ function CustomizeTab({
   return (
     <div className="space-y-4 pb-4">
       <div className="p-3 rounded-xl bg-magenta-light/40 border border-magenta/20">
-        <p className="text-[12px] font-semibold text-dark">Tell vendors what you want for {boardName}</p>
-        <p className="text-[10px] text-gray-500 mt-0.5">Answer a few questions so decorators can send you a tailored quote.</p>
+        <p className="text-[12px] font-semibold text-dark">Have a design in mind for {boardName}?</p>
+        <p className="text-[10px] text-gray-500 mt-0.5">Get custom bids from decorators to replicate it.</p>
       </div>
+
+      <BriefField label="Reference photo">
+        {customImage ? (
+          <div className="rounded-xl overflow-hidden relative">
+            <img src={customImage} alt="Reference" className="w-full h-40 object-cover" />
+            <label className="absolute bottom-2 right-2 bg-white/90 text-[9px] text-dark font-medium px-2 py-1 rounded-full cursor-pointer">
+              Change
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onUpload(e.target.files[0]) }} />
+            </label>
+          </div>
+        ) : (
+          <label className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-magenta/30 rounded-xl bg-magenta-light/20 cursor-pointer active:bg-magenta-light/40 transition-colors">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E91E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <p className="text-[11px] font-medium text-dark mt-1.5">Upload an inspiration photo</p>
+            <p className="text-[9px] text-gray-400 mt-0.5">Pinterest, Instagram screenshot, anything</p>
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onUpload(e.target.files[0]) }} />
+          </label>
+        )}
+      </BriefField>
 
       <BriefField label="Setting">
         <ChipRow options={SETTING_OPTIONS} selected={brief.setting} onSelect={v => patch({ setting: v })} />
@@ -899,28 +922,7 @@ function CustomizeTab({
         <ChipRow options={FLOWER_OPTIONS} selected={brief.flowers} onSelect={v => patch({ flowers: v })} />
       </BriefField>
 
-      <BriefField label="Reference photo (optional)">
-        {customImage ? (
-          <div className="rounded-xl overflow-hidden relative">
-            <img src={customImage} alt="Reference" className="w-full h-40 object-cover" />
-            <label className="absolute bottom-2 right-2 bg-white/90 text-[9px] text-dark font-medium px-2 py-1 rounded-full cursor-pointer">
-              Change
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onUpload(e.target.files[0]) }} />
-            </label>
-          </div>
-        ) : (
-          <label className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-magenta/30 rounded-xl bg-magenta-light/20 cursor-pointer active:bg-magenta-light/40 transition-colors">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E91E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            <p className="text-[11px] font-medium text-dark mt-1.5">Upload an inspiration photo</p>
-            <p className="text-[9px] text-gray-400 mt-0.5">Pinterest, Instagram screenshot, anything</p>
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onUpload(e.target.files[0]) }} />
-          </label>
-        )}
-      </BriefField>
-
-      <BriefField label="Anything else? (optional)">
+      <BriefField label="Anything else?">
         <textarea
           value={brief.notes} onChange={(e) => patch({ notes: e.target.value })}
           placeholder="Specific colors, family customs, things to avoid…"
@@ -936,7 +938,7 @@ function CustomizeTab({
           isValid ? 'bg-magenta text-white active:scale-[0.98]' : 'bg-gray-200 text-gray-400'
         }`}
       >
-        {isValid ? 'Get bids from decorators' : 'Pick setting, coverage & size'}
+        {isValid ? 'Get bids from decorators' : 'Fill all fields above to continue'}
       </button>
     </div>
   )
