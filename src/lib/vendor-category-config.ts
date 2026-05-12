@@ -265,6 +265,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         fields: [
           { key: 'minPlates', label: 'Min plate count', type: 'single', options: ['50', '100', '200', '300', '500'] },
           { key: 'maxPlates', label: 'Max plate count', type: 'single', options: ['300', '500', '1000', '2000', 'No limit'] },
+          { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['5-10 staff', '10-20 staff', '20-40 staff', '40+ staff'] },
           { key: 'staffIncluded', label: 'Service staff', type: 'single', options: ['Included', 'Extra charge', 'Not available'] },
           { key: 'crockeryIncluded', label: 'Crockery & cutlery', type: 'single', options: ['Included', 'Extra charge', 'Client provides'] },
           { key: 'specialCounters', label: 'Special counters', type: 'multi', options: ['Chaat Station', 'Ice Cream Bar', 'Paan Counter', 'Dessert Bar', 'Juice Bar', 'Dosa Counter', 'Pasta Counter'] },
@@ -347,6 +348,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         fields: [
           { key: 'looksIncluded', label: 'Looks included', type: 'single', options: ['1 look', '2 looks', '3 looks', '4 looks'] },
           { key: 'makeupType', label: 'Makeup type', type: 'single', options: ['HD', 'Airbrush', 'Traditional', 'Natural'] },
+          { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['Solo', '2 artists', '3 artists', '4+ artists'] },
           { key: 'hairStyling', label: 'Hair styling', type: 'single', options: ['Included', 'Add-on', 'Not included'] },
           { key: 'draping', label: 'Saree/lehenga draping', type: 'single', options: ['Included', 'Add-on', 'Not included'] },
         ],
@@ -384,6 +386,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         fields: [
           { key: 'additionalGuests', label: 'Additional guests covered', type: 'single', options: ['Bride only', '5', '10', '15', '20', '30', 'Unlimited'] },
           { key: 'brideTime', label: 'Time for bride', type: 'single', options: ['2 hours', '3 hours', '4 hours', '5+ hours'] },
+          { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['Solo', '2 artists', '3-4 artists', '5+ artists'] },
           { key: 'groomMehendi', label: 'Groom mehendi', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
           { key: 'glitterAddon', label: 'Glitter/stone add-on', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
           { key: 'whiteMehendi', label: 'White mehendi', type: 'single', options: ['Available', 'Not available'] },
@@ -405,6 +408,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'performanceType', label: 'Type', type: 'multi', options: ['DJ', 'Live Band', 'Dhol', 'Classical', 'Singer', 'Instrumental'] },
           { key: 'genres', label: 'Music genres', type: 'multi', options: ['Bollywood', 'EDM', 'Sufi', 'Classical', 'Punjabi', 'Telugu', 'International'] },
           { key: 'performanceHours', label: 'Performance hours', type: 'single', options: ['2h', '3h', '4h', '5h', '6h+'] },
+          { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['Solo DJ', '2 performers', '3-5 performers', '6+ performers'] },
           { key: 'songRequests', label: 'Song requests', type: 'single', options: ['Accepted', 'Set playlist only'] },
         ],
       },
@@ -444,6 +448,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'samagri', label: 'Pooja samagri', type: 'single', options: ['Included', 'Extra cost', 'Not included'] },
           { key: 'homamSetup', label: 'Homam / Agni setup', type: 'single', options: ['Included', 'Client provides'] },
           { key: 'muhurthamConsult', label: 'Muhurtham consultation', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+          { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['Solo', 'Pandit + 1 assistant', 'Pandit + 2 assistants', 'Pandit + 3+ assistants'] },
           { key: 'travel', label: 'Travel outside city', type: 'single', options: ['Yes', 'Up to 50km', 'Up to 100km', 'No'] },
         ],
       },
@@ -557,6 +562,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         fields: [
           { key: 'looksIncluded', label: 'Looks included', type: 'single', options: ['1 look', '2 looks', '3 looks', '4 looks'] },
           { key: 'styleTypes', label: 'Style', type: 'multi', options: ['Traditional Braids', 'Updos & Buns', 'Curls', 'Sleek Straight', 'Floral Hair Setup', 'Modern Glam'] },
+          { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['Solo', '2 stylists', '3 stylists', '4+ stylists'] },
           { key: 'hairExtensions', label: 'Hair extensions', type: 'single', options: ['Included', 'Add-on', 'Couple provides', 'Not used'] },
           { key: 'accessorySetup', label: 'Accessory / floral setup', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
         ],
@@ -670,6 +676,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'drapesIncluded', label: 'Drapes included', type: 'single', options: ['1 drape', '2 drapes', '3 drapes', '4+ drapes'] },
           { key: 'drapingStyles', label: 'Styles offered', type: 'multi', options: ['Nivi (Andhra)', 'Bengali', 'Maharashtrian Nauvari', 'Gujarati Seedha Pallu', 'Lehenga Saree', 'Mermaid', 'Butterfly', 'Modern Fusion'] },
           { key: 'timePerDrape', label: 'Time per drape', type: 'single', options: ['15 min', '20 min', '30 min', '45 min'] },
+          { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['Solo', '2 drapers', '3 drapers', '4+ drapers'] },
           { key: 'pleatSetting', label: 'Custom pleat setting', type: 'single', options: ['Included', 'Add-on', 'Standard only'] },
         ],
       },
