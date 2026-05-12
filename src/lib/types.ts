@@ -120,6 +120,7 @@ export interface AppState {
   restoreCategory: (ritualId: string, categoryId: string) => void;
   bookVendor: (vendorId: string, amount: number) => void;
   bookAllVendors: (ritualId: string) => void;
+  cancelBooking: (vendorId: string) => void;
   swapVendor: (ritualId: string, categoryId: string, newVendorId: string) => void;
   completeMilestone: (vendorId: string, totalMilestones: number) => void;
   updateBoardDates: (ritualId: string, dateStart: string, dateEnd: string, removeVendorIds: string[]) => void;

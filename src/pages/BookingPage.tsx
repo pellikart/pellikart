@@ -8,9 +8,10 @@ export default function BookingPage() {
   const { ritualId } = useParams<{ ritualId: string }>()
   const navigate = useNavigate()
 
-  const { ritualBoards, vendors, subscription, bookVendor, bookAllVendors, trialSessions } = useStore()
+  const { ritualBoards, vendors, subscription, bookVendor, bookAllVendors, cancelBooking, trialSessions } = useStore()
   const unlocked = subscription !== 'free'
   const [swapDialog, setSwapDialog] = useState<{ vendorId: string; amount: number } | null>(null)
+  const [cancelDialog, setCancelDialog] = useState<{ vendorId: string; vendorName: string; amount: number } | null>(null)
 
   const board = ritualBoards.find((b) => b.id === ritualId)
   if (!board) {
@@ -93,6 +94,12 @@ export default function BookingPage() {
                         <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 0 1-4.243-1.214l-.252-.149-2.868.852.852-2.868-.168-.268A8 8 0 1 1 12 20z" />
                       </svg>
                     </a>
+                    <button
+                      onClick={() => setCancelDialog({ vendorId: vendor.id, vendorName: unlocked ? vendor.name : vendor.code, amount: vendor.amountPaid })}
+                      className="text-[10px] font-medium text-red-500 active:text-red-600 px-1.5 py-1"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 )}
               </div>
@@ -151,6 +158,29 @@ export default function BookingPage() {
           ★ Slot bookings are non-refundable. If you swap a vendor after booking, the booking amount will not be returned.
         </p>
       </div>
+
+      {/* Cancel Booking Dialog */}
+      {cancelDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full">
+            <p className="text-[14px] font-bold text-dark mb-2">Cancel this booking?</p>
+            <p className="text-xs text-dark mb-4">
+              You've already paid <span className="font-bold">{formatINR(cancelDialog.amount)}</span> to lock <span className="font-bold">{cancelDialog.vendorName}</span>'s slot.
+              <br /><br />
+              <span className="text-red-500 font-medium">This amount is non-refundable</span> — cancelling will forfeit it.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setCancelDialog(null)} className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-600 text-xs font-medium">Keep booking</button>
+              <button
+                onClick={() => { cancelBooking(cancelDialog.vendorId); setCancelDialog(null) }}
+                className="flex-1 py-2.5 rounded-lg bg-red-500 text-white text-xs font-medium active:bg-red-600 transition-colors"
+              >
+                Cancel & forfeit {formatINR(cancelDialog.amount)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Swap Dialog */}
       {swapDialog && (

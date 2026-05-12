@@ -9,9 +9,12 @@ import {
   trackEvent,
   createTrial, confirmTrialDb, markTrialDoneDb,
   createBids, selectBidDb, type BidRow,
-  addLikeDb, removeLikeDb,
+  addLikeDb, removeLikeDb, fetchUserLikes,
   updateSubscriptionDb, fetchSubscriptionTier,
   createBooking, createMilestones, createEarning, createNotification,
+  fetchCoupleBookings, cancelBookingDb,
+  fetchMilestones, completeMilestoneDb,
+  fetchCoupleTrials,
 } from "./supabase-db";
 import type { Vendor } from "./types";
 
@@ -110,6 +113,8 @@ interface LiveModeState {
   _listingVendorMap: Record<string, string>
   /** Maps local trial key → DB trial UUID */
   _trialIdMap: Record<string, string>
+  /** Maps listing ID → ordered milestone DB IDs for the active booking (so we can mark them complete) */
+  _vendorMilestones: Record<string, string[]>
 }
 
 export const useStore = create<AppState & LiveModeState & {
@@ -121,6 +126,7 @@ export const useStore = create<AppState & LiveModeState & {
   _coupleDbId: null,
   _listingVendorMap: {},
   _trialIdMap: {},
+  _vendorMilestones: {},
 
   // App state
   role: 'none',
@@ -161,19 +167,86 @@ export const useStore = create<AppState & LiveModeState & {
         // Fetch boards from DB
         const boards = await fetchRitualBoards(couple.id)
 
-        // Fetch live vendors, listings, and availability
-        const [liveVendors, listings, availability] = await Promise.all([
+        // Fetch live vendors, listings, availability, active bookings, trials, likes
+        const [liveVendors, listings, availability, bookings, trials, likes] = await Promise.all([
           fetchAllLiveVendors(), fetchAllListings(), fetchAllAvailability(),
+          fetchCoupleBookings(couple.id),
+          fetchCoupleTrials(couple.id),
+          fetchUserLikes(userId),
         ])
         const { vendorMap, lvMap } = buildLiveVendorMap(liveVendors, listings, availability)
+
+        // Restore vendor likes (heart state) onto the in-memory vendor objects
+        for (const like of likes) {
+          const v = vendorMap[like.vendor_id]
+          if (!v) continue
+          if (!v.likes.some(l => l.userId === like.liker_user_id)) {
+            vendorMap[like.vendor_id] = { ...v, likes: [...v.likes, { userId: like.liker_user_id, name: like.liker_name }] }
+          }
+        }
+
+        // Restore trial state. Trials in DB store ritual_name + category_label;
+        // we map back to local ritualId + categoryId via the boards we just loaded.
+        const trialSessions: Record<string, import('./types').TrialInfo> = {}
+        const trialIdMap: Record<string, string> = {}
+        const trialsUsed: Record<string, number> = {}
+        for (const t of trials) {
+          const board = boards.find(b => b.name === t.ritual_name)
+          if (!board) continue
+          const cat = board.categories.find(c => c.label === t.category_label)
+          if (!cat) continue
+          const listingId = t.listing_id || ''
+          const trialKey = `${board.id}-${cat.id}-${listingId}`
+          const catKey = `${board.id}-${cat.id}`
+          trialSessions[trialKey] = {
+            status: t.status === 'requested' ? 'requested'
+              : t.status === 'accepted' ? 'accepted'
+              : t.status === 'rescheduled' ? 'rescheduled'
+              : t.status === 'confirmed' ? 'confirmed'
+              : 'done',
+            requestedDate: t.requested_date,
+            requestedTime: t.requested_time,
+            scheduledDate: t.scheduled_date,
+            scheduledTime: t.scheduled_time,
+            vendorId: listingId,
+            categoryLabel: cat.label,
+            ritualName: board.name,
+            vendorProposedDate: t.vendor_proposed_date || undefined,
+            vendorProposedTime: t.vendor_proposed_time || undefined,
+          }
+          trialIdMap[trialKey] = t.id
+          trialsUsed[catKey] = (trialsUsed[catKey] || 0) + 1
+        }
+
+        // Re-apply active bookings so booked state survives refresh
+        const milestoneProgress: Record<string, number> = {}
+        const vendorMilestones: Record<string, string[]> = {}
+        const activeBookings = bookings.filter(b => b.status === 'active')
+        const milestoneArrays = await Promise.all(
+          activeBookings.map(b => fetchMilestones(b.id as string))
+        )
+        for (let i = 0; i < activeBookings.length; i++) {
+          const b = activeBookings[i]
+          const listingId = b.listing_id as string | null
+          if (!listingId || !vendorMap[listingId]) continue
+          vendorMap[listingId] = { ...vendorMap[listingId], booked: true, amountPaid: (b.slot_amount as number) || 0 }
+          const ms = milestoneArrays[i]
+          vendorMilestones[listingId] = ms.map(m => (m as Record<string, unknown>).id as string)
+          milestoneProgress[listingId] = ms.filter(m => (m as Record<string, unknown>).is_complete).length || 1
+        }
 
         set({
           _coupleDbId: couple.id,
           _listingVendorMap: lvMap,
+          _vendorMilestones: vendorMilestones,
+          _trialIdMap: trialIdMap,
           onboardingComplete: true,
           onboardingData: onboardingData,
           ritualBoards: boards.length > 0 ? boards : [],
           vendors: Object.keys(vendorMap).length > 0 ? vendorMap : cloneVendors(),
+          milestoneProgress,
+          trialSessions,
+          trialsUsed,
         })
       }
       // If no couple record or not onboarded, state stays at defaults (will show onboarding)
@@ -382,12 +455,14 @@ export const useStore = create<AppState & LiveModeState & {
   removeFromShortlist: (ritualId, categoryId, vendorId) => {
     const { _liveMode, _userId, _listingVendorMap } = get()
     let newList: string[] = []
+    let clearedSelection = false
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
           ? { ...b, categories: b.categories.map((c) => {
               if (c.id === categoryId) {
                 newList = c.shortlistedVendorIds.filter((id) => id !== vendorId)
+                if (c.selectedVendorId === vendorId) clearedSelection = true
                 return { ...c, shortlistedVendorIds: newList, selectedVendorId: c.selectedVendorId === vendorId ? null : c.selectedVendorId }
               }
               return c
@@ -396,7 +471,10 @@ export const useStore = create<AppState & LiveModeState & {
       ),
     }))
     if (_liveMode) {
-      updateBoardCategory(categoryId, { shortlistedVendorIds: newList, selectedVendorId: undefined })
+      updateBoardCategory(categoryId, clearedSelection
+        ? { shortlistedVendorIds: newList, selectedVendorId: null }
+        : { shortlistedVendorIds: newList }
+      )
       const vid = _listingVendorMap[vendorId]
       if (vid) trackEvent(vid, 'shortlist_remove', _userId, vendorId)
     }
@@ -461,13 +539,34 @@ export const useStore = create<AppState & LiveModeState & {
       if (vid) {
         trackEvent(vid, 'booking', _userId, vendorId, { amount })
         const price = vendor?.price || amount * 20
-        createBooking(_userId, vid, vendorId, '', '', price, amount, 5).then(booking => {
+        createBooking(_userId, vid, vendorId, '', '', price, amount, 5).then(async booking => {
           if (booking) {
-            createMilestones(booking.id, ['Slot booked', 'Planning started', 'Final confirmation', 'Event day', 'Completed'])
+            const milestones = await createMilestones(booking.id, ['Slot booked', 'Planning started', 'Final confirmation', 'Event day', 'Completed'])
+            if (milestones.length > 0) {
+              set(s => ({ _vendorMilestones: { ...s._vendorMilestones, [vendorId]: milestones.map(m => m.id) } }))
+            }
             createEarning(vid, booking.id, '', '', amount, 'slot')
           }
         })
       }
+    }
+  },
+
+  cancelBooking: (vendorId) => {
+    const { _liveMode, _coupleDbId } = get()
+    set((s) => {
+      const v = s.vendors[vendorId]
+      if (!v || !v.booked) return s
+      const { [vendorId]: _, ...remainingProgress } = s.milestoneProgress
+      const { [vendorId]: __, ...remainingMilestones } = s._vendorMilestones
+      return {
+        vendors: { ...s.vendors, [vendorId]: { ...s.vendors[vendorId], booked: false, amountPaid: 0 } },
+        milestoneProgress: remainingProgress,
+        _vendorMilestones: remainingMilestones,
+      }
+    })
+    if (_liveMode && _coupleDbId) {
+      cancelBookingDb(_coupleDbId, vendorId)
     }
   },
 
@@ -477,6 +576,7 @@ export const useStore = create<AppState & LiveModeState & {
     if (!board) return;
     const updatedVendors = { ...state.vendors };
     const updatedProgress = { ...state.milestoneProgress };
+    const newlyBooked: { listingId: string; amount: number; price: number }[] = []
     for (const cat of board.categories) {
       if (cat.selectedVendorId && !cat.removed) {
         const v = updatedVendors[cat.selectedVendorId];
@@ -484,14 +584,40 @@ export const useStore = create<AppState & LiveModeState & {
           const amount = Math.round(v.price * 0.04);
           updatedVendors[cat.selectedVendorId] = { ...v, booked: true, amountPaid: amount };
           updatedProgress[cat.selectedVendorId] = 1;
+          newlyBooked.push({ listingId: cat.selectedVendorId, amount, price: v.price })
         }
       }
     }
     set({ vendors: updatedVendors, milestoneProgress: updatedProgress });
+
+    const { _liveMode, _userId, _listingVendorMap } = state
+    if (_liveMode && _userId && newlyBooked.length > 0) {
+      for (const b of newlyBooked) {
+        const vid = _listingVendorMap[b.listingId]
+        if (!vid) continue
+        trackEvent(vid, 'booking', _userId, b.listingId, { amount: b.amount })
+        createBooking(_userId, vid, b.listingId, ritualId, '', b.price, b.amount, 4).then(async booking => {
+          if (booking) {
+            const milestones = await createMilestones(booking.id, ['Slot booked', 'Planning started', 'Final confirmation', 'Event day', 'Completed'])
+            if (milestones.length > 0) {
+              set(s => ({ _vendorMilestones: { ...s._vendorMilestones, [b.listingId]: milestones.map(m => m.id) } }))
+            }
+            createEarning(vid, booking.id, '', '', b.amount, 'slot')
+          }
+        })
+      }
+    }
   },
 
   swapVendor: (ritualId, categoryId, newVendorId) => {
-    const { _liveMode } = get()
+    const { _liveMode, _coupleDbId } = get()
+    // Capture the previously-selected vendor BEFORE mutating state — we may need to cancel its booking
+    const board = get().ritualBoards.find((b) => b.id === ritualId)
+    const oldCat = board?.categories.find((c) => c.id === categoryId)
+    const oldVendorId = oldCat?.selectedVendorId
+    const oldVendor = oldVendorId ? get().vendors[oldVendorId] : null
+    const oldWasBooked = !!oldVendor?.booked
+
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
@@ -502,21 +628,47 @@ export const useStore = create<AppState & LiveModeState & {
             ) }
           : b
       ),
+      // Locally clear the old vendor's booked state — couple has forfeited it
+      vendors: oldWasBooked && oldVendorId
+        ? { ...s.vendors, [oldVendorId]: { ...s.vendors[oldVendorId], booked: false, amountPaid: 0 } }
+        : s.vendors,
+      _vendorMilestones: oldWasBooked && oldVendorId
+        ? Object.fromEntries(Object.entries(s._vendorMilestones).filter(([k]) => k !== oldVendorId))
+        : s._vendorMilestones,
     }))
     if (_liveMode) {
       updateBoardCategory(categoryId, { selectedVendorId: newVendorId })
+      if (oldWasBooked && oldVendorId && _coupleDbId) {
+        cancelBookingDb(_coupleDbId, oldVendorId)
+      }
     }
   },
 
-  completeMilestone: (vendorId, totalMilestones) =>
+  completeMilestone: (vendorId, totalMilestones) => {
+    const { _liveMode, _vendorMilestones } = get()
+    let nextIndex = -1
     set((s) => {
       const current = s.milestoneProgress[vendorId] || 0;
       if (current >= totalMilestones) return s;
+      nextIndex = current
       return { milestoneProgress: { ...s.milestoneProgress, [vendorId]: current + 1 } };
-    }),
+    })
+    if (_liveMode && nextIndex >= 0) {
+      const milestoneIds = _vendorMilestones[vendorId]
+      if (milestoneIds && milestoneIds[nextIndex]) {
+        completeMilestoneDb(milestoneIds[nextIndex])
+      }
+    }
+  },
 
   updateBoardDates: (ritualId, dateStart, dateEnd, removeVendorIds) => {
     const { _liveMode } = get()
+    // Capture which categories will have their selection cleared, so we can mirror to DB
+    const boardBefore = get().ritualBoards.find((b) => b.id === ritualId)
+    const clearedCategoryIds = boardBefore
+      ? boardBefore.categories.filter(c => c.selectedVendorId && removeVendorIds.includes(c.selectedVendorId)).map(c => c.id)
+      : []
+
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
@@ -536,6 +688,9 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       updateBoardDatesDb(ritualId, dateStart, dateEnd)
+      for (const catId of clearedCategoryIds) {
+        updateBoardCategory(catId, { selectedVendorId: null })
+      }
     }
   },
 

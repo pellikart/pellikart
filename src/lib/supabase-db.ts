@@ -137,6 +137,20 @@ export async function removeLikeDb(userId: string, vendorId: string, likerUserId
     .eq('user_id', userId).eq('vendor_id', vendorId).eq('liker_user_id', likerUserId)
 }
 
+export interface LikeRow {
+  user_id: string
+  vendor_id: string
+  liker_name: string
+  liker_user_id: string
+}
+
+/** Fetch all likes for a couple (so heart state survives refresh) */
+export async function fetchUserLikes(userId: string): Promise<LikeRow[]> {
+  if (!supabase) return []
+  const { data } = await supabase.from('vendor_likes').select('*').eq('user_id', userId)
+  return (data || []) as LikeRow[]
+}
+
 // ─── SUBSCRIPTION ───────────────────────────
 
 export async function updateSubscriptionDb(userId: string, tier: 'free' | 'silver' | 'gold') {
@@ -775,12 +789,35 @@ export async function fetchVendorBookingsDb(vendorId: string) {
   return data || []
 }
 
+/** Mark a couple's active booking for a listing as cancelled. */
+export async function cancelBookingDb(coupleId: string, listingId: string) {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('bookings')
+    .update({ status: 'cancelled' })
+    .eq('couple_id', coupleId)
+    .eq('listing_id', listingId)
+    .eq('status', 'active')
+  if (error) console.error('[db] cancelBookingDb failed:', error.message)
+}
+
 // ─── MILESTONES ─────────────────────────────
 
-export async function createMilestones(bookingId: string, titles: string[]) {
-  if (!supabase) return
+export interface MilestoneRow {
+  id: string
+  booking_id: string
+  title: string
+  sort_order: number
+  is_complete: boolean
+  completed_at: string | null
+}
+
+export async function createMilestones(bookingId: string, titles: string[]): Promise<MilestoneRow[]> {
+  if (!supabase) return []
   const rows = titles.map((title, i) => ({ booking_id: bookingId, title, sort_order: i }))
-  await supabase.from('milestones').insert(rows)
+  const { data, error } = await supabase.from('milestones').insert(rows).select()
+  if (error) console.error('[db] createMilestones failed:', error.message)
+  return (data || []) as MilestoneRow[]
 }
 
 export async function fetchMilestones(bookingId: string) {
