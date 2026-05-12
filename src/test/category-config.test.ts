@@ -4,7 +4,7 @@ import {
   getListingConfig, getOnboardingConfig,
 } from '@/lib/vendor-category-config'
 
-const ALL_CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping']
+const ALL_CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 
 describe('Vendor Category Config', () => {
   describe('Onboarding Config', () => {

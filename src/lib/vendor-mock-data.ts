@@ -55,6 +55,18 @@ const mockListingsData: Record<string, VendorListing[]> = {
     { id: 'ml-1', name: 'Bridal 3-Drape Package', photos: ['/images/gallery/makeup/3.jpg'], category: 'Saree Draping', price: 8000, style: 'Nivi Classic', guestCount: 1, includes: ['Bridal Drape', 'Reception Drape', 'Engagement Drape', 'Pins & Safety Pins', 'Touch-Up On-Site'], createdAt: '2026-03-15' },
     { id: 'ml-2', name: 'Bride + Family Drapes', photos: ['/images/gallery/makeup/4.jpg'], category: 'Saree Draping', price: 12000, style: 'Modern Fusion', guestCount: 5, includes: ['Bridal Drape', 'Family Drapes', 'Pleat Setting', 'Travel to Venue'], createdAt: '2026-03-10' },
   ],
+  'Live Stalls': [
+    { id: 'ml-1', name: 'Bridal Bangle Wonderland', photos: ['/images/gallery/decor/1.jpg'], category: 'Live Stalls', price: 18000, style: 'Bangle Stall', includes: ['Materials Included', 'Setup Table & Chairs', 'Take-Home Gift for Guests', 'Backdrop / Signage'], createdAt: '2026-03-15' },
+    { id: 'ml-2', name: 'Live Wedding Portraits', photos: ['/images/gallery/photo/1.jpg'], category: 'Live Stalls', price: 35000, style: 'Live Paintings / Portraits', includes: ['Materials Included', 'Live Demo', 'Take-Home Gift for Guests', 'Branded Attire'], createdAt: '2026-03-10' },
+  ],
+  'Hosts / Entertainers': [
+    { id: 'ml-1', name: 'Sangeeth Anchor + Live Games', photos: ['/images/gallery/dj/1.jpg'], category: 'Hosts / Entertainers', price: 45000, style: 'Anchor / MC', coverageHours: 3, includes: ['Sound System', 'Customized Script', 'Bilingual Performance', 'Audience Interaction'], createdAt: '2026-03-15' },
+    { id: 'ml-2', name: 'Wedding Magician Show', photos: ['/images/gallery/dj/2.jpg'], category: 'Hosts / Entertainers', price: 65000, style: 'Magician', coverageHours: 2, includes: ['Costumes / Props', 'Customized Script', 'Audience Interaction', 'Travel Within City'], createdAt: '2026-03-10' },
+  ],
+  'Wedding Props': [
+    { id: 'ml-1', name: 'Pelli Butta + Aduthera Combo', photos: ['/images/gallery/decor/3.jpg'], category: 'Wedding Props', price: 35000, style: 'Traditional Telugu', includes: ['Delivery within city', 'Setup at venue', 'Take-down after event', 'Hand-painted'], createdAt: '2026-03-15' },
+    { id: 'ml-2', name: 'Hand-Painted Coconut Set (12)', photos: ['/images/gallery/decor/4.jpg'], category: 'Wedding Props', price: 4500, style: 'Custom Designed', includes: ['Custom design available', 'Hand-painted', 'Delivery within city'], createdAt: '2026-03-10' },
+  ],
 }
 
 export function getMockListingsForCategory(category: string): VendorListing[] {

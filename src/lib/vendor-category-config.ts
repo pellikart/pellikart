@@ -179,6 +179,38 @@ export const ONBOARDING_CONFIG: Record<string, CategoryOnboardingConfig> = {
       { key: 'familyDraping', label: 'Family / guests', type: 'single', options: ['Bride only', 'Bride + 3', 'Bride + 5', 'Bride + 10', 'Unlimited'] },
     ],
   },
+  'Live Stalls': {
+    title: 'About your live stall',
+    subtitle: 'Help couples understand the experience you bring to their event.',
+    fields: [
+      { key: 'stallTypes', label: 'What stalls do you offer?', type: 'multi', options: ['Live Paintings / Portraits', 'Caricatures', 'Bangle Stall', 'Live Mehendi (guest)', 'Saree Draping', 'Tarot / Astrology', 'Pottery / Craft Station', 'Calligraphy / Name Personalization', 'Temporary Tattoo Artist', 'Photo Booth (Instant Prints)'] },
+      { key: 'artistsAvailable', label: 'Artists / staff on duty', type: 'single', options: ['Solo', '2 artists', '3-4 artists', '5+ artists'] },
+      { key: 'minDuration', label: 'Minimum service duration', type: 'single', options: ['1 hour', '2 hours', '3 hours', '4 hours', 'Full event'] },
+      { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Within city included', 'Up to 50km', 'Up to 100km', 'Extra charge'] },
+      { key: 'materialsProvided', label: 'Materials / supplies', type: 'single', options: ['Included', 'Partial', 'Couple provides'] },
+    ],
+  },
+  'Hosts / Entertainers': {
+    title: 'About your performance',
+    subtitle: 'Tell couples about the entertainment you bring.',
+    fields: [
+      { key: 'performanceTypes', label: 'What do you do?', type: 'multi', options: ['Magician', 'Mentalist', 'Anchor / MC', 'Stand-up Comedian', 'Sufi / Ghazal Singer', 'Folk Dancers', 'Mixology / Bartender Show', 'Mimicry Artist', 'Game Show Host', 'Karaoke Host', 'Live Music (Instrumental)'] },
+      { key: 'groupSize', label: 'Group size', type: 'single', options: ['Solo', '2-3 performers', '4-6 performers', '7+ performers'] },
+      { key: 'languages', label: 'Languages', type: 'multi', options: ['Telugu', 'Hindi', 'English', 'Tamil', 'Kannada', 'Bilingual'] },
+      { key: 'audienceFit', label: 'Audience fit', type: 'multi', options: ['Family-friendly', 'Adult / Cocktail', 'Kids-focused', 'Multi-generational'] },
+      { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Within city included', 'Up to 50km', 'Up to 100km', 'Extra charge'] },
+    ],
+  },
+  'Wedding Props': {
+    title: 'About your wedding props',
+    subtitle: 'Help couples find the right traditional and decorative items.',
+    fields: [
+      { key: 'propCategories', label: 'What props do you offer?', type: 'multi', options: ['Aduthera (Bridal Seat)', 'Pelli Butta', 'Pelli Pendiri', 'Coconut Painting', 'Talambralu Plates', 'Mangalasnanam Vessels', 'Pendyala (Wedding Pot)', 'Kalasham Set', 'Garlands', 'Plantain Leaves & Bananas', 'Photo Booth Backdrops', 'Decorative Umbrellas', 'Welcome Signage', 'Couple Chairs / Thrones', 'Decorative Pots & Bowls'] },
+      { key: 'serviceModel', label: 'Rental or sale?', type: 'single', options: ['Rental only', 'Sale only', 'Both rental and sale'] },
+      { key: 'deliveryModel', label: 'Delivery', type: 'single', options: ['Delivery & pickup included', 'Delivery only', 'Pickup from store only', 'Extra charge'] },
+      { key: 'customization', label: 'Customization', type: 'single', options: ['Custom designs available', 'Limited customization', 'Standard catalog only'] },
+    ],
+  },
 }
 
 // ─── LISTING CONFIG ─────────────────────────
@@ -531,6 +563,90 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Included', 'Extra charge', 'Studio only'] },
           { key: 'familyHair', label: 'Family hair styling', type: 'single', options: ['Available', 'Add-on', 'Not available'] },
           { key: 'preBridalCare', label: 'Pre-bridal hair care', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+        ],
+      },
+    ],
+  },
+  'Live Stalls': {
+    styles: ['Live Paintings / Portraits', 'Caricatures', 'Bangle Stall', 'Live Mehendi (guest)', 'Saree Draping', 'Tarot / Astrology', 'Pottery / Craft Station', 'Calligraphy / Name Personalization', 'Temporary Tattoo Artist', 'Photo Booth (Instant Prints)'],
+    inclusions: ['Materials Included', 'Setup Table & Chairs', 'Backdrop / Signage', 'Take-Home Gift for Guests', 'Branded Attire', 'Live Demo', 'Custom Theme Setup', 'Background Music', 'Power Strip / Lighting', 'Travel Within City'],
+    priceRange: { min: 3000, max: 100000, step: 1000 },
+    steps: [
+      {
+        title: 'Stall details',
+        subtitle: 'What kind of stall is this?',
+        fields: [
+          { key: 'stallType', label: 'Stall type', type: 'single', options: ['Live Paintings / Portraits', 'Caricatures', 'Bangle Stall', 'Live Mehendi (guest)', 'Saree Draping', 'Tarot / Astrology', 'Pottery / Craft Station', 'Calligraphy / Name Personalization', 'Temporary Tattoo Artist', 'Photo Booth (Instant Prints)'] },
+          { key: 'artistsOnDuty', label: 'Artists on duty', type: 'single', options: ['1', '2', '3', '4+'] },
+          { key: 'duration', label: 'Stall duration', type: 'single', options: ['1 hour', '2 hours', '3 hours', '4 hours', 'Full event'] },
+          { key: 'guestsPerHour', label: 'Guests served per hour', type: 'single', options: ['Under 10', '10-20', '20-40', '40+'] },
+        ],
+      },
+      {
+        title: 'Setup & extras',
+        subtitle: 'What logistics are involved?',
+        fields: [
+          { key: 'setupNeeded', label: 'What setup is needed?', type: 'multi', options: ['Table + chairs', 'Power outlet', 'Backdrop wall', 'Lighting', 'Branded signage', 'Background music', 'Dedicated area'] },
+          { key: 'materialsIncluded', label: 'Materials', type: 'single', options: ['All included', 'Partial', 'Couple provides'] },
+          { key: 'takeHomeGift', label: 'Take-home gift for guests', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+          { key: 'attire', label: 'Attire', type: 'single', options: ['Traditional', 'Casual', 'Branded uniform', 'Theme-appropriate'] },
+          { key: 'travel', label: 'Travel', type: 'single', options: ['Within city included', 'Up to 50km', 'Up to 100km', 'Extra charge'] },
+        ],
+      },
+    ],
+  },
+  'Hosts / Entertainers': {
+    styles: ['Magician', 'Mentalist', 'Anchor / MC', 'Stand-up Comedian', 'Sufi / Ghazal Singer', 'Folk Dancers', 'Mixology / Bartender Show', 'Mimicry Artist', 'Game Show Host', 'Karaoke Host', 'Live Music (Instrumental)'],
+    inclusions: ['Sound System', 'Costumes / Props', 'Customized Script', 'Bilingual Performance', 'Pre-event Rehearsal', 'Audience Interaction', 'Branded Signage', 'Travel Within City', 'Sound Check Before Event'],
+    priceRange: { min: 10000, max: 300000, step: 5000 },
+    steps: [
+      {
+        title: 'Performance details',
+        subtitle: 'What does this act cover?',
+        fields: [
+          { key: 'performanceType', label: 'Type', type: 'single', options: ['Magician', 'Mentalist', 'Anchor / MC', 'Stand-up Comedian', 'Sufi / Ghazal Singer', 'Folk Dancers', 'Mixology / Bartender Show', 'Mimicry Artist', 'Game Show Host', 'Karaoke Host', 'Live Music (Instrumental)'] },
+          { key: 'duration', label: 'Performance duration', type: 'single', options: ['30 min', '1 hour', '2 hours', '3 hours', 'Full event'] },
+          { key: 'groupSize', label: 'Group size', type: 'single', options: ['Solo', '2-3 performers', '4-6 performers', '7+ performers'] },
+          { key: 'languages', label: 'Performance language', type: 'multi', options: ['Telugu', 'Hindi', 'English', 'Tamil', 'Kannada', 'Bilingual'] },
+        ],
+      },
+      {
+        title: 'Logistics & extras',
+        subtitle: 'What else comes with this?',
+        fields: [
+          { key: 'soundSystem', label: 'Sound system', type: 'single', options: ['Included (own)', 'Available at extra cost', "Use venue's"] },
+          { key: 'customScript', label: 'Custom script / content', type: 'single', options: ['Included', 'Add-on', 'Standard set'] },
+          { key: 'rehearsal', label: 'Pre-event rehearsal', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+          { key: 'audienceFit', label: 'Audience fit', type: 'multi', options: ['Family-friendly', 'Adult / Cocktail', 'Kids-focused'] },
+          { key: 'travel', label: 'Travel', type: 'single', options: ['Within city included', 'Up to 50km', 'Up to 100km', 'Extra charge'] },
+        ],
+      },
+    ],
+  },
+  'Wedding Props': {
+    styles: ['Traditional Telugu', 'Modern Fusion', 'Premium Heritage', 'Eco-friendly', 'Custom Designed'],
+    inclusions: ['Delivery within city', 'Setup at venue', 'Take-down after event', 'Customizable design', 'Hand-painted', 'Includes accessories', 'Photographer-friendly', 'Branded signage', 'Rental insurance', 'Damage protection'],
+    priceRange: { min: 1000, max: 100000, step: 500 },
+    steps: [
+      {
+        title: 'Prop details',
+        subtitle: 'What does this listing include?',
+        fields: [
+          { key: 'propType', label: 'Which prop', type: 'single', options: ['Aduthera (Bridal Seat)', 'Pelli Butta', 'Pelli Pendiri', 'Coconut Painting', 'Talambralu Plates', 'Mangalasnanam Vessels', 'Pendyala (Wedding Pot)', 'Kalasham Set', 'Garlands', 'Plantain Leaves & Bananas', 'Photo Booth Backdrops', 'Decorative Umbrellas', 'Welcome Signage', 'Couple Chairs / Thrones', 'Decorative Pots & Bowls', 'Custom Combo'] },
+          { key: 'quantity', label: 'Quantity', type: 'single', options: ['1 piece', '2 pieces', 'Set of 4', 'Set of 8', 'Set of 12', 'Custom set'] },
+          { key: 'material', label: 'Material', type: 'single', options: ['Wood', 'Bamboo', 'Metal', 'Clay', 'Fabric', 'Mixed materials'] },
+          { key: 'condition', label: 'Condition', type: 'single', options: ['Brand new', 'Like new', 'Well maintained'] },
+        ],
+      },
+      {
+        title: 'Service & delivery',
+        subtitle: 'How does the booking work?',
+        fields: [
+          { key: 'serviceModel', label: 'Rental or sale', type: 'single', options: ['Rental', 'Sale', 'Both available'] },
+          { key: 'delivery', label: 'Delivery', type: 'single', options: ['Within city included', 'Delivery extra charge', 'Pickup from store only'] },
+          { key: 'setup', label: 'Setup at venue', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
+          { key: 'customization', label: 'Customization', type: 'single', options: ['Custom design available', 'Limited customization', 'Standard catalog only'] },
+          { key: 'pickup', label: 'Return / pickup (rentals)', type: 'single', options: ['Vendor picks up', 'Couple returns', 'Not applicable (sale)'] },
         ],
       },
     ],

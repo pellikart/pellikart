@@ -15,7 +15,7 @@ import {
   fetchCoupleBookings, cancelBookingDb,
   fetchMilestones, completeMilestoneDb,
   fetchCoupleTrials, fetchCoupleBids,
-  saveDecorBriefDb,
+  saveDecorBriefDb, insertBoardCategory,
 } from "./supabase-db";
 import type { Vendor } from "./types";
 
@@ -539,6 +539,44 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       saveDecorBriefDb(categoryId, brief)
+    }
+  },
+
+  addBoardCategory: (ritualId, label) => {
+    const { _liveMode } = get()
+    // Don't add if a category with this label already exists on the board
+    const board = get().ritualBoards.find(b => b.id === ritualId)
+    if (!board || board.categories.some(c => c.label === label)) return
+
+    const tempId = `${ritualId}-c-${label.toLowerCase().replace(/[\s/]+/g, '-')}-${Date.now()}`
+    const newCategory = {
+      id: tempId,
+      label,
+      selectedVendorId: null,
+      shortlistedVendorIds: [],
+      suggestedVendors: [],
+      removed: false,
+    }
+
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map(b =>
+        b.id === ritualId ? { ...b, categories: [...b.categories, newCategory] } : b
+      ),
+    }))
+
+    if (_liveMode) {
+      insertBoardCategory(ritualId, label).then(row => {
+        if (row) {
+          // Swap the temp id for the real DB UUID so future updates target the right row
+          set((s) => ({
+            ritualBoards: s.ritualBoards.map(b =>
+              b.id === ritualId
+                ? { ...b, categories: b.categories.map(c => c.id === tempId ? { ...c, id: row.id as string } : c) }
+                : b
+            ),
+          }))
+        }
+      })
     }
   },
 

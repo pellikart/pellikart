@@ -96,6 +96,25 @@ const milestonesMap: Record<string, Milestone[]> = {
     { label: 'Final Confirmation', description: 'Sarees & schedule confirmed', daysFromBooking: -7 },
     { label: 'Event Day', description: 'Draper arrives on-site', daysFromBooking: -1 },
   ],
+  'Live Stalls': [
+    { label: 'Slot Booked', description: 'Booking confirmed, advance paid', daysFromBooking: 0 },
+    { label: 'Logistics Confirmed', description: 'Setup, area, timings finalized', daysFromBooking: -10 },
+    { label: 'Final Confirmation', description: 'Headcount & schedule locked in', daysFromBooking: -3 },
+    { label: 'Event Day', description: 'Artists arrive and set up', daysFromBooking: -1 },
+  ],
+  'Hosts / Entertainers': [
+    { label: 'Slot Booked', description: 'Booking confirmed, advance paid', daysFromBooking: 0 },
+    { label: 'Programme Discussed', description: 'Script, songs, theme finalized', daysFromBooking: 10 },
+    { label: 'Sound Check', description: 'Equipment & venue sound test', daysFromBooking: -2 },
+    { label: 'Event Day', description: 'Performer arrives for show', daysFromBooking: -1 },
+  ],
+  'Wedding Props': [
+    { label: 'Slot Booked', description: 'Booking confirmed, advance paid', daysFromBooking: 0 },
+    { label: 'Selections Finalized', description: 'Props, quantities & customizations confirmed', daysFromBooking: 14 },
+    { label: 'Delivery Scheduled', description: 'Drop-off & setup date confirmed', daysFromBooking: -7 },
+    { label: 'Delivery Day', description: 'Props delivered and set up', daysFromBooking: -1 },
+    { label: 'Pickup', description: 'Rental items returned', daysFromBooking: 2 },
+  ],
 }
 
 // Default milestones for any category not explicitly mapped

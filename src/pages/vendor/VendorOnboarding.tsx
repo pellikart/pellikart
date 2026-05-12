@@ -5,7 +5,7 @@ import { VendorProfile, VendorPackage } from '@/lib/vendor-types'
 import { getOnboardingConfig, type SelectField } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 
-const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping']
+const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
 const TEAM_SIZES = ['Solo', '2-5', '5-10', '10+']
 

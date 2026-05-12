@@ -133,6 +133,7 @@ export interface AppState {
   toggleLike: (vendorId: string, userName: string, userId: string) => void;
   removeCategory: (ritualId: string, categoryId: string) => void;
   restoreCategory: (ritualId: string, categoryId: string) => void;
+  addBoardCategory: (ritualId: string, label: string) => void;
   bookVendor: (vendorId: string, amount: number) => void;
   bookAllVendors: (ritualId: string) => void;
   cancelBooking: (vendorId: string) => void;

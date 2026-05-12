@@ -408,6 +408,26 @@ export async function insertRitualBoard(coupleId: string, board: RitualBoard, so
   return dbBoard
 }
 
+/** Insert a single new board_category row (used when couple adds a category
+ *  to an existing board via the picker). Returns the row with its real UUID. */
+export async function insertBoardCategory(boardId: string, label: string) {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('board_categories')
+    .insert({
+      ritual_board_id: boardId,
+      label,
+      selected_vendor_id: null,
+      shortlisted_vendor_ids: [],
+      suggested_vendors: [],
+      is_removed: false,
+    })
+    .select()
+    .maybeSingle()
+  if (error) console.error('[db] insertBoardCategory failed:', error.message)
+  return data
+}
+
 export async function updateBoardCategory(categoryId: string, updates: Partial<Category>) {
   if (!supabase) return
   const mapped: Record<string, unknown> = {}

@@ -107,6 +107,9 @@ export default function VendorAddListing() {
     Reels: 'e.g. Cinematic Wedding Reels',
     'Hair Stylist': 'e.g. Bridal 3-Look Hair Package',
     'Saree Draping': 'e.g. Bridal 3-Drape Package',
+    'Live Stalls': 'e.g. Live Bangle Stall · 3 hours',
+    'Hosts / Entertainers': 'e.g. Sangeeth Anchor + Game Show · 2 hours',
+    'Wedding Props': 'e.g. Pelli Butta + Aduthera Combo',
   }
 
   // Price label per category
