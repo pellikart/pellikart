@@ -147,7 +147,7 @@ export default function VendorOnboarding() {
                 </div>
               </div>
               <div>
-                <label className="text-[12px] font-medium text-dark block mb-1">Area</label>
+                <label className="text-[12px] font-medium text-dark block mb-1">Where you're based</label>
                 <div className="flex flex-wrap gap-1.5">
                   {AREAS.map((a) => (
                     <button key={a} onClick={() => setArea(a)} className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${area === a ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}>
@@ -157,7 +157,7 @@ export default function VendorOnboarding() {
                 </div>
               </div>
             </div>
-            <p className="text-[11px] text-gray-400 mt-4">This helps couples in your area discover you.</p>
+            <p className="text-[11px] text-gray-400 mt-4">This helps couples nearby discover you.</p>
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
           </div>
         )}
@@ -311,7 +311,7 @@ export default function VendorOnboarding() {
                   <p className="text-[12px] font-semibold text-dark mt-0.5">{category || 'Photography'}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">Area</p>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">Based in</p>
                   <p className="text-[12px] font-semibold text-dark mt-0.5">{area || 'Jubilee Hills'}</p>
                 </div>
                 <div>

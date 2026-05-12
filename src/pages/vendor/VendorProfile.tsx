@@ -213,7 +213,7 @@ export default function VendorProfile() {
               </div>
 
               <div>
-                <label className="text-[11px] font-medium text-dark block mb-1.5">Area</label>
+                <label className="text-[11px] font-medium text-dark block mb-1.5">Where you're based</label>
                 <div className="flex flex-wrap gap-1.5">
                   {AREAS.map((a) => (
                     <button key={a} onClick={() => setEditArea(a)} className={`py-1.5 px-3 rounded-full text-[10px] font-medium ${editArea === a ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}>{a}</button>
