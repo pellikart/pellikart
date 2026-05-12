@@ -93,7 +93,6 @@ export const ONBOARDING_CONFIG: Record<string, CategoryOnboardingConfig> = {
       { key: 'makeupType', label: 'Makeup type', type: 'multi', options: ['HD', 'Airbrush', 'Traditional', 'Natural Glam', 'South Indian Bridal', 'Minimalist'] },
       { key: 'hairStyling', label: 'Hair styling', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
       { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Yes, included', 'Yes, extra charge', 'Studio only'] },
-      { key: 'productsUsed', label: 'Products used', type: 'multi', options: ['MAC', 'Bobbi Brown', 'Charlotte Tilbury', 'Huda Beauty', 'Kryolan', 'Lakme', 'Mix of brands'] },
     ],
   },
   Mehendi: {
