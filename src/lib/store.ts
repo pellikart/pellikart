@@ -86,6 +86,7 @@ export function buildLiveVendorMap(
       phone: (parentVendor?.phone as string) || '',
       whatsapp: (parentVendor?.whatsapp as string) || '',
       email: (parentVendor?.email as string) || '',
+      instagram: (parentVendor?.instagram as string) || '',
       experience: parseInt((parentVendor?.years_experience as string) || '0') || 0,
       teamSize: (parentVendor?.team_size as string) || '',
       blockedDates: blockedByVendor[vendorDbId] || [],

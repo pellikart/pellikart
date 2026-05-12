@@ -11,6 +11,7 @@ export interface VendorProfile {
   phone: string
   whatsapp: string
   email: string
+  instagram?: string
   description: string
   experience: number
   teamSize: string

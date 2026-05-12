@@ -21,6 +21,7 @@ export default function VendorProfile() {
   const [editPhone, setEditPhone] = useState('')
   const [editWhatsapp, setEditWhatsapp] = useState('')
   const [editEmail, setEditEmail] = useState('')
+  const [editInstagram, setEditInstagram] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editExperience, setEditExperience] = useState('')
   const [editTeamSize, setEditTeamSize] = useState('')
@@ -34,6 +35,7 @@ export default function VendorProfile() {
     setEditPhone(p!.phone)
     setEditWhatsapp(p!.whatsapp)
     setEditEmail(p!.email)
+    setEditInstagram(p!.instagram || '')
     setEditDescription(p!.description)
     setEditExperience(String(p!.experience))
     setEditTeamSize(p!.teamSize)
@@ -48,6 +50,7 @@ export default function VendorProfile() {
       phone: editPhone,
       whatsapp: editWhatsapp,
       email: editEmail,
+      instagram: editInstagram.trim() || undefined,
       description: editDescription,
       experience: parseInt(editExperience) || 0,
       teamSize: editTeamSize,
@@ -231,6 +234,11 @@ export default function VendorProfile() {
               <div>
                 <label className="text-[11px] font-medium text-dark block mb-1">Email</label>
                 <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard" />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-dark block mb-1">Instagram <span className="text-[10px] text-gray-400 font-normal">(optional)</span></label>
+                <input type="text" value={editInstagram} onChange={(e) => setEditInstagram(e.target.value)} placeholder="@yourhandle" className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard" />
               </div>
 
               <div>

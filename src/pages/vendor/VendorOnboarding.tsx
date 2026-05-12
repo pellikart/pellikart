@@ -20,6 +20,7 @@ export default function VendorOnboarding() {
   const [phone, setPhone] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [email, setEmail] = useState('')
+  const [instagram, setInstagram] = useState('')
   const [sameAsPhone, setSameAsPhone] = useState(true)
   const [description, setDescription] = useState('')
   const [experience, setExperience] = useState('')
@@ -86,6 +87,7 @@ export default function VendorOnboarding() {
       phone: phone || '+919876543210',
       whatsapp: sameAsPhone ? (phone || '+919876543210') : (whatsapp || '+919876543210'),
       email: email || 'vendor@example.com',
+      instagram: instagram.trim() || undefined,
       description: description || 'Professional wedding services',
       experience: parseInt(experience) || 5,
       teamSize: teamSize || '2-5',
@@ -210,6 +212,11 @@ export default function VendorOnboarding() {
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1">Email</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@business.com" className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard" />
+              </div>
+              <div>
+                <label className="text-[12px] font-medium text-dark block mb-1">Instagram <span className="text-[10px] text-gray-400 font-normal">(optional)</span></label>
+                <input type="text" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@yourhandle" className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard" />
+                <p className="text-[10px] text-gray-400 mt-1">Show your latest work. Visible to subscribed couples.</p>
               </div>
             </div>
             <p className="text-[11px] text-gray-400 mt-4">Couples who book you will use these to reach you directly.</p>

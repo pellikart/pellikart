@@ -2,6 +2,11 @@ import { Vendor } from '@/lib/types'
 import { mockDesigns } from '@/lib/mock-data'
 import { formatINR, bgStyle } from '@/lib/helpers'
 
+function instagramUrl(handle: string): string {
+  const cleaned = handle.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/$/, '')
+  return `https://instagram.com/${cleaned}`
+}
+
 interface Props {
   vendor: Vendor
   unlocked: boolean
@@ -105,18 +110,18 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
 
           {/* Contact info hint */}
           <div className="p-3 rounded-xl bg-empty-bg text-center">
-            {unlocked && (vendor.phone || vendor.whatsapp) ? (
+            {unlocked ? (
               <div className="flex gap-2">
-                {vendor.phone && <a href={`tel:${vendor.phone}`} className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">Call</a>}
-                {vendor.whatsapp && <a href={`https://wa.me/${vendor.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">WhatsApp</a>}
-              </div>
-            ) : unlocked ? (
-              <div className="flex gap-2">
-                <a href="tel:+919876543210" className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">Call</a>
-                <a href="https://wa.me/919876543210" target="_blank" rel="noopener noreferrer" className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">WhatsApp</a>
+                <a href={`tel:${vendor.phone || '+919876543210'}`} className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">Call</a>
+                <a href={`https://wa.me/${(vendor.whatsapp || '919876543210').replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 rounded-lg bg-green-50 border border-green-200 text-[10px] text-green-600 font-medium">WhatsApp</a>
+                {vendor.instagram && (
+                  <a href={instagramUrl(vendor.instagram)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 rounded-lg bg-pink-50 border border-pink-200 text-[10px] text-pink-600 font-medium">Instagram</a>
+                )}
               </div>
             ) : (
-              <p className="text-[10px] text-gray-400">Subscribe to view contact details</p>
+              <p className="text-[10px] text-gray-400">
+                Subscribe to view contact details{vendor.instagram ? ' & Instagram' : ''}
+              </p>
             )}
           </div>
         </div>

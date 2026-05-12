@@ -34,6 +34,7 @@ export async function upsertVendor(userId: string, profile: VendorProfile, isLiv
       phone: profile.phone,
       whatsapp: profile.whatsapp,
       email: profile.email,
+      instagram: profile.instagram || null,
       description: profile.description,
       years_experience: String(profile.experience),
       team_size: profile.teamSize,
@@ -58,6 +59,7 @@ export async function updateVendorFields(userId: string, updates: Partial<Vendor
   if (updates.phone !== undefined) mapped.phone = updates.phone
   if (updates.whatsapp !== undefined) mapped.whatsapp = updates.whatsapp
   if (updates.email !== undefined) mapped.email = updates.email
+  if (updates.instagram !== undefined) mapped.instagram = updates.instagram || null
   if (updates.description !== undefined) mapped.description = updates.description
   if (updates.experience !== undefined) mapped.years_experience = String(updates.experience)
   if (updates.teamSize !== undefined) mapped.team_size = updates.teamSize

@@ -35,6 +35,7 @@ export interface Vendor {
   phone?: string;
   whatsapp?: string;
   email?: string;
+  instagram?: string;
   experience?: number;
   teamSize?: string;
   availableDates?: string[];  // dates that are NOT blocked/booked
