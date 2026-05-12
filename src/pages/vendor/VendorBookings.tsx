@@ -5,7 +5,7 @@ import { getMilestones } from '@/lib/milestones'
 import { VendorBooking } from '@/lib/vendor-types'
 
 export default function VendorBookings() {
-  const { vendorBookings } = useVendorStore()
+  const { vendorBookings, completeBookingMilestone } = useVendorStore()
   const [tab, setTab] = useState<'active' | 'completed' | 'cancelled'>('active')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -42,6 +42,7 @@ export default function VendorBookings() {
               key={b.id} booking={b}
               expanded={expandedId === b.id}
               onToggle={() => setExpandedId(expandedId === b.id ? null : b.id)}
+              onMarkNextMilestone={() => completeBookingMilestone(b.id)}
             />
           ))
         )}
@@ -50,8 +51,9 @@ export default function VendorBookings() {
   )
 }
 
-function BookingCard({ booking: b, expanded, onToggle }: { booking: VendorBooking; expanded: boolean; onToggle: () => void }) {
+function BookingCard({ booking: b, expanded, onToggle, onMarkNextMilestone }: { booking: VendorBooking; expanded: boolean; onToggle: () => void; onMarkNextMilestone: () => void }) {
   const milestones = getMilestones(b.category)
+  const canMarkNext = b.status === 'active' && b.milestoneProgress < b.totalMilestones
 
   return (
     <div className="mb-3 rounded-xl border border-card-border bg-white overflow-hidden">
@@ -118,7 +120,17 @@ function BookingCard({ booking: b, expanded, onToggle }: { booking: VendorBookin
           {/* Milestone timeline */}
           {b.status !== 'cancelled' && (
             <div className="mt-3">
-              <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Milestones</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-wider">Milestones</p>
+                {canMarkNext && (
+                  <button
+                    onClick={onMarkNextMilestone}
+                    className="text-[10px] font-semibold text-mustard active:opacity-70"
+                  >
+                    Mark next done →
+                  </button>
+                )}
+              </div>
               {milestones.map((m, i) => {
                 const isDone = i < b.milestoneProgress
                 const isCurrent = i === b.milestoneProgress

@@ -122,6 +122,61 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
     .eq('id', listingDbId)
 }
 
+export async function deleteListingDb(listingDbId: string) {
+  if (!supabase) return
+  const { error } = await supabase.from('vendor_listings').delete().eq('id', listingDbId)
+  if (error) console.error('[db] deleteListingDb failed:', error.message)
+}
+
+// ─── VENDOR PACKAGES ────────────────────────
+
+export interface VendorPackageRow {
+  id: string
+  vendor_id: string
+  name: string
+  price: number
+  capacity: string | null
+  features: string[]
+  sort_order: number
+}
+
+export async function fetchVendorPackages(vendorId: string): Promise<VendorPackageRow[]> {
+  if (!supabase) return []
+  const { data } = await supabase.from('vendor_packages').select('*').eq('vendor_id', vendorId).order('sort_order')
+  return (data || []) as VendorPackageRow[]
+}
+
+export async function insertPackage(vendorId: string, pkg: { id?: string; name: string; price: number; features: string[]; capacity: string }, sortOrder: number) {
+  if (!supabase) return null
+  const { data, error } = await supabase.from('vendor_packages').insert({
+    vendor_id: vendorId,
+    name: pkg.name,
+    price: pkg.price,
+    capacity: pkg.capacity,
+    features: pkg.features,
+    sort_order: sortOrder,
+  }).select().maybeSingle()
+  if (error) console.error('[db] insertPackage failed:', error.message)
+  return data as VendorPackageRow | null
+}
+
+export async function updatePackageDb(packageId: string, pkg: { name: string; price: number; features: string[]; capacity: string }) {
+  if (!supabase) return
+  const { error } = await supabase.from('vendor_packages').update({
+    name: pkg.name,
+    price: pkg.price,
+    capacity: pkg.capacity,
+    features: pkg.features,
+    updated_at: new Date().toISOString(),
+  }).eq('id', packageId)
+  if (error) console.error('[db] updatePackageDb failed:', error.message)
+}
+
+export async function deletePackageDb(packageId: string) {
+  if (!supabase) return
+  await supabase.from('vendor_packages').delete().eq('id', packageId)
+}
+
 // ─── LIKES ──────────────────────────────────
 
 export async function addLikeDb(userId: string, vendorId: string, likerName: string, likerUserId: string) {
@@ -693,6 +748,17 @@ export async function markTrialDoneDb(trialId: string) {
   await supabase.from('trials').update({ status: 'done', updated_at: new Date().toISOString() }).eq('id', trialId)
 }
 
+/** Vendor declines a trial */
+export async function declineTrialDb(trialId: string, reason: string) {
+  if (!supabase) return
+  const { error } = await supabase.from('trials').update({
+    status: 'declined',
+    decline_reason: reason || null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', trialId)
+  if (error) console.error('[db] declineTrialDb failed:', error.message)
+}
+
 // ─── BIDS ───────────────────────────────────
 
 export interface BidRow {
@@ -878,6 +944,15 @@ export async function fetchVendorReviewsDb(vendorId: string) {
   if (!supabase) return []
   const { data } = await supabase.from('reviews').select('*').eq('vendor_id', vendorId).order('created_at', { ascending: false })
   return data || []
+}
+
+export async function respondToReviewDb(reviewId: string, response: string) {
+  if (!supabase) return
+  const { error } = await supabase.from('reviews').update({
+    vendor_response: response || null,
+    vendor_responded_at: response ? new Date().toISOString() : null,
+  }).eq('id', reviewId)
+  if (error) console.error('[db] respondToReviewDb failed:', error.message)
 }
 
 // ─── EARNINGS ───────────────────────────────

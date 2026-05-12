@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { formatINR } from '@/lib/helpers'
 
 export default function VendorListings() {
   const navigate = useNavigate()
-  const { vendorListings, vendorProfile } = useVendorStore()
+  const { vendorListings, vendorProfile, deleteListing } = useVendorStore()
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
 
   return (
     <div className="min-h-dvh bg-white pb-20 page-enter">
@@ -60,18 +62,48 @@ export default function VendorListings() {
                       {l.includes.length > 4 && <span className="text-[8px] text-gray-400">+{l.includes.length - 4} more</span>}
                     </div>
                   )}
-                  <button
-                    onClick={() => navigate(`/vendor/listings/edit/${l.id}`)}
-                    className="mt-2 w-full py-1.5 rounded-lg border border-mustard text-mustard text-[10px] font-medium active:bg-mustard-light transition-colors"
-                  >
-                    Edit listing
-                  </button>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => navigate(`/vendor/listings/edit/${l.id}`)}
+                      className="flex-1 py-1.5 rounded-lg border border-mustard text-mustard text-[10px] font-medium active:bg-mustard-light transition-colors"
+                    >
+                      Edit listing
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget({ id: l.id, name: l.name })}
+                      aria-label="Delete listing"
+                      className="px-3 py-1.5 rounded-lg border border-red-200 text-red-500 text-[10px] font-medium active:bg-red-50 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full">
+            <p className="text-[14px] font-bold text-dark mb-2">Delete this listing?</p>
+            <p className="text-xs text-gray-600 mb-4">
+              <span className="font-semibold">{deleteTarget.name}</span> will be removed permanently. Couples with existing bookings will keep their booking, but new couples won't see this listing.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-600 text-xs font-medium">Cancel</button>
+              <button
+                onClick={() => { deleteListing(deleteTarget.id); setDeleteTarget(null) }}
+                className="flex-1 py-2.5 rounded-lg bg-red-500 text-white text-xs font-semibold active:bg-red-600 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

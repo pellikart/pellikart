@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { useVendorStore } from '@/lib/vendor-store'
 import { formatDate } from '@/lib/helpers'
-import { acceptTrialDb, proposeNewTrialTimeDb } from '@/lib/supabase-db'
 
 export default function VendorTrials() {
   const navigate = useNavigate()
   const { trialSessions, acceptTrial, proposeNewTrialTime, _liveMode } = useStore()
-  const { vendorTrials, scheduleTrial: vendorAcceptTrial } = useVendorStore()
+  const { vendorTrials, scheduleTrial: vendorAcceptTrial, proposeTrialNewTime, declineTrial } = useVendorStore()
 
   const [proposeId, setProposeId] = useState<{ ritualId: string; categoryId: string; vendorId: string } | null>(null)
   const [proposeDate, setProposeDate] = useState('')
   const [proposeTime, setProposeTime] = useState('')
+  const [declineId, setDeclineId] = useState<string | null>(null)
+  const [declineReason, setDeclineReason] = useState('')
 
   // Get trials from main store (user-submitted)
   const userTrials = Object.entries(trialSessions).map(([key, trial]) => {
@@ -31,6 +32,7 @@ export default function VendorTrials() {
   const mockPending = vendorTrials.filter((t) => t.status === 'pending')
   const mockScheduled = vendorTrials.filter((t) => t.status === 'scheduled')
   const mockCompleted = vendorTrials.filter((t) => t.status === 'completed')
+  const mockDeclined = vendorTrials.filter((t) => t.status === 'declined')
 
   return (
     <div className="min-h-dvh bg-white page-enter">
@@ -139,16 +141,17 @@ export default function VendorTrials() {
                 {_liveMode && (
                   <div className="flex gap-2 mt-2">
                     <button
-                      onClick={() => {
-                        vendorAcceptTrial(t.id, t.requestedDate)
-                        acceptTrialDb(t.id)
-                      }}
+                      onClick={() => vendorAcceptTrial(t.id, t.requestedDate)}
                       className="flex-1 py-2 rounded-lg bg-green-500 text-white text-[10px] font-semibold active:scale-[0.97] transition-transform"
                     >Accept</button>
                     <button
                       onClick={() => setProposeId({ ritualId: t.id, categoryId: '', vendorId: '' })}
                       className="flex-1 py-2 rounded-lg border border-mustard text-mustard text-[10px] font-semibold"
                     >Propose new time</button>
+                    <button
+                      onClick={() => { setDeclineId(t.id); setDeclineReason('') }}
+                      className="py-2 px-3 rounded-lg border border-red-200 text-red-500 text-[10px] font-semibold"
+                    >Decline</button>
                   </div>
                 )}
               </div>
@@ -176,6 +179,19 @@ export default function VendorTrials() {
               <div key={t.id} className="p-3 rounded-xl border border-card-border mb-2 opacity-70">
                 <p className="text-[12px] font-semibold text-dark">{t.coupleNames} · {t.eventName}</p>
                 <span className="inline-block mt-1 bg-green-100 text-green-600 text-[9px] font-medium px-2 py-0.5 rounded-full">Done</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {mockDeclined.length > 0 && (
+          <div className="mb-4">
+            <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider mb-2">Declined ({mockDeclined.length})</p>
+            {mockDeclined.map((t) => (
+              <div key={t.id} className="p-3 rounded-xl border border-red-100 mb-2 opacity-80">
+                <p className="text-[12px] font-semibold text-dark">{t.coupleNames}</p>
+                <p className="text-[10px] text-gray-500">{t.eventName} · {t.category}</p>
+                {t.declineReason && <p className="text-[10px] text-red-400 mt-1">Reason: {t.declineReason}</p>}
               </div>
             ))}
           </div>
@@ -222,8 +238,8 @@ export default function VendorTrials() {
               onClick={() => {
                 if (proposeDate && proposeTime && proposeId) {
                   if (_liveMode && !proposeId.categoryId) {
-                    // Live mode: proposeId.ritualId is actually the DB trial UUID
-                    proposeNewTrialTimeDb(proposeId.ritualId, proposeDate, proposeTime)
+                    // Live mode: proposeId.ritualId is the DB trial UUID (vendorTrials path)
+                    proposeTrialNewTime(proposeId.ritualId, proposeDate, proposeTime)
                   } else {
                     proposeNewTrialTime(proposeId.ritualId, proposeId.categoryId, proposeId.vendorId, proposeDate, proposeTime)
                   }
@@ -235,6 +251,35 @@ export default function VendorTrials() {
             >
               Send proposal
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Decline trial modal */}
+      {declineId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setDeclineId(null)}>
+          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+            <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
+            <p className="text-[14px] font-bold text-dark mb-1">Decline trial request?</p>
+            <p className="text-[11px] text-gray-400 mb-4">The couple will be notified. Adding a reason helps them understand.</p>
+
+            <textarea
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              placeholder="Reason (optional) — e.g. fully booked that day"
+              rows={3} maxLength={300}
+              className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[12px] outline-none focus:border-red-300 resize-none"
+            />
+
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setDeclineId(null)} className="flex-1 py-2.5 rounded-xl border border-gray-300 text-gray-600 text-[12px] font-medium">Keep</button>
+              <button
+                onClick={() => { declineTrial(declineId, declineReason.trim()); setDeclineId(null) }}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-[12px] font-semibold"
+              >
+                Decline trial
+              </button>
+            </div>
           </div>
         </div>
       )}

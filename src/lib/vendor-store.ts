@@ -9,12 +9,15 @@ import {
 } from './vendor-mock-data'
 import {
   fetchVendor, upsertVendor, updateVendorFields,
-  fetchVendorListings, insertListing, updateListingDb,
+  fetchVendorListings, insertListing, updateListingDb, deleteListingDb,
   fetchVendorAvailability, upsertAvailability,
-  fetchVendorTrials as fetchVendorTrialsDb, acceptTrialDb, proposeNewTrialTimeDb,
+  fetchVendorTrials as fetchVendorTrialsDb, acceptTrialDb, proposeNewTrialTimeDb, declineTrialDb,
   fetchVendorBidsDb, submitBidDb,
   fetchVendorBookingsDb, fetchVendorReviewsDb, fetchVendorEarningsDb,
   fetchNotifications, markNotificationReadDb, markAllNotificationsReadDb,
+  fetchMilestones, completeMilestoneDb,
+  fetchVendorPackages, insertPackage, updatePackageDb, deletePackageDb,
+  respondToReviewDb,
   type TrialRow, type BidRow,
 } from './supabase-db'
 
@@ -25,6 +28,10 @@ interface LiveModeState {
   _vendorDbId: string | null
   /** Maps local listing IDs to Supabase UUIDs */
   _listingIdMap: Record<string, string>
+  /** Maps local package IDs to Supabase UUIDs */
+  _packageIdMap: Record<string, string>
+  /** Maps booking ID → ordered milestone DB IDs (so we can mark them complete) */
+  _bookingMilestones: Record<string, string[]>
 }
 
 export const useVendorStore = create<VendorState & LiveModeState & {
@@ -35,6 +42,8 @@ export const useVendorStore = create<VendorState & LiveModeState & {
   _userId: null,
   _vendorDbId: null,
   _listingIdMap: {},
+  _packageIdMap: {},
+  _bookingMilestones: {},
 
   // App state
   vendorOnboardingComplete: false,
@@ -109,26 +118,37 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         }
       }
 
-      // Fetch trials, bids, bookings, reviews, earnings, notifications from DB
-      const [dbTrials, dbBids, dbBookings, dbReviews, dbEarnings, dbNotifications] = await Promise.all([
+      // Fetch trials, bids, bookings, reviews, earnings, notifications, packages from DB
+      const [dbTrials, dbBids, dbBookings, dbReviews, dbEarnings, dbNotifications, dbPackages] = await Promise.all([
         fetchVendorTrialsDb(vendor.id),
         fetchVendorBidsDb(vendor.id),
         fetchVendorBookingsDb(vendor.id),
         fetchVendorReviewsDb(vendor.id),
         fetchVendorEarningsDb(vendor.id),
         fetchNotifications(userId),
+        fetchVendorPackages(vendor.id),
       ])
 
       // Map DB trials to vendor store format
-      const mappedTrials = dbTrials.map((t: TrialRow) => ({
-        id: t.id,
-        coupleNames: 'Couple', // We don't have couple names yet in the trial row
-        eventName: t.ritual_name,
-        category: t.category_label,
-        status: (t.status === 'requested' ? 'pending' : t.status === 'done' ? 'completed' : t.status === 'accepted' || t.status === 'confirmed' ? 'scheduled' : 'pending') as 'pending' | 'scheduled' | 'completed' | 'declined',
-        requestedDate: t.requested_date,
-        scheduledDate: t.scheduled_date || undefined,
-      }))
+      const mappedTrials = dbTrials.map((t) => {
+        const ext = t as TrialRow & { decline_reason?: string | null }
+        return {
+          id: t.id,
+          coupleNames: 'Couple', // We don't have couple names yet in the trial row
+          eventName: t.ritual_name,
+          category: t.category_label,
+          status: (t.status === 'requested' || t.status === 'rescheduled' ? 'pending'
+            : t.status === 'done' ? 'completed'
+            : t.status === 'accepted' || t.status === 'confirmed' ? 'scheduled'
+            : t.status === 'declined' ? 'declined'
+            : 'pending') as 'pending' | 'scheduled' | 'completed' | 'declined',
+          requestedDate: t.requested_date,
+          scheduledDate: t.scheduled_date || undefined,
+          vendorProposedDate: t.vendor_proposed_date || undefined,
+          vendorProposedTime: t.vendor_proposed_time || undefined,
+          declineReason: ext.decline_reason || undefined,
+        }
+      })
 
       // Map DB bids to vendor store format
       const mappedBids = dbBids.map((b: BidRow) => ({
@@ -142,24 +162,37 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         bidNote: b.bid_note || undefined,
       }))
 
-      // Map DB bookings
-      const mappedBookings = dbBookings.map((b: Record<string, unknown>) => ({
-        id: b.id as string,
-        coupleNames: '',
-        eventName: (b.category_label as string) || '',
-        eventDate: (b.booked_at as string)?.split('T')[0] || '',
-        category: (b.category_label as string) || '',
-        packageTier: '',
-        totalValue: (b.total_value as number) || 0,
-        slotAmountPaid: (b.slot_amount as number) || 0,
-        totalPaid: (b.slot_amount as number) || 0,
-        remainingBalance: ((b.total_value as number) || 0) - ((b.slot_amount as number) || 0),
-        milestoneProgress: 1,
-        totalMilestones: 5,
-        status: (b.status as 'active' | 'completed' | 'cancelled') || 'active',
-        phone: '',
-        whatsapp: '',
-      }))
+      // Fetch milestones for every booking so we can persist milestone marking
+      const bookingMilestoneArrays = await Promise.all(
+        dbBookings.map((b: Record<string, unknown>) => fetchMilestones(b.id as string))
+      )
+      const bookingMilestones: Record<string, string[]> = {}
+
+      // Map DB bookings — compute actual milestone progress from real rows
+      const mappedBookings = dbBookings.map((b: Record<string, unknown>, idx: number) => {
+        const ms = bookingMilestoneArrays[idx]
+        const bookingId = b.id as string
+        bookingMilestones[bookingId] = ms.map(m => (m as Record<string, unknown>).id as string)
+        const completed = ms.filter(m => (m as Record<string, unknown>).is_complete).length
+        const total = ms.length || 5
+        return {
+          id: bookingId,
+          coupleNames: '',
+          eventName: (b.category_label as string) || '',
+          eventDate: (b.booked_at as string)?.split('T')[0] || '',
+          category: (b.category_label as string) || '',
+          packageTier: '',
+          totalValue: (b.total_value as number) || 0,
+          slotAmountPaid: (b.slot_amount as number) || 0,
+          totalPaid: (b.slot_amount as number) || 0,
+          remainingBalance: ((b.total_value as number) || 0) - ((b.slot_amount as number) || 0),
+          milestoneProgress: completed || (b.status === 'active' ? 1 : completed),
+          totalMilestones: total,
+          status: (b.status as 'active' | 'completed' | 'cancelled') || 'active',
+          phone: '',
+          whatsapp: '',
+        }
+      })
 
       // Map DB reviews
       const mappedReviews = dbReviews.map((r: Record<string, unknown>) => ({
@@ -170,7 +203,23 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         rating: (r.rating as number) || 5,
         text: (r.text as string) || '',
         datePosted: (r.created_at as string)?.split('T')[0] || '',
+        vendorResponse: (r.vendor_response as string) || undefined,
+        vendorRespondedAt: (r.vendor_responded_at as string) || undefined,
       }))
+
+      // Map DB packages
+      const packageIdMap: Record<string, string> = {}
+      const mappedPackages = dbPackages.map((p) => {
+        const localId = `vp-${p.id}`
+        packageIdMap[localId] = p.id
+        return {
+          id: localId,
+          name: p.name,
+          price: p.price,
+          features: p.features || [],
+          capacity: p.capacity || '',
+        }
+      })
 
       // Map DB earnings
       const mappedEarnings = dbEarnings.map((e: Record<string, unknown>) => ({
@@ -197,8 +246,11 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       set({
         _vendorDbId: vendor.id,
         _listingIdMap: listingIdMap,
+        _packageIdMap: packageIdMap,
+        _bookingMilestones: bookingMilestones,
         vendorOnboardingComplete: vendor.onboarding_complete,
         vendorProfile: profile,
+        vendorPackages: mappedPackages,
         vendorListings: listings,
         vendorAvailability: availability,
         vendorBookings: mappedBookings,
@@ -224,7 +276,18 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         set({ _vendorDbId: vendorData.id })
       }
 
+      // Persist initial packages, capturing DB IDs
+      const packageIdMap: Record<string, string> = {}
+      if (vendorData && packages.length > 0) {
+        for (let i = 0; i < packages.length; i++) {
+          const p = packages[i]
+          const row = await insertPackage(vendorData.id, p, i)
+          if (row) packageIdMap[p.id] = row.id
+        }
+      }
+
       set({
+        _packageIdMap: packageIdMap,
         vendorOnboardingComplete: true,
         vendorProfile: profile,
         vendorPackages: packages,
@@ -330,6 +393,32 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     }
   },
 
+  proposeTrialNewTime: (trialId, newDate, newTime) => {
+    const { _liveMode } = get()
+    set((s) => ({
+      vendorTrials: s.vendorTrials.map((t) =>
+        t.id === trialId
+          ? { ...t, status: 'pending' as const, scheduledDate: newDate, vendorProposedDate: newDate, vendorProposedTime: newTime }
+          : t
+      ),
+    }))
+    if (_liveMode) {
+      proposeNewTrialTimeDb(trialId, newDate, newTime)
+    }
+  },
+
+  declineTrial: (trialId, reason) => {
+    const { _liveMode } = get()
+    set((s) => ({
+      vendorTrials: s.vendorTrials.map((t) =>
+        t.id === trialId ? { ...t, status: 'declined' as const, declineReason: reason || undefined } : t
+      ),
+    }))
+    if (_liveMode) {
+      declineTrialDb(trialId, reason)
+    }
+  },
+
   markNotificationRead: (id) => {
     const { _liveMode } = get()
     set((s) => ({
@@ -390,6 +479,89 @@ export const useVendorStore = create<VendorState & LiveModeState & {
 
     if (_liveMode && _userId) {
       updateVendorFields(_userId, updates)
+    }
+  },
+
+  deleteListing: (listingId) => {
+    const { _liveMode, _listingIdMap } = get()
+    const dbId = _listingIdMap[listingId]
+    set((s) => {
+      const { [listingId]: _, ...remainingMap } = s._listingIdMap
+      return {
+        vendorListings: s.vendorListings.filter((l) => l.id !== listingId),
+        _listingIdMap: remainingMap,
+      }
+    })
+    if (_liveMode && dbId) {
+      deleteListingDb(dbId)
+    }
+  },
+
+  addPackage: (pkg) => {
+    const { _liveMode, _vendorDbId } = get()
+    set((s) => ({ vendorPackages: [...s.vendorPackages, pkg] }))
+    if (_liveMode && _vendorDbId) {
+      insertPackage(_vendorDbId, pkg, get().vendorPackages.length - 1).then(row => {
+        if (row) {
+          set(s => ({ _packageIdMap: { ...s._packageIdMap, [pkg.id]: row.id } }))
+        }
+      })
+    }
+  },
+
+  updatePackage: (pkg) => {
+    const { _liveMode, _packageIdMap } = get()
+    set((s) => ({
+      vendorPackages: s.vendorPackages.map(p => p.id === pkg.id ? pkg : p),
+    }))
+    if (_liveMode) {
+      const dbId = _packageIdMap[pkg.id]
+      if (dbId) updatePackageDb(dbId, pkg)
+    }
+  },
+
+  deletePackage: (packageId) => {
+    const { _liveMode, _packageIdMap } = get()
+    const dbId = _packageIdMap[packageId]
+    set((s) => {
+      const { [packageId]: _, ...remainingMap } = s._packageIdMap
+      return {
+        vendorPackages: s.vendorPackages.filter(p => p.id !== packageId),
+        _packageIdMap: remainingMap,
+      }
+    })
+    if (_liveMode && dbId) deletePackageDb(dbId)
+  },
+
+  completeBookingMilestone: (bookingId) => {
+    const { _liveMode, _bookingMilestones } = get()
+    let nextIndex = -1
+    set((s) => ({
+      vendorBookings: s.vendorBookings.map(b => {
+        if (b.id !== bookingId) return b
+        if (b.milestoneProgress >= b.totalMilestones) return b
+        nextIndex = b.milestoneProgress
+        return { ...b, milestoneProgress: b.milestoneProgress + 1 }
+      }),
+    }))
+    if (_liveMode && nextIndex >= 0) {
+      const milestoneIds = _bookingMilestones[bookingId]
+      if (milestoneIds && milestoneIds[nextIndex]) {
+        completeMilestoneDb(milestoneIds[nextIndex])
+      }
+    }
+  },
+
+  respondToReview: (reviewId, response) => {
+    const { _liveMode } = get()
+    const now = new Date().toISOString()
+    set((s) => ({
+      vendorReviews: s.vendorReviews.map(r =>
+        r.id === reviewId ? { ...r, vendorResponse: response || undefined, vendorRespondedAt: response ? now : undefined } : r
+      ),
+    }))
+    if (_liveMode) {
+      respondToReviewDb(reviewId, response)
     }
   },
 }))

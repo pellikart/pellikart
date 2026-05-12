@@ -92,6 +92,8 @@ export interface VendorTrial {
   requestedDate: string
   scheduledDate?: string
   declineReason?: string
+  vendorProposedDate?: string
+  vendorProposedTime?: string
 }
 
 export interface VendorBidRequest {
@@ -123,6 +125,8 @@ export interface VendorReview {
   rating: number
   text: string
   datePosted: string
+  vendorResponse?: string
+  vendorRespondedAt?: string
 }
 
 export interface EarningsTransaction {
@@ -171,9 +175,17 @@ export interface VendorState {
   toggleDateBlock: (date: string, listingIds: string[], blockedRanges: BlockedTimeRange[]) => void
   submitBid: (bidId: string, price: number, note: string) => void
   scheduleTrial: (trialId: string, date: string) => void
+  proposeTrialNewTime: (trialId: string, newDate: string, newTime: string) => void
+  declineTrial: (trialId: string, reason: string) => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
   addListing: (listing: VendorListing) => void
   updateListing: (listing: VendorListing) => void
+  deleteListing: (listingId: string) => void
   updateVendorProfile: (profile: Partial<VendorProfile>) => void
+  addPackage: (pkg: VendorPackage) => void
+  updatePackage: (pkg: VendorPackage) => void
+  deletePackage: (packageId: string) => void
+  completeBookingMilestone: (bookingId: string) => void
+  respondToReview: (reviewId: string, response: string) => void
 }
