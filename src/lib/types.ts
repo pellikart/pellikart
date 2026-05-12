@@ -58,6 +58,19 @@ export interface Design {
   description: string;
 }
 
+export type SizeUnit = 'ft' | 'm' | 'cm';
+
+/** Brief a couple fills out for the Decor category so vendors can quote accurately.
+ *  Persisted on board_categories.decor_brief (jsonb). */
+export interface DecorBrief {
+  setting: string;
+  coverage: string;
+  size: { width: string; height: string; unit: SizeUnit };
+  flowers: string;
+  referenceImage?: string;
+  notes: string;
+}
+
 export interface Category {
   id: string;
   label: string;
@@ -65,6 +78,8 @@ export interface Category {
   shortlistedVendorIds: string[];
   suggestedVendors: SuggestedVendor[];
   removed: boolean;
+  /** Decor brief — only meaningful when label === 'Decor' */
+  decorBrief?: DecorBrief | null;
 }
 
 export interface SuggestedVendor {
@@ -121,6 +136,7 @@ export interface AppState {
   bookVendor: (vendorId: string, amount: number) => void;
   bookAllVendors: (ritualId: string) => void;
   cancelBooking: (vendorId: string) => void;
+  setDecorBrief: (ritualId: string, categoryId: string, brief: DecorBrief | null) => void;
   swapVendor: (ritualId: string, categoryId: string, newVendorId: string) => void;
   completeMilestone: (vendorId: string, totalMilestones: number) => void;
   updateBoardDates: (ritualId: string, dateStart: string, dateEnd: string, removeVendorIds: string[]) => void;

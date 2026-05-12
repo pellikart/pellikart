@@ -14,7 +14,8 @@ import {
   createBooking, createMilestones, createEarning, createNotification,
   fetchCoupleBookings, cancelBookingDb,
   fetchMilestones, completeMilestoneDb,
-  fetchCoupleTrials,
+  fetchCoupleTrials, fetchCoupleBids,
+  saveDecorBriefDb,
 } from "./supabase-db";
 import type { Vendor } from "./types";
 
@@ -524,6 +525,20 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       updateBoardCategory(categoryId, { removed: false })
+    }
+  },
+
+  setDecorBrief: (ritualId, categoryId, brief) => {
+    const { _liveMode } = get()
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, decorBrief: brief } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      saveDecorBriefDb(categoryId, brief)
     }
   },
 

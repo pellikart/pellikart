@@ -360,8 +360,19 @@ export async function fetchRitualBoards(coupleId: string) {
         shortlistedVendorIds: c.shortlisted_vendor_ids || [],
         suggestedVendors: c.suggested_vendors || [],
         removed: c.is_removed || false,
+        decorBrief: c.decor_brief || null,
       })),
   })) as RitualBoard[]
+}
+
+/** Save / clear the decor brief for a category */
+export async function saveDecorBriefDb(categoryId: string, brief: import('./types').DecorBrief | null) {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('board_categories')
+    .update({ decor_brief: brief })
+    .eq('id', categoryId)
+  if (error) console.error('[db] saveDecorBriefDb failed:', error.message)
 }
 
 export async function insertRitualBoard(coupleId: string, board: RitualBoard, sortOrder: number) {
@@ -805,12 +816,17 @@ export interface BidRow {
   status: 'pending' | 'submitted' | 'selected' | 'not_selected'
   bid_price: number | null
   bid_note: string | null
+  category_id: string | null
+  /** Joined from board_categories — only present when fetched with the brief join */
+  decor_brief?: import('./types').DecorBrief | null
+  /** Joined from vendor_listings — only present when fetched with vendor join */
+  vendor_name?: string | null
 }
 
 /** Couple creates bid requests for all vendors in a category */
 export async function createBids(
   coupleId: string, vendorIds: string[], ritualName: string,
-  categoryLabel: string, imageUrl: string
+  categoryLabel: string, imageUrl: string, categoryId?: string,
 ): Promise<BidRow[]> {
   if (!supabase) return []
   const rows = vendorIds.map(vid => ({
@@ -819,6 +835,7 @@ export async function createBids(
     ritual_name: ritualName,
     category_label: categoryLabel,
     uploaded_image: imageUrl,
+    category_id: categoryId || null,
   }))
   const { data, error } = await supabase.from('bids').insert(rows).select()
   if (error) console.error('[db] createBids failed:', error.message)
@@ -828,15 +845,30 @@ export async function createBids(
 /** Fetch bids for a couple */
 export async function fetchCoupleBids(coupleId: string): Promise<BidRow[]> {
   if (!supabase) return []
-  const { data } = await supabase.from('bids').select('*').eq('couple_id', coupleId).order('created_at', { ascending: false })
-  return (data || []) as BidRow[]
+  // Join the category to recover the decor_brief snapshot the couple submitted.
+  const { data } = await supabase
+    .from('bids')
+    .select('*, board_categories!category_id(decor_brief)')
+    .eq('couple_id', coupleId)
+    .order('created_at', { ascending: false })
+  return ((data || []) as unknown as (BidRow & { board_categories?: { decor_brief: import('./types').DecorBrief | null } | null })[]).map(b => ({
+    ...b,
+    decor_brief: b.board_categories?.decor_brief ?? null,
+  })) as BidRow[]
 }
 
-/** Fetch bids for a vendor */
+/** Fetch bids for a vendor — also joins the decor brief and the listing name */
 export async function fetchVendorBidsDb(vendorId: string): Promise<BidRow[]> {
   if (!supabase) return []
-  const { data } = await supabase.from('bids').select('*').eq('vendor_id', vendorId).order('created_at', { ascending: false })
-  return (data || []) as BidRow[]
+  const { data } = await supabase
+    .from('bids')
+    .select('*, board_categories!category_id(decor_brief)')
+    .eq('vendor_id', vendorId)
+    .order('created_at', { ascending: false })
+  return ((data || []) as unknown as (BidRow & { board_categories?: { decor_brief: import('./types').DecorBrief | null } | null })[]).map(b => ({
+    ...b,
+    decor_brief: b.board_categories?.decor_brief ?? null,
+  })) as BidRow[]
 }
 
 /** Vendor submits a bid response */

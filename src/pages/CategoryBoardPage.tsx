@@ -2,22 +2,10 @@ import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { formatINR, bgStyle } from '@/lib/helpers'
-import { Vendor, Design } from '@/lib/types'
+import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
-import { trackEvent, trackImpressions, selectBidDb } from '@/lib/supabase-db'
-
-// Brief a couple fills out for the Decor category so vendors can bid accurately.
-// The event/ritual is implied by the board context (the page lives under
-// /category/:ritualId/:categoryId) so we don't ask the user to repeat it.
-type SizeUnit = 'ft' | 'm' | 'cm'
-interface DecorBrief {
-  setting: string
-  coverage: string
-  size: { width: string; height: string; unit: SizeUnit }
-  flowers: string
-  notes: string
-}
+import { trackEvent, trackImpressions, selectBidDb, createBids, fetchCoupleBids } from '@/lib/supabase-db'
 
 const SETTING_OPTIONS = ['Indoor', 'Outdoor', 'Both']
 const COVERAGE_OPTIONS = ['Mandap only', 'Stage only', 'Entrance + Stage', 'Full venue', 'Specific area']
@@ -39,7 +27,7 @@ export default function CategoryBoardPage() {
     ritualBoards, vendors, subscription,
     selectVendor, addToShortlist, removeFromShortlist, toggleLike,
     trialSessions, trialsUsed, requestTrial, markTrialDone, confirmReschedule,
-    addDesignAsVendor,
+    addDesignAsVendor, setDecorBrief,
   } = useStore()
   const unlocked = subscription !== 'free'
   const maxTrials = subscription === 'gold' ? 3 : subscription === 'silver' ? 1 : 0
@@ -50,9 +38,17 @@ export default function CategoryBoardPage() {
   const [customImageFile, setCustomImageFile] = useState<File | null>(null)
   const [customBids, setCustomBids] = useState<{ vendorId: string; price: number; note: string }[]>([])
   const [bidsGenerated, setBidsGenerated] = useState(false)
-  const [customBrief, setCustomBrief] = useState<DecorBrief>({
+  // Restored from category.decorBrief on first render; debounced save below.
+  const EMPTY_BRIEF: DecorBrief = {
     setting: '', coverage: '', size: { width: '', height: '', unit: 'ft' }, flowers: '', notes: '',
-  })
+  }
+  const initialBrief = ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)?.decorBrief
+  const [customBrief, setCustomBrief] = useState<DecorBrief>(initialBrief ?? EMPTY_BRIEF)
+  // If the user previously uploaded a reference photo, restore its URL too
+  useEffect(() => {
+    if (initialBrief?.referenceImage && !customImage) setCustomImage(initialBrief.referenceImage)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [feedTab, setFeedTab] = useState<'explore' | 'suggestions' | 'customize'>('explore')
   const [sheetExpanded, setSheetExpanded] = useState(false)
   const [detailVendorId, setDetailVendorId] = useState<string | null>(null)
@@ -107,6 +103,23 @@ export default function CategoryBoardPage() {
   useEffect(() => {
     if (!supportsCustomize && feedTab === 'customize') setFeedTab('explore')
   }, [supportsCustomize, feedTab])
+
+  // Persist the Decor brief (debounced 600ms after the last edit). Only fires
+  // for Decor and only when the brief actually differs from what's in the store.
+  useEffect(() => {
+    if (!supportsCustomize) return
+    const persisted = category.decorBrief
+    const hasContent = customBrief.setting || customBrief.coverage || customBrief.flowers
+      || customBrief.size.width || customBrief.size.height || customBrief.notes
+      || customBrief.referenceImage
+    if (!hasContent && !persisted) return
+    if (JSON.stringify(customBrief) === JSON.stringify(persisted)) return
+    const t = setTimeout(() => {
+      setDecorBrief(ritualId!, categoryId!, hasContent ? customBrief : null)
+    }, 600)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customBrief, supportsCustomize])
 
   const suggestedVendors = category.suggestedVendors
     .map((s) => ({ ...(vendors[s.vendorId] || mockVendors[s.vendorId]), suggestedBy: s.suggestedBy }))
@@ -412,21 +425,48 @@ export default function CategoryBoardPage() {
                 const url = URL.createObjectURL(file)
                 setCustomImage(url)
                 setCustomImageFile(file)
+                setCustomBrief({ ...customBrief, referenceImage: url })
                 setBidsGenerated(false)
                 setCustomBids([])
               }}
               onGetBids={() => {
-                // Mock: generate bids from vendors in this category
-                const categoryVendors = Object.values(mockVendors).filter((v) =>
-                  v.id.startsWith(category.label === 'Venue' ? 'v-venue' : 'v-decor')
-                )
-                const bids = categoryVendors.map((v) => ({
-                  vendorId: v.id,
-                  price: Math.round(v.price * (0.8 + Math.random() * 0.4)),
-                  note: ['Can do this exact design', 'Similar setup possible, minor tweaks needed', 'Available with premium materials', 'Custom version ready in 2 weeks'][Math.floor(Math.random() * 4)],
-                })).sort((a, b) => a.price - b.price)
-                setCustomBids(bids)
-                setBidsGenerated(true)
+                // Demo mode: synthesize bids so the user sees instant responses.
+                if (!_liveMode) {
+                  const categoryVendors = Object.values(mockVendors).filter((v) =>
+                    v.id.startsWith(category.label === 'Venue' ? 'v-venue' : 'v-decor')
+                  )
+                  const bids = categoryVendors.map((v) => ({
+                    vendorId: v.id,
+                    price: Math.round(v.price * (0.8 + Math.random() * 0.4)),
+                    note: ['Can do this exact design', 'Similar setup possible, minor tweaks needed', 'Available with premium materials', 'Custom version ready in 2 weeks'][Math.floor(Math.random() * 4)],
+                  })).sort((a, b) => a.price - b.price)
+                  setCustomBids(bids)
+                  setBidsGenerated(true)
+                  return
+                }
+                // Live mode: persist the brief immediately (flushes any pending debounce),
+                // then create real bid rows for vendors in this category. Vendors will
+                // see the request in their VendorBids page and submit a real response.
+                setDecorBrief(ritualId!, categoryId!, customBrief)
+                const candidateVendorDbIds = exploreDesigns
+                  .map(d => _listingVendorMap[d.id])
+                  .filter((v): v is string => !!v)
+                if (candidateVendorDbIds.length === 0 || !_userId) {
+                  // No live vendors found — show empty state
+                  setCustomBids([])
+                  setBidsGenerated(true)
+                  return
+                }
+                createBids(_userId, [...new Set(candidateVendorDbIds)], board.name, category.label, customImage || '', categoryId!)
+                  .then(() => fetchCoupleBids(_userId))
+                  .then(rows => {
+                    // Show only bids relevant to this category (submitted by vendors who've responded)
+                    const relevant = rows.filter(b => b.category_id === categoryId && b.status === 'submitted')
+                    setCustomBids(relevant.map(b => ({
+                      vendorId: b.vendor_id, price: b.bid_price || 0, note: b.bid_note || ''
+                    })))
+                    setBidsGenerated(true)
+                  })
               }}
               onSelectBid={(vendorId, price) => {
                 // Persist bid selection to DB if in live mode

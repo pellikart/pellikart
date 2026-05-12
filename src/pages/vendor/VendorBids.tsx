@@ -2,6 +2,28 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { formatINR } from '@/lib/helpers'
+import type { DecorBrief } from '@/lib/types'
+
+function BriefSummary({ brief }: { brief: DecorBrief }) {
+  const sizeStr = brief.size.width || brief.size.height
+    ? `${brief.size.width || '?'} × ${brief.size.height || '?'} ${brief.size.unit}`
+    : ''
+  const chips = [brief.setting, brief.coverage, sizeStr, brief.flowers].filter(Boolean)
+  if (chips.length === 0 && !brief.notes) return null
+  return (
+    <div className="mt-2 p-2.5 rounded-lg bg-mustard-light/30 border border-mustard/20">
+      <p className="text-[9px] font-semibold text-mustard uppercase tracking-wider mb-1">Couple's brief</p>
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {chips.map((c, i) => (
+            <span key={i} className="bg-white text-gray-700 text-[9px] font-medium px-1.5 py-0.5 rounded-full border border-card-border">{c}</span>
+          ))}
+        </div>
+      )}
+      {brief.notes && <p className="text-[10px] text-gray-600 mt-1.5 italic">"{brief.notes}"</p>}
+    </div>
+  )
+}
 
 export default function VendorBids() {
   const navigate = useNavigate()
@@ -27,10 +49,11 @@ export default function VendorBids() {
             <p className="text-[10px] font-semibold text-magenta uppercase tracking-wider mb-2">New Requests ({pending.length})</p>
             {pending.map((b) => (
               <div key={b.id} className="rounded-xl border-2 border-magenta/20 bg-magenta-light/10 mb-2 overflow-hidden">
-                <img src={b.uploadedImage} alt="Custom design" className="w-full h-32 object-cover" />
+                {b.uploadedImage && <img src={b.uploadedImage} alt="Reference" className="w-full h-32 object-cover" />}
                 <div className="p-3">
                   <p className="text-[12px] font-semibold text-dark">{b.coupleNames}</p>
                   <p className="text-[10px] text-gray-500">{b.eventName} · {b.category}</p>
+                  {b.decorBrief && <BriefSummary brief={b.decorBrief} />}
                   <button onClick={() => { setBidId(b.id); setBidPrice(''); setBidNote('') }} className="mt-2 w-full py-2 rounded-lg bg-mustard text-white text-[10px] font-semibold active:scale-[0.97] transition-transform">
                     Submit a bid
                   </button>
@@ -46,14 +69,15 @@ export default function VendorBids() {
             {submitted.map((b) => (
               <div key={b.id} className="p-3 rounded-xl border border-card-border mb-2">
                 <div className="flex gap-3">
-                  <img src={b.uploadedImage} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" />
-                  <div>
+                  {b.uploadedImage && <img src={b.uploadedImage} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" />}
+                  <div className="flex-1 min-w-0">
                     <p className="text-[12px] font-semibold text-dark">{b.coupleNames}</p>
                     <p className="text-[10px] text-gray-500">{b.eventName} · {b.category}</p>
                     <p className="text-[11px] font-bold text-mustard mt-1">{formatINR(b.bidPrice!)}</p>
                     <p className="text-[9px] text-gray-400">{b.bidNote}</p>
                   </div>
                 </div>
+                {b.decorBrief && <BriefSummary brief={b.decorBrief} />}
               </div>
             ))}
           </div>

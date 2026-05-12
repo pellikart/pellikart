@@ -151,7 +151,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         }
       })
 
-      // Map DB bids to vendor store format
+      // Map DB bids to vendor store format. decor_brief is joined in fetchVendorBidsDb.
       const mappedBids = dbBids.map((b: BidRow) => ({
         id: b.id,
         coupleNames: 'Couple',
@@ -161,6 +161,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         status: b.status,
         bidPrice: b.bid_price || undefined,
         bidNote: b.bid_note || undefined,
+        decorBrief: b.decor_brief ?? undefined,
       }))
 
       // Fetch milestones for every booking so we can persist milestone marking

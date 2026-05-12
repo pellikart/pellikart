@@ -105,6 +105,8 @@ export interface VendorBidRequest {
   status: 'pending' | 'submitted' | 'selected' | 'not_selected'
   bidPrice?: number
   bidNote?: string
+  /** Decor brief snapshot — only present for Decor category bids */
+  decorBrief?: import('./types').DecorBrief | null
 }
 
 export interface VendorNotification {
