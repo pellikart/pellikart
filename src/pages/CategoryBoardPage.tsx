@@ -7,6 +7,30 @@ import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } fro
 import ListingDetailSheet from '@/components/ListingDetailSheet'
 import { trackEvent, trackImpressions, selectBidDb } from '@/lib/supabase-db'
 
+// Brief a couple fills out for the Decor category so vendors can bid accurately.
+// The event/ritual is implied by the board context (the page lives under
+// /category/:ritualId/:categoryId) so we don't ask the user to repeat it.
+type SizeUnit = 'ft' | 'm' | 'cm'
+interface DecorBrief {
+  setting: string
+  coverage: string
+  size: { width: string; height: string; unit: SizeUnit }
+  flowers: string
+  notes: string
+}
+
+const SETTING_OPTIONS = ['Indoor', 'Outdoor', 'Both']
+const COVERAGE_OPTIONS = ['Mandap only', 'Stage only', 'Entrance + Stage', 'Full venue', 'Specific area']
+const FLOWER_OPTIONS = ['Fresh flowers', 'Artificial', 'Mix of both', 'No preference']
+const SIZE_UNITS: SizeUnit[] = ['ft', 'm', 'cm']
+
+function formatSize(size: DecorBrief['size']): string {
+  if (!size.width.trim() && !size.height.trim()) return ''
+  const w = size.width.trim() || '?'
+  const h = size.height.trim() || '?'
+  return `${w} × ${h} ${size.unit}`
+}
+
 export default function CategoryBoardPage() {
   const { ritualId, categoryId } = useParams<{ ritualId: string; categoryId: string }>()
   const navigate = useNavigate()
@@ -21,11 +45,14 @@ export default function CategoryBoardPage() {
   const maxTrials = subscription === 'gold' ? 3 : subscription === 'silver' ? 1 : 0
 
   const [activeTab, setActiveTab] = useState<'visual' | 'compare'>('visual')
-  // Customize tab state
+  // Customize tab state (Decor only — couples brief vendors on what they want)
   const [customImage, setCustomImage] = useState<string | null>(null)
   const [customImageFile, setCustomImageFile] = useState<File | null>(null)
   const [customBids, setCustomBids] = useState<{ vendorId: string; price: number; note: string }[]>([])
   const [bidsGenerated, setBidsGenerated] = useState(false)
+  const [customBrief, setCustomBrief] = useState<DecorBrief>({
+    setting: '', coverage: '', size: { width: '', height: '', unit: 'ft' }, flowers: '', notes: '',
+  })
   const [feedTab, setFeedTab] = useState<'explore' | 'suggestions' | 'customize'>('explore')
   const [sheetExpanded, setSheetExpanded] = useState(false)
   const [detailVendorId, setDetailVendorId] = useState<string | null>(null)
@@ -72,7 +99,14 @@ export default function CategoryBoardPage() {
         return v ? { ...d, price: v.price } : d
       })
   const exploreDesigns = allDesigns.filter((d) => !category.shortlistedVendorIds.includes(d.id))
-  const isDesignCategory = true
+  // Customization (couple briefs vendors → bids) is currently only meaningful for Decor.
+  // Other categories have predefined listings; couples just pick from the explore feed.
+  const supportsCustomize = category.label === 'Decor'
+
+  // If a non-Decor category somehow has 'customize' as the active feed tab, fall back.
+  useEffect(() => {
+    if (!supportsCustomize && feedTab === 'customize') setFeedTab('explore')
+  }, [supportsCustomize, feedTab])
 
   const suggestedVendors = category.suggestedVendors
     .map((s) => ({ ...(vendors[s.vendorId] || mockVendors[s.vendorId]), suggestedBy: s.suggestedBy }))
@@ -308,13 +342,13 @@ export default function CategoryBoardPage() {
                 </span>
               )}
             </button>
-            {isDesignCategory && (
+            {supportsCustomize && (
               <button
                 onClick={() => setFeedTab('customize')}
                 className={`pb-2 text-xs font-medium transition-colors relative ${feedTab === 'customize' ? 'text-magenta border-b-2 border-magenta' : 'text-gray-400'}`}
               >
                 Customize
-                {customImage && <span className="absolute -top-1 -right-1.5 w-2 h-2 bg-mustard rounded-full" />}
+                {(customImage || customBrief.setting || customBrief.size.width) && <span className="absolute -top-1 -right-1.5 w-2 h-2 bg-mustard rounded-full" />}
               </button>
             )}
           </div>
@@ -368,6 +402,9 @@ export default function CategoryBoardPage() {
           {feedTab === 'customize' && (
             <CustomizeTab
               customImage={customImage}
+              brief={customBrief}
+              boardName={board.name}
+              onBriefChange={(b) => { setCustomBrief(b); if (bidsGenerated) { setBidsGenerated(false); setCustomBids([]) } }}
               bids={customBids}
               bidsGenerated={bidsGenerated}
               unlocked={unlocked}
@@ -699,9 +736,13 @@ function DesignFeedCard({ design, vendorName, onAdd, onTap }: { design: Design; 
 }
 
 function CustomizeTab({
-  customImage, bids, bidsGenerated, unlocked, onUpload, onGetBids, onSelectBid, vendors,
+  customImage, brief, boardName, onBriefChange, bids, bidsGenerated, unlocked,
+  onUpload, onGetBids, onSelectBid, vendors,
 }: {
   customImage: string | null
+  brief: DecorBrief
+  boardName: string
+  onBriefChange: (next: DecorBrief) => void
   bids: { vendorId: string; price: number; note: string }[]
   bidsGenerated: boolean
   unlocked: boolean
@@ -710,87 +751,190 @@ function CustomizeTab({
   onSelectBid: (vendorId: string, price: number) => void
   vendors: Record<string, Vendor>
 }) {
+  // Minimum required to send to vendors: setting + coverage + size (both dimensions filled).
+  // The event is implied by the board context.
+  const sizeFilled = brief.size.width.trim().length > 0 && brief.size.height.trim().length > 0
+  const isValid = !!brief.setting && !!brief.coverage && sizeFilled
+
+  function patch(p: Partial<DecorBrief>) { onBriefChange({ ...brief, ...p }) }
+
+  // After bids are generated, show a compact brief summary + the bid list.
+  if (bidsGenerated) {
+    return (
+      <div>
+        <div className="mb-3 p-3 rounded-xl bg-empty-bg border border-card-border">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-semibold text-dark uppercase tracking-wider">Your brief</p>
+            <button onClick={() => onBriefChange({ ...brief })} className="text-[10px] text-magenta font-medium">Edit</button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <BriefChip>{boardName}</BriefChip>
+            {brief.setting && <BriefChip>{brief.setting}</BriefChip>}
+            {brief.coverage && <BriefChip>{brief.coverage}</BriefChip>}
+            {formatSize(brief.size) && <BriefChip>{formatSize(brief.size)}</BriefChip>}
+            {brief.flowers && <BriefChip>{brief.flowers}</BriefChip>}
+          </div>
+          {brief.notes && <p className="text-[10px] text-gray-500 mt-2 italic">"{brief.notes}"</p>}
+          {customImage && (
+            <img src={customImage} alt="Reference" className="w-full h-24 object-cover rounded-lg mt-2" />
+          )}
+        </div>
+
+        <p className="text-[11px] font-semibold text-dark mb-2">{bids.length} vendors responded</p>
+        <div className="flex flex-col gap-2">
+          {bids.map((bid, i) => {
+            const vendor = vendors[bid.vendorId] || mockVendors[bid.vendorId]
+            if (!vendor) return null
+            return (
+              <div key={bid.vendorId} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-card-border bg-white">
+                <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden" style={bgStyle(vendor.photo)}>
+                  {i === 0 && <div className="w-full h-full bg-mustard/20 flex items-center justify-center"><span className="text-mustard text-[8px] font-bold">BEST</span></div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-dark truncate">{unlocked ? vendor.name : vendor.code}</p>
+                  <p className="text-[9px] text-gray-400 mt-0.5">{bid.note}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[11px] font-bold text-magenta">{formatINR(bid.price)}</span>
+                    <span className="text-[9px] text-gray-400">★ {vendor.rating}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onSelectBid(bid.vendorId, bid.price)}
+                  className="shrink-0 bg-magenta text-white text-[9px] font-semibold px-3 py-1.5 rounded-lg active:scale-[0.97] transition-transform"
+                >
+                  Select
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  // Brief form
   return (
-    <div>
-      {/* Upload area */}
-      {!customImage ? (
-        <label className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-magenta/30 rounded-2xl bg-magenta-light/20 cursor-pointer active:bg-magenta-light/40 transition-colors">
-          <div className="w-12 h-12 rounded-full bg-magenta-light flex items-center justify-center mb-3">
+    <div className="space-y-4 pb-4">
+      <div className="p-3 rounded-xl bg-magenta-light/40 border border-magenta/20">
+        <p className="text-[12px] font-semibold text-dark">Tell vendors what you want for {boardName}</p>
+        <p className="text-[10px] text-gray-500 mt-0.5">Answer a few questions so decorators can send you a tailored quote.</p>
+      </div>
+
+      <BriefField label="Setting">
+        <ChipRow options={SETTING_OPTIONS} selected={brief.setting} onSelect={v => patch({ setting: v })} />
+      </BriefField>
+
+      <BriefField label="Coverage">
+        <ChipRow options={COVERAGE_OPTIONS} selected={brief.coverage} onSelect={v => patch({ coverage: v })} />
+      </BriefField>
+
+      <BriefField label="Approximate size">
+        <div className="flex items-center gap-2">
+          <input
+            type="number" inputMode="decimal" min={0}
+            value={brief.size.width}
+            onChange={(e) => patch({ size: { ...brief.size, width: e.target.value } })}
+            placeholder="Width"
+            className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-magenta"
+          />
+          <span className="text-gray-400 text-[11px]">×</span>
+          <input
+            type="number" inputMode="decimal" min={0}
+            value={brief.size.height}
+            onChange={(e) => patch({ size: { ...brief.size, height: e.target.value } })}
+            placeholder="Height"
+            className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-magenta"
+          />
+          <select
+            value={brief.size.unit}
+            onChange={(e) => patch({ size: { ...brief.size, unit: e.target.value as SizeUnit } })}
+            className="px-2 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-magenta bg-white"
+          >
+            {SIZE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+      </BriefField>
+
+      <BriefField label="Flowers">
+        <ChipRow options={FLOWER_OPTIONS} selected={brief.flowers} onSelect={v => patch({ flowers: v })} />
+      </BriefField>
+
+      <BriefField label="Reference photo (optional)">
+        {customImage ? (
+          <div className="rounded-xl overflow-hidden relative">
+            <img src={customImage} alt="Reference" className="w-full h-40 object-cover" />
+            <label className="absolute bottom-2 right-2 bg-white/90 text-[9px] text-dark font-medium px-2 py-1 rounded-full cursor-pointer">
+              Change
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onUpload(e.target.files[0]) }} />
+            </label>
+          </div>
+        ) : (
+          <label className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-magenta/30 rounded-xl bg-magenta-light/20 cursor-pointer active:bg-magenta-light/40 transition-colors">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E91E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
             </svg>
-          </div>
-          <p className="text-[12px] font-medium text-dark">Upload your design</p>
-          <p className="text-[10px] text-gray-400 mt-1">Share an image of the look you want</p>
-          <input
-            type="file" accept="image/*" className="hidden"
-            onChange={(e) => { if (e.target.files?.[0]) onUpload(e.target.files[0]) }}
-          />
-        </label>
-      ) : (
-        <div>
-          {/* Uploaded image preview */}
-          <div className="rounded-xl overflow-hidden relative mb-3">
-            <img src={customImage} alt="Your design" className="w-full h-48 object-cover" />
-            <div className="absolute bottom-2 left-2 bg-black/50 text-white text-[9px] px-2 py-1 rounded-full backdrop-blur-sm">
-              Your uploaded design
-            </div>
-          </div>
-
-          {/* Get bids button */}
-          {!bidsGenerated && (
-            <button
-              onClick={onGetBids}
-              className="w-full py-2.5 rounded-xl bg-mustard text-white text-[11px] font-semibold active:scale-[0.98] transition-transform"
-            >
-              Get bids from vendors
-            </button>
-          )}
-
-          {/* Bids list */}
-          {bidsGenerated && (
-            <div>
-              <p className="text-[11px] font-semibold text-dark mb-2">{bids.length} vendors responded</p>
-              <div className="flex flex-col gap-2">
-                {bids.map((bid, i) => {
-                  const vendor = vendors[bid.vendorId] || mockVendors[bid.vendorId]
-                  if (!vendor) return null
-                  return (
-                    <div key={bid.vendorId} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-card-border bg-white">
-                      <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden" style={bgStyle(vendor.photo)}>
-                        {i === 0 && <div className="w-full h-full bg-mustard/20 flex items-center justify-center"><span className="text-mustard text-[8px] font-bold">BEST</span></div>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-dark truncate">{unlocked ? vendor.name : vendor.code}</p>
-                        <p className="text-[9px] text-gray-400 mt-0.5">{bid.note}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px] font-bold text-magenta">{formatINR(bid.price)}</span>
-                          <span className="text-[9px] text-gray-400">★ {vendor.rating}</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => onSelectBid(bid.vendorId, bid.price)}
-                        className="shrink-0 bg-magenta text-white text-[9px] font-semibold px-3 py-1.5 rounded-lg active:scale-[0.97] transition-transform"
-                      >
-                        Select
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Re-upload */}
-          <label className="block mt-3 text-center text-[10px] text-gray-400 underline cursor-pointer">
-            Upload a different image
-            <input
-              type="file" accept="image/*" className="hidden"
-              onChange={(e) => { if (e.target.files?.[0]) onUpload(e.target.files[0]) }}
-            />
+            <p className="text-[11px] font-medium text-dark mt-1.5">Upload an inspiration photo</p>
+            <p className="text-[9px] text-gray-400 mt-0.5">Pinterest, Instagram screenshot, anything</p>
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) onUpload(e.target.files[0]) }} />
           </label>
-        </div>
-      )}
+        )}
+      </BriefField>
+
+      <BriefField label="Anything else? (optional)">
+        <textarea
+          value={brief.notes} onChange={(e) => patch({ notes: e.target.value })}
+          placeholder="Specific colors, family customs, things to avoid…"
+          maxLength={500} rows={3}
+          className="w-full px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-magenta resize-none"
+        />
+      </BriefField>
+
+      <button
+        onClick={onGetBids}
+        disabled={!isValid}
+        className={`w-full py-2.5 rounded-xl text-[12px] font-semibold transition-transform ${
+          isValid ? 'bg-magenta text-white active:scale-[0.98]' : 'bg-gray-200 text-gray-400'
+        }`}
+      >
+        {isValid ? 'Get bids from decorators' : 'Pick setting, coverage & size'}
+      </button>
+    </div>
+  )
+}
+
+function BriefField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">{label}</p>
+      {children}
+    </div>
+  )
+}
+
+function BriefChip({ children }: { children: React.ReactNode }) {
+  return <span className="bg-white text-gray-700 text-[9px] font-medium px-2 py-0.5 rounded-full border border-card-border">{children}</span>
+}
+
+function ChipRow({ options, selected, multi, onSelect }: {
+  options: string[]
+  selected: string | string[]
+  multi?: boolean
+  onSelect: (value: string) => void
+}) {
+  const isSelected = (opt: string) =>
+    multi ? (selected as string[]).includes(opt) : selected === opt
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map(opt => (
+        <button
+          key={opt} onClick={() => onSelect(opt)}
+          className={`py-1.5 px-2.5 rounded-full text-[10px] font-medium transition-all ${
+            isSelected(opt) ? 'bg-magenta text-white' : 'bg-empty-bg text-gray-600 active:bg-magenta-light'
+          }`}
+        >
+          {multi && isSelected(opt) && <span className="mr-0.5">✓ </span>}{opt}
+        </button>
+      ))}
     </div>
   )
 }
