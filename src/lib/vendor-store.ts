@@ -18,6 +18,7 @@ import {
   fetchMilestones, completeMilestoneDb,
   fetchVendorPackages, insertPackage, updatePackageDb, deletePackageDb,
   respondToReviewDb,
+  createEarning,
   type TrialRow, type BidRow,
 } from './supabase-db'
 
@@ -168,6 +169,15 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       )
       const bookingMilestones: Record<string, string[]> = {}
 
+      // Sum all earnings (slot + milestone + final) per booking so totalPaid
+      // and remainingBalance reflect actual money received, not just the slot deposit.
+      const earningsByBooking: Record<string, number> = {}
+      for (const e of dbEarnings) {
+        const bid = ((e as Record<string, unknown>).booking_id as string) || ''
+        if (!bid) continue
+        earningsByBooking[bid] = (earningsByBooking[bid] || 0) + (((e as Record<string, unknown>).amount as number) || 0)
+      }
+
       // Map DB bookings — compute actual milestone progress from real rows
       const mappedBookings = dbBookings.map((b: Record<string, unknown>, idx: number) => {
         const ms = bookingMilestoneArrays[idx]
@@ -175,6 +185,9 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         bookingMilestones[bookingId] = ms.map(m => (m as Record<string, unknown>).id as string)
         const completed = ms.filter(m => (m as Record<string, unknown>).is_complete).length
         const total = ms.length || 5
+        const totalValue = (b.total_value as number) || 0
+        const slotAmount = (b.slot_amount as number) || 0
+        const paid = earningsByBooking[bookingId] ?? slotAmount
         return {
           id: bookingId,
           coupleNames: '',
@@ -182,10 +195,10 @@ export const useVendorStore = create<VendorState & LiveModeState & {
           eventDate: (b.booked_at as string)?.split('T')[0] || '',
           category: (b.category_label as string) || '',
           packageTier: '',
-          totalValue: (b.total_value as number) || 0,
-          slotAmountPaid: (b.slot_amount as number) || 0,
-          totalPaid: (b.slot_amount as number) || 0,
-          remainingBalance: ((b.total_value as number) || 0) - ((b.slot_amount as number) || 0),
+          totalValue,
+          slotAmountPaid: slotAmount,
+          totalPaid: paid,
+          remainingBalance: Math.max(0, totalValue - paid),
           milestoneProgress: completed || (b.status === 'active' ? 1 : completed),
           totalMilestones: total,
           status: (b.status as 'active' | 'completed' | 'cancelled') || 'active',
@@ -534,21 +547,75 @@ export const useVendorStore = create<VendorState & LiveModeState & {
   },
 
   completeBookingMilestone: (bookingId) => {
-    const { _liveMode, _bookingMilestones } = get()
-    let nextIndex = -1
+    const { _liveMode, _vendorDbId, _bookingMilestones } = get()
+    const booking = get().vendorBookings.find(b => b.id === bookingId)
+    if (!booking || booking.milestoneProgress >= booking.totalMilestones) return
+
+    const nextIndex = booking.milestoneProgress
+    const nonSlotMilestones = Math.max(1, booking.totalMilestones - 1)
+    // Even split of (total - slot) across the non-slot milestones.
+    const paymentAmount = nextIndex === 0
+      ? 0  // shouldn't happen (slot is auto-completed at booking), but guard anyway
+      : Math.round((booking.totalValue - booking.slotAmountPaid) / nonSlotMilestones)
+    const isFinal = nextIndex === booking.totalMilestones - 1
+    const earningType: 'milestone' | 'final' = isFinal ? 'final' : 'milestone'
+
+    // Update local state: advance milestone, increment totalPaid, decrement remainingBalance.
     set((s) => ({
       vendorBookings: s.vendorBookings.map(b => {
         if (b.id !== bookingId) return b
-        if (b.milestoneProgress >= b.totalMilestones) return b
-        nextIndex = b.milestoneProgress
-        return { ...b, milestoneProgress: b.milestoneProgress + 1 }
+        const newPaid = b.totalPaid + paymentAmount
+        return {
+          ...b,
+          milestoneProgress: b.milestoneProgress + 1,
+          totalPaid: newPaid,
+          remainingBalance: Math.max(0, b.totalValue - newPaid),
+        }
       }),
     }))
-    if (_liveMode && nextIndex >= 0) {
+
+    if (_liveMode) {
       const milestoneIds = _bookingMilestones[bookingId]
       if (milestoneIds && milestoneIds[nextIndex]) {
         completeMilestoneDb(milestoneIds[nextIndex])
       }
+      if (paymentAmount > 0 && _vendorDbId) {
+        createEarning(_vendorDbId, bookingId, booking.coupleNames, booking.eventName, paymentAmount, earningType).then(row => {
+          if (row) {
+            const r = row as Record<string, unknown>
+            set(s => ({
+              vendorEarnings: [
+                {
+                  id: r.id as string,
+                  bookingId,
+                  coupleNames: (r.couple_names as string) || booking.coupleNames,
+                  eventName: (r.event_name as string) || booking.eventName,
+                  amount: (r.amount as number) || paymentAmount,
+                  type: ((r.type as 'slot' | 'milestone' | 'final') || earningType),
+                  date: ((r.created_at as string) || new Date().toISOString()).split('T')[0],
+                },
+                ...s.vendorEarnings,
+              ],
+            }))
+          }
+        })
+      }
+    } else if (paymentAmount > 0) {
+      // Demo mode — still reflect the payment in the local earnings list
+      set(s => ({
+        vendorEarnings: [
+          {
+            id: `ve-local-${Date.now()}`,
+            bookingId,
+            coupleNames: booking.coupleNames,
+            eventName: booking.eventName,
+            amount: paymentAmount,
+            type: earningType,
+            date: new Date().toISOString().split('T')[0],
+          },
+          ...s.vendorEarnings,
+        ],
+      }))
     }
   },
 

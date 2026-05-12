@@ -962,8 +962,14 @@ export async function createEarning(
   coupleNames: string, eventName: string,
   amount: number, type: 'slot' | 'milestone' | 'final'
 ) {
-  if (!supabase) return
-  await supabase.from('earnings').insert({ vendor_id: vendorId, booking_id: bookingId, couple_names: coupleNames, event_name: eventName, amount, type })
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('earnings')
+    .insert({ vendor_id: vendorId, booking_id: bookingId, couple_names: coupleNames, event_name: eventName, amount, type })
+    .select()
+    .maybeSingle()
+  if (error) console.error('[db] createEarning failed:', error.message)
+  return data
 }
 
 export async function fetchVendorEarningsDb(vendorId: string) {
