@@ -286,6 +286,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'coverageHours', label: 'Coverage hours', type: 'single', options: ['4h', '6h', '8h', '10h', '12h', 'Full day'] },
           { key: 'photographers', label: 'Photographers', type: 'single', options: ['1', '2', '3'] },
           { key: 'videographers', label: 'Videographers', type: 'single', options: ['0', '1', '2'] },
+          { key: 'equipment', label: 'Equipment used', type: 'multi', options: ['DSLR', 'Mirrorless', 'Drone', 'Gimbal', 'Studio Lights', 'LED Panels'] },
         ],
       },
       {
@@ -315,6 +316,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         subtitle: 'What does this setup cover?',
         fields: [
           { key: 'decorType', label: 'Decor coverage', type: 'single', options: ['Full venue', 'Stage only', 'Mandap only', 'Entrance + Stage', 'Specific area'] },
+          { key: 'decorSpeciality', label: 'Style speciality', type: 'multi', options: ['Floral', 'Fabric & Drapes', 'LED & Lighting', 'Traditional Mandap', 'Modern Minimal', 'Stage Design', 'Ceiling Work'] },
           { key: 'flowerType', label: 'Flowers', type: 'single', options: ['Fresh flowers', 'Artificial', 'Mix of both'] },
           { key: 'ledLighting', label: 'LED / Lighting', type: 'single', options: ['Included', 'Add-on', 'Not included'] },
         ],
@@ -324,6 +326,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         subtitle: 'How does the setup work?',
         fields: [
           { key: 'setupArea', label: 'Setup area', type: 'single', options: ['Small (hall)', 'Medium (lawn)', 'Large (full venue)'] },
+          { key: 'setupTeamSize', label: 'Setup team size', type: 'single', options: ['2-4 people', '5-8 people', '8-15 people', '15+ people'] },
           { key: 'setupTime', label: 'Setup time needed', type: 'single', options: ['4 hours', '6 hours', '8 hours', '12 hours', '1 day'] },
           { key: 'teardownIncluded', label: 'Teardown included', type: 'single', options: ['Yes', 'Extra charge', 'Not included'] },
           { key: 'reusableElements', label: 'Elements', type: 'single', options: ['All fresh (premium)', 'Mix of fresh & reusable', 'Reusable (budget-friendly)'] },
@@ -523,6 +526,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'reelDuration', label: 'Reel duration', type: 'single', options: ['Under 30s', '30-60s', '60-90s', '90s+'] },
           { key: 'coverageHours', label: 'On-site coverage', type: 'single', options: ['2h', '4h', '6h', '8h', 'Full day'] },
           { key: 'crewSize', label: 'Crew size', type: 'single', options: ['1', '2', '3', '4+'] },
+          { key: 'equipment', label: 'Equipment used', type: 'multi', options: ['Mirrorless', 'Gimbal', 'Drone', 'Action Cam', 'Smartphone Pro', 'LED Panels'] },
         ],
       },
       {
