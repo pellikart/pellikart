@@ -124,18 +124,13 @@ export default function CategoryBoardPage() {
   return (
     <div className="flex flex-col h-dvh page-enter">
       {/* Top Bar */}
-      <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="text-sm">←</button>
-          <div>
-            <span className="font-semibold text-dark text-[13px]">{category.label}</span>
-            <span className="text-gray-400 text-[11px] ml-1.5">{board.name}</span>
-            <span className="text-gray-400 text-[10px] ml-1.5">({shortlisted.length} shortlisted)</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-gray-500">
-          <span>Shared with 4</span>
-          <button className="border border-magenta text-magenta px-1.5 py-0.5 rounded-md text-[10px]">Share</button>
+      <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center gap-3 sticky top-0 z-20">
+        <button onClick={() => navigate(-1)} className="text-sm">←</button>
+        <div className="min-w-0">
+          <p className="font-semibold text-dark text-[13px] leading-tight truncate">{category.label}</p>
+          <p className="text-gray-400 text-[10px] mt-0.5 truncate">
+            {board.name} · {shortlisted.length} shortlisted
+          </p>
         </div>
       </div>
 
@@ -345,7 +340,7 @@ export default function CategoryBoardPage() {
           {feedTab === 'suggestions' && (
             <div className="grid grid-cols-2 gap-2">
               {suggestedVendors.length === 0 ? (
-                <p className="col-span-2 text-center text-gray-400 text-xs py-8">No suggestions yet. Share your board with family to get their picks.</p>
+                <p className="col-span-2 text-center text-gray-400 text-xs py-8">No suggestions yet. Share this event board from the home screen to get family's picks.</p>
               ) : (
                 suggestedVendors.map((v) => {
                   const vendor = vendors[v.id] || v
