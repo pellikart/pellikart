@@ -564,6 +564,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'styleTypes', label: 'Style', type: 'multi', options: ['Traditional Braids', 'Updos & Buns', 'Curls', 'Sleek Straight', 'Floral Hair Setup', 'Modern Glam'] },
           { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['Solo', '2 stylists', '3 stylists', '4+ stylists'] },
           { key: 'hairExtensions', label: 'Hair extensions', type: 'single', options: ['Included', 'Add-on', 'Couple provides', 'Not used'] },
+          { key: 'accessoriesIncluded', label: 'Hair accessories (pins, clips, jewellery)', type: 'single', options: ['Included', 'Add-on', 'Couple provides', 'Not used'] },
           { key: 'accessorySetup', label: 'Accessory / floral setup', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
         ],
       },
