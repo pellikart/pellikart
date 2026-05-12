@@ -286,6 +286,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'coverageHours', label: 'Coverage hours', type: 'single', options: ['4h', '6h', '8h', '10h', '12h', 'Full day'] },
           { key: 'photographers', label: 'Photographers', type: 'single', options: ['1', '2', '3'] },
           { key: 'videographers', label: 'Videographers', type: 'single', options: ['0', '1', '2'] },
+          { key: 'liveCoverage', label: 'Live coverage / streaming', type: 'single', options: ['Yes, included', 'Add-on', 'Not available'] },
           { key: 'equipment', label: 'Equipment used', type: 'multi', options: ['DSLR', 'Mirrorless', 'Drone', 'Gimbal', 'Studio Lights', 'LED Panels'] },
         ],
       },
@@ -319,6 +320,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'decorSpeciality', label: 'Style speciality', type: 'multi', options: ['Floral', 'Fabric & Drapes', 'LED & Lighting', 'Traditional Mandap', 'Modern Minimal', 'Stage Design', 'Ceiling Work'] },
           { key: 'flowerType', label: 'Flowers', type: 'single', options: ['Fresh flowers', 'Artificial', 'Mix of both'] },
           { key: 'ledLighting', label: 'LED / Lighting', type: 'single', options: ['Included', 'Add-on', 'Not included'] },
+          { key: 'propsIncluded', label: 'Decor props', type: 'single', options: ['All props included', 'Selected props only', 'Couple sources separately'] },
         ],
       },
       {
@@ -385,6 +387,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'groomMehendi', label: 'Groom mehendi', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
           { key: 'glitterAddon', label: 'Glitter/stone add-on', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
           { key: 'whiteMehendi', label: 'White mehendi', type: 'single', options: ['Available', 'Not available'] },
+          { key: 'conesIncluded', label: 'Mehendi cones', type: 'single', options: ['Included', 'Add-on', 'Not included'] },
           { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Included', 'Extra charge', 'No'] },
         ],
       },
