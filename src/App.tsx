@@ -12,6 +12,7 @@ import HomePage from './pages/HomePage'
 import CategoryBoardPage from './pages/CategoryBoardPage'
 import BookingPage from './pages/BookingPage'
 import OnboardingPage from './pages/OnboardingPage'
+import SharedBoardPage from './pages/SharedBoardPage'
 import VendorOnboarding from './pages/vendor/VendorOnboarding'
 import VendorDashboard from './pages/vendor/VendorDashboard'
 import VendorProfile from './pages/vendor/VendorProfile'
@@ -30,6 +31,18 @@ import VendorBottomNav from './components/VendorBottomNav'
 export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
   const { pathname, search } = useLocation()
   const isEmbed = new URLSearchParams(search).has('embed')
+
+  // Public shared board viewer — bypasses auth and live/demo branching.
+  // Lives at top-level /share/:boardId, so anyone with the link can open it.
+  if (pathname.startsWith('/share/')) {
+    return (
+      <div className="app-container">
+        <Routes>
+          <Route path="/share/:boardId" element={<SharedBoardPage />} />
+        </Routes>
+      </div>
+    )
+  }
 
   // Live app mode (/app/*) — wrap in auth, gate access
   if (isLiveApp) {

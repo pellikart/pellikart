@@ -17,6 +17,8 @@ export default function RitualBoard({ board }: Props) {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [showTierPicker, setShowTierPicker] = useState(false)
   const [showDateEditor, setShowDateEditor] = useState(false)
+  const [showShareSheet, setShowShareSheet] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [newDateStart, setNewDateStart] = useState(board.dateStart || '')
   const [newDateEnd, setNewDateEnd] = useState(board.dateEnd || board.dateStart || '')
   const { updateBoardDates } = useStore()
@@ -38,6 +40,57 @@ export default function RitualBoard({ board }: Props) {
   }
 
   const dateStr = formatDateRange(board.dateStart, board.dateEnd)
+
+  // Build a human-readable share message summarizing this board
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/share/${encodeURIComponent(board.id)}`
+    : ''
+  const shareTitle = `${board.name} — our wedding plan on Pellikart`
+  const shareText = (() => {
+    const lines: string[] = []
+    lines.push(`💐 ${board.name} — our plan on Pellikart`)
+    if (dateStr) lines.push(`📅 ${dateStr}`)
+    lines.push('')
+    for (const cat of filledCategories) {
+      const v = vendors[cat.selectedVendorId!]
+      if (!v) continue
+      const name = unlocked ? v.name : v.code
+      lines.push(`✅ ${cat.label}: ${name} — ${formatINR(v.price)}`)
+    }
+    if (emptyCategories.length > 0) {
+      lines.push('')
+      lines.push(`Still picking: ${emptyCategories.map(c => c.label).join(', ')}`)
+    }
+    lines.push('')
+    lines.push(`Total so far: ${formatINR(ritualTotal)}`)
+    return lines.join('\n')
+  })()
+
+  async function handleShareClick() {
+    // Try the native share sheet first (mobile, modern browsers)
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl })
+        return
+      } catch (err) {
+        // User dismissed (AbortError) — don't fall back, just stop
+        if ((err as DOMException)?.name === 'AbortError') return
+        // Other errors (NotAllowedError etc.) — fall through to custom sheet
+      }
+    }
+    setShowShareSheet(true)
+  }
+
+  async function copyShareLink() {
+    const body = `${shareText}\n\n${shareUrl}`
+    try {
+      await navigator.clipboard.writeText(body)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }
 
   return (
     <div className="mx-4 mb-4 border border-card-border rounded-2xl bg-white p-3">
@@ -93,7 +146,7 @@ export default function RitualBoard({ board }: Props) {
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-2.5">
-        <button className="py-2 px-3 rounded-lg border border-magenta text-magenta text-[11px] font-medium active:bg-magenta-light transition-colors">
+        <button onClick={handleShareClick} className="py-2 px-3 rounded-lg border border-magenta text-magenta text-[11px] font-medium active:bg-magenta-light transition-colors">
           Share board
         </button>
         {unlocked ? (
@@ -194,6 +247,81 @@ export default function RitualBoard({ board }: Props) {
                 <p className="text-lg font-bold text-magenta mt-0.5">₹1,999</p>
                 <p className="text-[9px] text-gray-500 mt-1">3 trials per category</p>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Sheet (fallback when navigator.share is unavailable) */}
+      {showShareSheet && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setShowShareSheet(false)}>
+          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+            <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
+            <p className="text-[13px] font-semibold text-dark mb-1">Share {board.name}</p>
+            <p className="text-[10px] text-gray-400 mb-4">Send your plan to family or your partner.</p>
+
+            <div className="grid grid-cols-4 gap-3 mb-4">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`${shareText}\n\n${shareUrl}`)}`}
+                target="_blank" rel="noopener noreferrer"
+                onClick={() => setShowShareSheet(false)}
+                className="flex flex-col items-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="#16a34a">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 0 1-4.243-1.214l-.252-.149-2.868.852.852-2.868-.168-.268A8 8 0 1 1 12 20z" />
+                  </svg>
+                </div>
+                <span className="text-[9px] text-gray-600">WhatsApp</span>
+              </a>
+
+              <a
+                href={`sms:?&body=${encodeURIComponent(`${shareText}\n\n${shareUrl}`)}`}
+                onClick={() => setShowShareSheet(false)}
+                className="flex flex-col items-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </div>
+                <span className="text-[9px] text-gray-600">Messages</span>
+              </a>
+
+              <a
+                href={`mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(`${shareText}\n\n${shareUrl}`)}`}
+                onClick={() => setShowShareSheet(false)}
+                className="flex flex-col items-center gap-1.5"
+              >
+                <div className="w-12 h-12 rounded-full bg-mustard-light border border-mustard/30 flex items-center justify-center">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                </div>
+                <span className="text-[9px] text-gray-600">Email</span>
+              </a>
+
+              <button onClick={copyShareLink} className="flex flex-col items-center gap-1.5">
+                <div className="w-12 h-12 rounded-full bg-empty-bg border border-card-border flex items-center justify-center">
+                  {copied ? (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-[9px] text-gray-600">{copied ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-empty-bg">
+              <p className="text-[10px] text-gray-500 whitespace-pre-line">{shareText}</p>
             </div>
           </div>
         </div>

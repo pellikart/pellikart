@@ -294,6 +294,40 @@ export async function upsertCouple(userId: string, onboarding: OnboardingData) {
 
 // ─── RITUAL BOARDS ──────────────────────────
 
+/** Public: fetch a board + its categories by board ID (no auth required) */
+export async function fetchSharedBoard(boardId: string) {
+  if (!supabase) return null
+  const { data: board, error: boardError } = await supabase
+    .from('ritual_boards')
+    .select('*')
+    .eq('id', boardId)
+    .maybeSingle()
+  if (boardError || !board) {
+    if (boardError) console.error('[db] fetchSharedBoard board failed:', boardError.message)
+    return null
+  }
+  const { data: categories } = await supabase
+    .from('board_categories')
+    .select('*')
+    .eq('ritual_board_id', boardId)
+  return { board, categories: categories || [] }
+}
+
+/** Public: append a vendor suggestion to a category and notify the owner */
+export async function addBoardSuggestion(categoryId: string, vendorId: string, suggestedBy: string) {
+  if (!supabase) return { ok: false, error: 'No supabase client' }
+  const { error } = await supabase.rpc('add_board_suggestion', {
+    p_category_id: categoryId,
+    p_vendor_id: vendorId,
+    p_suggested_by: suggestedBy,
+  })
+  if (error) {
+    console.error('[db] addBoardSuggestion failed:', error.message)
+    return { ok: false, error: error.message }
+  }
+  return { ok: true }
+}
+
 export async function fetchRitualBoards(coupleId: string) {
   if (!supabase) return []
   const { data: boards } = await supabase
