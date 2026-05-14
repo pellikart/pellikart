@@ -283,6 +283,12 @@ export const useStore = create<AppState & LiveModeState & {
           totalWeight += w
         }
 
+        // Carry the vendor picked in earlier rituals forward: same category in a
+        // later ritual prefers any of those previously-picked vendors (if they
+        // have a listing for the new ritual that's within budget). This keeps
+        // a couple talking to one photographer / caterer / etc across events.
+        const carryoverByCategory: Record<string, string[]> = {}
+
         const boards: RitualBoard[] = allEvents.map((eventName) => {
           const id = `r-${eventName.toLowerCase().replace(/\s+/g, "-")}`
           const dateInfo = data.eventDates[eventName]
@@ -316,12 +322,48 @@ export const useStore = create<AppState & LiveModeState & {
             let shortlisted: string[] = []
 
             if (pool.length > 0) {
-              const sorted = [...pool].sort((a, b) => (a.price as number) - (b.price as number))
-              const affordable = sorted.filter(l => (l.price as number) <= catBudget)
-              const best = affordable.length > 0 ? affordable : [sorted[0]]
-              const byPriceDesc = [...best].sort((a, b) => (b.price as number) - (a.price as number))
-              selectedId = byPriceDesc[0].id
-              shortlisted = byPriceDesc.slice(0, Math.min(3, byPriceDesc.length)).map(l => l.id)
+              // Carryover preference: try a listing from a vendor we picked for
+              // this same category in an earlier ritual. Prefer order picked.
+              const carryVendorIds = carryoverByCategory[label] || []
+              let carryListing: typeof pool[0] | undefined
+              for (const vid of carryVendorIds) {
+                const within = pool.find(l => (l.vendor_id as string) === vid && (l.price as number) <= catBudget)
+                if (within) { carryListing = within; break }
+              }
+              // Relax budget if no affordable carryover listing
+              if (!carryListing) {
+                for (const vid of carryVendorIds) {
+                  const any = pool.find(l => (l.vendor_id as string) === vid)
+                  if (any) { carryListing = any; break }
+                }
+              }
+
+              if (carryListing) {
+                selectedId = carryListing.id as string
+                // Surface 2 other strong options alongside the carryover pick
+                const others = pool.filter(l => l.id !== carryListing!.id).sort((a, b) => (b.price as number) - (a.price as number))
+                shortlisted = [selectedId, ...others.slice(0, 2).map(l => l.id as string)]
+              } else {
+                // Original highest-affordable-price logic
+                const sorted = [...pool].sort((a, b) => (a.price as number) - (b.price as number))
+                const affordable = sorted.filter(l => (l.price as number) <= catBudget)
+                const best = affordable.length > 0 ? affordable : [sorted[0]]
+                const byPriceDesc = [...best].sort((a, b) => (b.price as number) - (a.price as number))
+                selectedId = byPriceDesc[0].id
+                shortlisted = byPriceDesc.slice(0, Math.min(3, byPriceDesc.length)).map(l => l.id)
+              }
+
+              // Record the chosen vendor for this category so later rituals can carry them forward
+              const chosenListing = pool.find(l => l.id === selectedId)
+              if (chosenListing) {
+                const vId = chosenListing.vendor_id as string
+                if (vId) {
+                  carryoverByCategory[label] = carryoverByCategory[label] || []
+                  if (!carryoverByCategory[label].includes(vId)) {
+                    carryoverByCategory[label].push(vId)
+                  }
+                }
+              }
             }
 
             return {
