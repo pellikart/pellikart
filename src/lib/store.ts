@@ -399,6 +399,9 @@ export const useStore = create<AppState & LiveModeState & {
               area: parentVendor?.area || '', capacity: parentVendor?.capacity,
               price: Math.round(design.price * scale), rating: design.rating,
               packageTier: design.description, likes: [], booked: false, amountPaid: 0,
+              // Inherit category-specific fields so the Compare table shows real detail for design listings
+              categoryFields: parentVendor?.categoryFields,
+              category: parentVendor?.category,
             }
           }
           set({ vendors: scaledVendors, ritualBoards: mockBoards })
@@ -437,6 +440,9 @@ export const useStore = create<AppState & LiveModeState & {
           area: parentVendor?.area || '', capacity: parentVendor?.capacity,
           price: Math.round(design.price * scale), rating: design.rating,
           packageTier: design.description, likes: [], booked: false, amountPaid: 0,
+          // Inherit category-specific fields so the Compare table shows real detail for design listings
+          categoryFields: parentVendor?.categoryFields,
+          category: parentVendor?.category,
         };
       }
 
