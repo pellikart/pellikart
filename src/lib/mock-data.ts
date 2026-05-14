@@ -141,21 +141,25 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-venue-1", code: "Venue 001", name: "The Grand Palace", photo: img("venue", 1),
     style: "Royal Heritage", area: "Rajouri Garden, Delhi", capacity: 1500, price: 850000,
     rating: 4.8, packageTier: "Premium", likes: [{ userId: "u-mom", name: "Mom" }, { userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
+    categoryFields: { venueType: "Palace", setting: "Indoor", capacity: "1500", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Veg only", alcoholPolicy: "Allowed", outsideCatering: "Not allowed", musicRestriction: "Till 12 AM" },
   },
   "v-venue-2": {
     id: "v-venue-2", code: "Venue 002", name: "Lakeview Farms", photo: img("venue", 2),
     style: "Rustic Farmhouse", area: "Chattarpur, Delhi", capacity: 800, price: 550000,
     rating: 4.5, packageTier: "Standard", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
+    categoryFields: { venueType: "Farmhouse", setting: "Both", capacity: "800", roomsAvailable: "10-20", parkingSpots: "100 cars", foodPolicy: "Non-veg allowed", alcoholPolicy: "Allowed", outsideCatering: "Allowed", musicRestriction: "Till 10 PM" },
   },
   "v-venue-3": {
     id: "v-venue-3", code: "Venue 003", name: "Skyline Banquets", photo: img("venue", 3),
     style: "Modern Rooftop", area: "Connaught Place, Delhi", capacity: 500, price: 420000,
     rating: 4.3, packageTier: "Standard", likes: [], booked: false, amountPaid: 0,
+    categoryFields: { venueType: "Rooftop", setting: "Outdoor", capacity: "500", roomsAvailable: "None", parkingSpots: "50 cars", foodPolicy: "Veg only", alcoholPolicy: "BYOB only", outsideCatering: "In-house mandatory", musicRestriction: "Till 10 PM" },
   },
   "v-venue-4": {
     id: "v-venue-4", code: "Venue 004", name: "Garden Bliss Resort", photo: img("venue", 4),
     style: "Garden Party", area: "Gurugram, Haryana", capacity: 1200, price: 720000,
     rating: 4.6, packageTier: "Premium", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
+    categoryFields: { venueType: "Resort", setting: "Outdoor", capacity: "1200", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Non-veg allowed", alcoholPolicy: "Allowed", outsideCatering: "In-house mandatory", musicRestriction: "Till 12 AM" },
   },
 
   // === CATERING ===
@@ -163,16 +167,19 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-catering-1", code: "Catering 001", name: "Spice Route Caterers", photo: img("catering", 1),
     style: "North Indian Royal", area: "Lajpat Nagar, Delhi", price: 320000,
     rating: 4.7, packageTier: "Premium (800 pax)", likes: [{ userId: "u-mom", name: "Mom" }, { userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
+    categoryFields: { cuisineTypes: ["North Indian", "Mughlai"], foodType: "Both", menuItems: "25", liveCounters: "3", minPlates: "200", maxPlates: "1000", teamSize: "20-40 staff", staffIncluded: "Included", crockeryIncluded: "Included", specialCounters: ["Chaat Station", "Dessert Bar", "Paan Counter"] },
   },
   "v-catering-2": {
     id: "v-catering-2", code: "Catering 002", name: "Flavours & Forks", photo: img("catering", 2),
     style: "Multi-Cuisine Fusion", area: "Saket, Delhi", price: 280000,
     rating: 4.4, packageTier: "Standard (800 pax)", likes: [], booked: false, amountPaid: 0,
+    categoryFields: { cuisineTypes: ["Multi-Cuisine", "Continental", "Fusion"], foodType: "Both", menuItems: "30+", liveCounters: "4+", minPlates: "100", maxPlates: "2000", teamSize: "20-40 staff", staffIncluded: "Included", crockeryIncluded: "Included", specialCounters: ["Pasta Counter", "Juice Bar", "Ice Cream Bar"] },
   },
   "v-catering-3": {
     id: "v-catering-3", code: "Catering 003", name: "Maharaja Feast", photo: img("catering", 3),
     style: "Rajasthani Thali", area: "Karol Bagh, Delhi", price: 250000,
     rating: 4.2, packageTier: "Standard (600 pax)", likes: [{ userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
+    categoryFields: { cuisineTypes: ["Rajasthani"], foodType: "Veg only", menuItems: "20", liveCounters: "2", minPlates: "100", maxPlates: "1000", teamSize: "10-20 staff", staffIncluded: "Extra charge", crockeryIncluded: "Extra charge", specialCounters: ["Chaat Station"] },
   },
 
   // === DECOR ===
@@ -180,16 +187,19 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-decor-1", code: "Decor 001", name: "Petal & Bloom", photo: img("decor", 1),
     style: "Floral Luxury", area: "South Delhi", price: 280000,
     rating: 4.9, packageTier: "Premium", likes: [{ userId: "u-mom", name: "Mom" }, { userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
+    categoryFields: { decorType: "Full venue", decorSpeciality: ["Floral", "Ceiling Work"], flowerType: "Fresh flowers", ledLighting: "Included", propsIncluded: "All props included", setupArea: "Large (full venue)", setupTeamSize: "8-15 people", setupTime: "8 hours", teardownIncluded: "Yes", reusableElements: "All fresh (premium)" },
   },
   "v-decor-2": {
     id: "v-decor-2", code: "Decor 002", name: "DreamScape Events", photo: img("decor", 2),
     style: "Modern Minimalist", area: "Noida, UP", price: 180000,
     rating: 4.3, packageTier: "Standard", likes: [], booked: false, amountPaid: 0,
+    categoryFields: { decorType: "Stage only", decorSpeciality: ["Modern Minimal", "LED & Lighting"], flowerType: "Mix of both", ledLighting: "Included", propsIncluded: "Selected props only", setupArea: "Medium (lawn)", setupTeamSize: "5-8 people", setupTime: "6 hours", teardownIncluded: "Extra charge", reusableElements: "Mix of fresh & reusable" },
   },
   "v-decor-3": {
     id: "v-decor-3", code: "Decor 003", name: "Royal Mandaps", photo: img("decor", 3),
     style: "Traditional Mandap", area: "Dwarka, Delhi", price: 220000,
     rating: 4.5, packageTier: "Premium", likes: [{ userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
+    categoryFields: { decorType: "Mandap only", decorSpeciality: ["Traditional Mandap", "Fabric & Drapes"], flowerType: "Fresh flowers", ledLighting: "Add-on", propsIncluded: "All props included", setupArea: "Small (hall)", setupTeamSize: "5-8 people", setupTime: "4 hours", teardownIncluded: "Yes", reusableElements: "Mix of fresh & reusable" },
   },
 
   // === PHOTOGRAPHY ===
@@ -197,16 +207,19 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-photo-1", code: "Photo 001", name: "Lens & Light Studio", photo: img("photo", 1),
     style: "Candid + Cinematic", area: "Hauz Khas, Delhi", price: 180000,
     rating: 4.8, packageTier: "Premium (2 days)", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
+    categoryFields: { coverageType: "Photo + Video", shootStyles: ["Candid", "Cinematic"], coverageHours: "10h", photographers: "2", videographers: "1", liveCoverage: "Add-on", equipment: ["Mirrorless", "Drone", "Gimbal"], editedPhotos: "800", highlightReel: "5 min", fullVideo: "Yes", preWedding: "Included", droneShots: "Included", sameDayEdit: "Yes", deliveryFormat: "Both", deliveryDays: "30 days", albums: "1 album" },
   },
   "v-photo-2": {
     id: "v-photo-2", code: "Photo 002", name: "Click & Capture", photo: img("photo", 2),
     style: "Traditional + Posed", area: "Pitampura, Delhi", price: 120000,
     rating: 4.2, packageTier: "Standard (2 days)", likes: [], booked: false, amountPaid: 0,
+    categoryFields: { coverageType: "Photo only", shootStyles: ["Traditional"], coverageHours: "8h", photographers: "2", videographers: "0", liveCoverage: "Not available", equipment: ["DSLR"], editedPhotos: "500", highlightReel: "Not included", fullVideo: "No", preWedding: "Add-on", droneShots: "Not available", sameDayEdit: "No", deliveryFormat: "USB Drive", deliveryDays: "45 days", albums: "1 album" },
   },
   "v-photo-3": {
     id: "v-photo-3", code: "Photo 003", name: "FrameWorks Photography", photo: img("photo", 3),
     style: "Documentary Style", area: "Vasant Kunj, Delhi", price: 150000,
     rating: 4.6, packageTier: "Premium (1 day)", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
+    categoryFields: { coverageType: "Photo + Video", shootStyles: ["Documentary", "Cinematic"], coverageHours: "12h", photographers: "1", videographers: "1", liveCoverage: "Yes, included", equipment: ["Mirrorless", "Drone", "Studio Lights"], editedPhotos: "1000", highlightReel: "10 min", fullVideo: "Yes", preWedding: "Included", droneShots: "Included", sameDayEdit: "No", deliveryFormat: "Google Drive", deliveryDays: "30 days", albums: "2 albums" },
   },
 
   // === MEHENDI ===
@@ -214,11 +227,13 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-mehendi-1", code: "Mehendi 001", name: "Henna by Priya", photo: img("mehendi", 1),
     style: "Rajasthani Bridal", area: "Chandni Chowk, Delhi", price: 35000,
     rating: 4.9, packageTier: "Bridal + 20 guests", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
+    categoryFields: { designStyles: ["Rajasthani", "Indo-Arabic"], bridalCoverage: "Full hands + Full feet", complexity: "Intricate bridal", additionalGuests: "20", brideTime: "4 hours", teamSize: "3-4 artists", groomMehendi: "Included", glitterAddon: "Add-on", whiteMehendi: "Available", conesIncluded: "Included", travelToVenue: "Included" },
   },
   "v-mehendi-2": {
     id: "v-mehendi-2", code: "Mehendi 002", name: "Artful Hands", photo: img("mehendi", 2),
     style: "Arabic Fusion", area: "Lajpat Nagar, Delhi", price: 28000,
     rating: 4.5, packageTier: "Bridal + 15 guests", likes: [], booked: false, amountPaid: 0,
+    categoryFields: { designStyles: ["Arabic", "Contemporary"], bridalCoverage: "Full hands only", complexity: "Medium detail", additionalGuests: "15", brideTime: "3 hours", teamSize: "Solo", groomMehendi: "Not available", glitterAddon: "Included", whiteMehendi: "Not available", conesIncluded: "Add-on", travelToVenue: "Extra charge" },
   },
 
   // === MAKEUP ===
@@ -226,11 +241,13 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-makeup-1", code: "Makeup 001", name: "Glow by Neha", photo: img("makeup", 1),
     style: "HD Airbrush", area: "Green Park, Delhi", price: 75000,
     rating: 4.8, packageTier: "Bridal (3 looks)", likes: [{ userId: "u-priya", name: "Priya" }, { userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
+    categoryFields: { looksIncluded: "3 looks", makeupType: "HD", teamSize: "2 artists", hairStyling: "Included", draping: "Included", products: ["MAC", "Charlotte Tilbury", "Huda Beauty"], trialSession: "Included", falseLashes: "Included", travelToVenue: "Included", familyMakeup: "Available" },
   },
   "v-makeup-2": {
     id: "v-makeup-2", code: "Makeup 002", name: "Beauty Bliss Studio", photo: img("makeup", 2),
     style: "Natural Glam", area: "Rajouri Garden, Delhi", price: 55000,
     rating: 4.4, packageTier: "Bridal (2 looks)", likes: [], booked: false, amountPaid: 0,
+    categoryFields: { looksIncluded: "2 looks", makeupType: "Natural", teamSize: "Solo", hairStyling: "Add-on", draping: "Add-on", products: ["Lakme", "Mix of brands"], trialSession: "Extra cost", falseLashes: "Add-on", travelToVenue: "Extra charge", familyMakeup: "Not available" },
   },
 
   // === DJ/MUSIC ===
@@ -238,11 +255,13 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-dj-1", code: "DJ 001", name: "DJ Sunil", photo: img("dj", 1),
     style: "Bollywood + EDM", area: "Connaught Place, Delhi", price: 85000,
     rating: 4.6, packageTier: "Full Night + Sound", likes: [{ userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
+    categoryFields: { performanceType: ["DJ"], genres: ["Bollywood", "EDM", "Punjabi"], performanceHours: "6h+", teamSize: "Solo DJ", songRequests: "Accepted", soundSystem: "Included (own)", wattage: "Up to 5000W", lighting: ["LED lights", "Lasers", "Fog machine"], emcee: "Add-on", liveDhol: "Add-on", wirelessMics: "2" },
   },
   "v-dj-2": {
     id: "v-dj-2", code: "DJ 002", name: "Beats & Bass", photo: img("dj", 2),
     style: "Sufi + Bollywood", area: "Noida, UP", price: 65000,
     rating: 4.3, packageTier: "Half Night + Sound", likes: [], booked: false, amountPaid: 0,
+    categoryFields: { performanceType: ["DJ", "Singer"], genres: ["Sufi", "Bollywood"], performanceHours: "4h", teamSize: "2 performers", songRequests: "Accepted", soundSystem: "Included (own)", wattage: "Up to 2000W", lighting: ["LED lights"], emcee: "Included", liveDhol: "Included", wirelessMics: "1" },
   },
 
   // === PANDIT ===
@@ -250,6 +269,7 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-pandit-1", code: "Pandit 001", name: "Pandit Sharma Ji", photo: img("decor", 4),
     style: "Vedic Rituals", area: "Old Delhi", price: 21000,
     rating: 4.7, packageTier: "Full Ceremony", likes: [{ userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
+    categoryFields: { tradition: "Multi-tradition", ceremonies: ["Ganapathi Puja", "Mangalsutra Dharana", "Saptapadi", "Talambralu", "Jeelakarra Bellam"], duration: "Full day", languages: ["Sanskrit", "Hindi", "Telugu"], samagri: "Included", homamSetup: "Included", muhurthamConsult: "Included", teamSize: "Pandit + 1 assistant", travel: "Up to 100km" },
   },
 
   // === INVITATIONS ===
@@ -257,11 +277,13 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-invite-1", code: "Invite 001", name: "Papercraft Studio", photo: img("decor", 5),
     style: "Luxury Boxed", area: "Chandni Chowk, Delhi", price: 95000,
     rating: 4.5, packageTier: "500 cards + digital", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
+    categoryFields: { inviteType: "Boxed invite", design: "In-house custom", customization: "Full custom design", languages: ["English", "Hindi"], minQty: "50", maxQty: "500", deliveryTimeline: "14 days", deliveryMode: "Included (within city)", digitalVersion: "Included", envelope: "Included", boxPackaging: "Included", sweetBox: "Available", waxSeal: "Included", rsvpTracking: "Included" },
   },
   "v-invite-2": {
     id: "v-invite-2", code: "Invite 002", name: "DesignWala.in", photo: img("decor", 6),
     style: "Digital + Minimal Print", area: "Online", price: 35000,
     rating: 4.3, packageTier: "Digital + 200 cards", likes: [], booked: false, amountPaid: 0,
+    categoryFields: { inviteType: "Digital only", design: "Template-based", customization: "Name, date, venue only", languages: ["English"], minQty: "No minimum", maxQty: "1000", deliveryTimeline: "7 days", deliveryMode: "Pickup only", digitalVersion: "Included", envelope: "Not included", boxPackaging: "Not included", sweetBox: "Not available", waxSeal: "Not available", rsvpTracking: "Included" },
   },
 };
 

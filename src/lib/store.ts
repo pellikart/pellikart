@@ -916,6 +916,10 @@ export const useStore = create<AppState & LiveModeState & {
             area: parentVendor?.area || '', capacity: parentVendor?.capacity,
             price: design.price, rating: design.rating,
             packageTier: design.description, likes: [], booked: false, amountPaid: 0,
+            // Inherit the parent vendor's category-specific fields so the Compare table
+            // can surface the same detail for design listings.
+            categoryFields: parentVendor?.categoryFields,
+            category: parentVendor?.category,
           },
         },
       };
