@@ -27,7 +27,7 @@ export default function CategoryBoardPage() {
     ritualBoards, vendors, subscription,
     selectVendor, addToShortlist, removeFromShortlist, toggleLike,
     trialSessions, trialsUsed, requestTrial, markTrialDone, confirmReschedule,
-    addDesignAsVendor, setDecorBrief,
+    addDesignAsVendor, setDecorBrief, restoreCategory,
   } = useStore()
   const unlocked = subscription !== 'free'
   const maxTrials = subscription === 'gold' ? 3 : subscription === 'silver' ? 1 : 0
@@ -57,6 +57,11 @@ export default function CategoryBoardPage() {
   const [trialTime, setTrialTime] = useState('')
   const [priceChange, setPriceChange] = useState<{
     oldName: string; oldPrice: number; newName: string; newPrice: number
+  } | null>(null)
+  // Shown when the user picks a venue that mandates its in-house decor / catering.
+  const [bundlePopup, setBundlePopup] = useState<{
+    venueId: string; venueName: string
+    bundles: { id: string; name: string; category: string; price: number }[]
   } | null>(null)
 
   const board = ritualBoards.find((b) => b.id === ritualId)
@@ -157,6 +162,23 @@ export default function CategoryBoardPage() {
     const prevId = category!.selectedVendorId
     const prev = prevId ? vendors[prevId] : null
     const next = vendors[newVendorId]
+
+    // Intercept: if this is a venue with a mandatory bundle, show the popup first.
+    if (next?.category === 'Venue' && next.bundleMandatory && next.bundledListings && next.bundledListings.length > 0) {
+      const bundles = next.bundledListings
+        .map(id => vendors[id])
+        .filter(Boolean)
+        .map(v => ({ id: v.id, name: v.name || v.code, category: v.category || '', price: v.price }))
+      if (bundles.length > 0) {
+        setBundlePopup({ venueId: newVendorId, venueName: next.name || next.code, bundles })
+        return
+      }
+    }
+
+    doSwap(newVendorId, prev, next, prevId)
+  }
+
+  function doSwap(newVendorId: string, prev: Vendor | null, next: Vendor | undefined, prevId: string | null | undefined) {
     selectVendor(ritualId!, categoryId!, newVendorId)
     if (prev && next && prevId !== newVendorId && prev.price !== next.price) {
       setPriceChange({
@@ -166,6 +188,23 @@ export default function CategoryBoardPage() {
         newPrice: next.price,
       })
     }
+  }
+
+  function acceptBundle() {
+    if (!bundlePopup || !board) return
+    const venueVendor = vendors[bundlePopup.venueId]
+    const prevId = category!.selectedVendorId
+    const prev = prevId ? vendors[prevId] : null
+    // Apply the venue swap (with price-change popup wiring intact)
+    doSwap(bundlePopup.venueId, prev, venueVendor, prevId)
+    // Apply each bundled listing into its matching category on this same ritual
+    for (const b of bundlePopup.bundles) {
+      const targetCat = board.categories.find(c => c.label === b.category)
+      if (!targetCat) continue  // category not present on this board — skip silently
+      if (targetCat.removed) restoreCategory(ritualId!, targetCat.id)
+      selectVendor(ritualId!, targetCat.id, b.id)
+    }
+    setBundlePopup(null)
   }
 
   return (
@@ -619,6 +658,44 @@ export default function CategoryBoardPage() {
           </div>
         )
       })()}
+
+      {/* Mandatory bundle popup — fires when a venue requires its own decor/catering */}
+      {bundlePopup && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setBundlePopup(null)}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[14px] font-bold text-dark mb-1">In-house bundle required</p>
+            <p className="text-[11px] text-gray-600 mb-3">
+              <span className="font-semibold">{bundlePopup.venueName}</span> requires you to use their in-house services. Picking this venue will also add:
+            </p>
+            <div className="space-y-1.5 mb-4">
+              {bundlePopup.bundles.map(b => (
+                <div key={b.id} className="flex items-center justify-between text-[12px] bg-empty-bg rounded-lg px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-dark truncate">{b.name}</p>
+                    <p className="text-[10px] text-gray-400">{b.category}</p>
+                  </div>
+                  <span className="text-[11px] font-semibold text-magenta shrink-0">{formatINR(b.price)}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-400 mb-4">These will replace any existing picks for {bundlePopup.bundles.map(b => b.category).join(' and ')} on {board.name}.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setBundlePopup(null)}
+                className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-600 text-xs font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={acceptBundle}
+                className="flex-1 py-2.5 rounded-lg bg-magenta text-white text-xs font-semibold active:opacity-90"
+              >
+                Accept bundle
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -22,6 +22,8 @@ export default function VendorEditListing() {
   const [rituals, setRituals] = useState<string[]>([])
   const [coverIndex, setCoverIndex] = useState(0)
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
+  const [bundledListings, setBundledListings] = useState<string[]>([])
+  const [bundleMandatory, setBundleMandatory] = useState(false)
 
   useEffect(() => {
     if (listing) {
@@ -33,6 +35,8 @@ export default function VendorEditListing() {
       setIncludes(listing.includes)
       setRituals(listing.rituals || [])
       setCategoryFields(listing.categoryFields || {})
+      setBundledListings(listing.bundledListings || [])
+      setBundleMandatory(listing.bundleMandatory || false)
     }
   }, [listing])
 
@@ -75,6 +79,8 @@ export default function VendorEditListing() {
     updateListing({
       ...listing,
       name, photos, coverPhotoIndex: coverIndex, style, price, rituals, includes, categoryFields,
+      bundledListings: category === 'Venue' ? bundledListings : undefined,
+      bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
     })
     navigate('/vendor/listings')
   }
@@ -112,6 +118,39 @@ export default function VendorEditListing() {
             })}
           </div>
         </div>
+
+        {/* Venue-only: bundle decor / catering listings */}
+        {category === 'Venue' && (() => {
+          const bundleCandidates = vendorListings.filter(l => l.id !== listing.id && (l.category === 'Decor' || l.category === 'Catering'))
+          if (bundleCandidates.length === 0) return null
+          return (
+            <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+              <p className="text-[12px] font-semibold text-dark">Bundle with your other listings</p>
+              <p className="text-[10px] text-gray-500 mt-0.5 mb-2">Couples picking this venue will be offered these too.</p>
+              <div className="flex flex-col gap-1.5 mb-3">
+                {bundleCandidates.map(l => (
+                  <label key={l.id} className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="accent-mustard"
+                      checked={bundledListings.includes(l.id)}
+                      onChange={() => setBundledListings(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])} />
+                    <span className="text-[11px] text-dark">{l.name}</span>
+                    <span className="text-[10px] text-gray-400">· {l.category}</span>
+                  </label>
+                ))}
+              </div>
+              {bundledListings.length > 0 && (
+                <label className="flex items-start gap-2 cursor-pointer pt-2 border-t border-mustard/20">
+                  <input type="checkbox" className="accent-mustard mt-0.5"
+                    checked={bundleMandatory} onChange={() => setBundleMandatory(v => !v)} />
+                  <div>
+                    <span className="text-[11px] text-dark font-medium">Bundle is mandatory</span>
+                    <p className="text-[10px] text-gray-500">Couples must accept the bundle to book this venue.</p>
+                  </div>
+                </label>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Photos */}
         <div>

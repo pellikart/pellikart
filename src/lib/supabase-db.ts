@@ -97,6 +97,8 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       rituals: listing.rituals || [],
       category_fields: listing.categoryFields || {},
       includes: listing.includes,
+      bundled_listings: listing.bundledListings || [],
+      bundle_mandatory: listing.bundleMandatory || false,
     })
     .select()
     .maybeSingle()
@@ -112,11 +114,14 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
       name: listing.name,
       photos: listing.photos,
       cover_photo_index: listing.coverPhotoIndex ?? 0,
+      category: listing.category,
       price: listing.price,
       style: listing.style,
       rituals: listing.rituals || [],
       category_fields: listing.categoryFields || {},
       includes: listing.includes,
+      bundled_listings: listing.bundledListings || [],
+      bundle_mandatory: listing.bundleMandatory || false,
       updated_at: new Date().toISOString(),
     })
     .eq('id', listingDbId)

@@ -27,6 +27,12 @@ export default function VendorOnboarding() {
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  // For Venue vendors who also run in-house Catering / Decor
+  const [additionalServices, setAdditionalServices] = useState<string[]>([])
+
+  function toggleAdditionalService(service: string) {
+    setAdditionalServices(prev => prev.includes(service) ? prev.filter(s => s !== service) : [...prev, service])
+  }
 
   // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, 5=Portfolio Photos, 6=Ready
   // Category-specific specialty details are now captured per-listing, not at the profile level.
@@ -78,6 +84,8 @@ export default function VendorOnboarding() {
       portfolioPhotos: portfolioUrls,
       rating: 0,
       profileCompleteness: portfolioUrls.length > 0 ? 90 : 70,
+      // Venue vendors can declare they also offer in-house catering / decor
+      categoryFields: additionalServices.length > 0 ? { additionalServices } : undefined,
     }
     const defaultPackages: VendorPackage[] = []
     await completeVendorOnboarding(profile, defaultPackages)
@@ -123,12 +131,26 @@ export default function VendorOnboarding() {
                 <label className="text-[12px] font-medium text-dark block mb-1.5">Category</label>
                 <div className="grid grid-cols-2 gap-2">
                   {CATEGORIES.map((c) => (
-                    <button key={c} onClick={() => { setCategory(c); setCategoryFields({}) }} className={`py-2 px-3 rounded-xl text-[11px] font-medium text-left transition-all ${category === c ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>
+                    <button key={c} onClick={() => { setCategory(c); if (c !== 'Venue') setAdditionalServices([]) }} className={`py-2 px-3 rounded-xl text-[11px] font-medium text-left transition-all ${category === c ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>
                       {c}
                     </button>
                   ))}
                 </div>
               </div>
+              {category === 'Venue' && (
+                <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                  <label className="text-[12px] font-medium text-dark block mb-2">Do you also offer in-house services?</label>
+                  <div className="flex flex-col gap-1.5">
+                    {['Catering', 'Decor'].map(s => (
+                      <label key={s} className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="accent-mustard" checked={additionalServices.includes(s)} onChange={() => toggleAdditionalService(s)} />
+                        <span className="text-[12px] text-dark">{s}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-2">You'll be able to create {additionalServices.length === 0 ? 'venue' : `venue, ${additionalServices.map(s => s.toLowerCase()).join(' and ')}`} listings under your profile.</p>
+                </div>
+              )}
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1">Where you're based</label>
                 <div className="flex flex-wrap gap-1.5">

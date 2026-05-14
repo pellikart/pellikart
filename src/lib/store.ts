@@ -94,6 +94,9 @@ export function buildLiveVendorMap(
       experience: parseInt((parentVendor?.years_experience as string) || '0') || 0,
       teamSize: (parentVendor?.team_size as string) || '',
       blockedDates: blockedByVendor[vendorDbId] || [],
+      category: cat,
+      bundledListings: (l.bundled_listings as string[]) || [],
+      bundleMandatory: (l.bundle_mandatory as boolean) || false,
     }
   }
 

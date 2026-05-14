@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
@@ -8,8 +8,15 @@ import { uploadPhotos } from '@/lib/supabase-db'
 
 export default function VendorAddListing() {
   const navigate = useNavigate()
-  const { vendorProfile, addListing, _vendorDbId, _liveMode } = useVendorStore()
-  const category = vendorProfile?.category || 'Photography'
+  const { vendorProfile, vendorListings, addListing, _vendorDbId, _liveMode } = useVendorStore()
+  const profileCategory = vendorProfile?.category || 'Photography'
+  // Venue vendors who opted in during onboarding can also create Decor / Catering listings.
+  const additionalServices = (vendorProfile?.categoryFields?.additionalServices as string[]) || []
+  const allowedCategories = useMemo(() =>
+    profileCategory === 'Venue' ? ['Venue', ...additionalServices] : [profileCategory],
+  [profileCategory, additionalServices])
+
+  const [category, setCategory] = useState(profileCategory)
   const config = getListingConfig(category)
 
   const [step, setStep] = useState(1)
@@ -23,6 +30,22 @@ export default function VendorAddListing() {
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
   const [coverIndex, setCoverIndex] = useState(0)
   const [publishing, setPublishing] = useState(false)
+  // Venue-only: bundle other listings with this one
+  const [bundledListings, setBundledListings] = useState<string[]>([])
+  const [bundleMandatory, setBundleMandatory] = useState(false)
+
+  // When category changes (Venue vendor switching listing type), reset category-dependent state
+  function changeCategory(next: string) {
+    if (next === category) return
+    setCategory(next)
+    const nextConfig = getListingConfig(next)
+    setPrice(nextConfig.priceRange.min + Math.floor((nextConfig.priceRange.max - nextConfig.priceRange.min) / 3))
+    setStyle('')
+    setIncludes([])
+    setCategoryFields({})
+    setBundledListings([])
+    setBundleMandatory(false)
+  }
 
   // Steps: 1=Photos & Name, 2=Rituals, 3..N=Category-specific steps, N+1=Style & Price, N+2=Inclusions, N+3=Review
   const categoryStepCount = config.steps.length
@@ -86,6 +109,8 @@ export default function VendorAddListing() {
       categoryFields,
       includes,
       createdAt: new Date().toISOString().split('T')[0],
+      bundledListings: category === 'Venue' ? bundledListings : undefined,
+      bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
     }
     addListing(listing)
     setPublishing(false)
@@ -138,6 +163,23 @@ export default function VendorAddListing() {
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">What do you want to list?</h1>
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Add photos and a name for your {category.toLowerCase()} listing.</p>
+
+            {/* Listing type picker (only for Venue vendors who offer more than just venues) */}
+            {allowedCategories.length > 1 && (
+              <div className="mb-4">
+                <p className="text-[11px] font-medium text-dark mb-1.5">Listing type</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {allowedCategories.map(c => (
+                    <button
+                      key={c} onClick={() => changeCategory(c)}
+                      className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${c === category ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Photo upload */}
             <p className="text-[10px] text-gray-400 mb-2">Tap any photo to set it as your listing cover.</p>
@@ -195,6 +237,39 @@ export default function VendorAddListing() {
             </div>
 
             {rituals.length > 0 && <p className="text-[9px] text-gray-400 mt-3">{rituals.length} selected</p>}
+
+            {/* Venue-only: bundle decor / catering listings */}
+            {category === 'Venue' && (() => {
+              const bundleCandidates = vendorListings.filter(l => l.category === 'Decor' || l.category === 'Catering')
+              if (bundleCandidates.length === 0) return null
+              return (
+                <div className="mt-6 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                  <p className="text-[12px] font-semibold text-dark">Bundle with your other listings</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5 mb-2">Couples picking this venue will be offered these too.</p>
+                  <div className="flex flex-col gap-1.5 mb-3">
+                    {bundleCandidates.map(l => (
+                      <label key={l.id} className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="accent-mustard"
+                          checked={bundledListings.includes(l.id)}
+                          onChange={() => setBundledListings(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])} />
+                        <span className="text-[11px] text-dark">{l.name}</span>
+                        <span className="text-[10px] text-gray-400">· {l.category}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {bundledListings.length > 0 && (
+                    <label className="flex items-start gap-2 cursor-pointer pt-2 border-t border-mustard/20">
+                      <input type="checkbox" className="accent-mustard mt-0.5"
+                        checked={bundleMandatory} onChange={() => setBundleMandatory(v => !v)} />
+                      <div>
+                        <span className="text-[11px] text-dark font-medium">Bundle is mandatory</span>
+                        <p className="text-[10px] text-gray-500">Couples must accept the bundle to book this venue.</p>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              )
+            })()}
 
             <div className="flex gap-2 mt-6">
               <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>

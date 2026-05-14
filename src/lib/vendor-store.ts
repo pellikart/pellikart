@@ -105,6 +105,8 @@ export const useVendorStore = create<VendorState & LiveModeState & {
           categoryFields: (l.category_fields as Record<string, string | string[]>) || {},
           includes: (l.includes as string[]) || [],
           createdAt: (l.created_at as string)?.split('T')[0] || '',
+          bundledListings: (l.bundled_listings as string[]) || [],
+          bundleMandatory: (l.bundle_mandatory as boolean) || false,
         }
       })
 

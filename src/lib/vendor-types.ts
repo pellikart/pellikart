@@ -57,6 +57,11 @@ export interface VendorListing {
   categoryFields?: Record<string, string | string[]>
   includes: string[]
   createdAt: string
+  /** For Venue listings: IDs of decor/catering listings (by the same vendor) that
+   *  come bundled when a couple selects this venue. */
+  bundledListings?: string[]
+  /** If true, accepting this venue means the couple must accept the bundle too. */
+  bundleMandatory?: boolean
   // Legacy fields (kept for backward compat with mock data)
   capacity?: number
   coverageHours?: number

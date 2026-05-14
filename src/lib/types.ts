@@ -40,6 +40,12 @@ export interface Vendor {
   teamSize?: string;
   availableDates?: string[];  // dates that are NOT blocked/booked
   blockedDates?: string[];
+  /** Category label this listing belongs to (e.g. 'Venue', 'Decor'). Populated in live mode. */
+  category?: string;
+  /** For venue listings: IDs of bundled decor/catering listings */
+  bundledListings?: string[];
+  /** If true, selecting this venue requires accepting the bundle */
+  bundleMandatory?: boolean;
 }
 
 export interface Like {
