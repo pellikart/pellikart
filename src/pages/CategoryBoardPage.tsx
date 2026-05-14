@@ -278,6 +278,7 @@ export default function CategoryBoardPage() {
                 vendors={shortlisted}
                 selectedId={category.selectedVendorId}
                 unlocked={unlocked}
+                categoryLabel={category.label}
                 onSelect={handleSwap}
               />
             )}
@@ -771,23 +772,39 @@ function VisualGrid({
 }
 
 function CompareTable({
-  vendors, selectedId, unlocked, onSelect,
+  vendors, selectedId, unlocked, categoryLabel, onSelect,
 }: {
-  vendors: Vendor[]; selectedId: string | null; unlocked: boolean; onSelect: (id: string) => void;
+  vendors: Vendor[]; selectedId: string | null; unlocked: boolean; categoryLabel: string; onSelect: (id: string) => void;
 }) {
-  const params = ['Price', 'Style', 'Capacity', 'Area', 'Rating', 'Likes']
+  const listingConfig = getListingConfig(categoryLabel)
+  // Flatten all category-specific fields from the listing creation flow
+  const categoryFields = listingConfig.steps.flatMap(s => s.fields)
+  // Hide rows where every vendor has no value — they add noise without signal.
+  const usefulCategoryFields = categoryFields.filter(f =>
+    vendors.some(v => {
+      const val = v.categoryFields?.[f.key]
+      return Array.isArray(val) ? val.length > 0 : !!val
+    })
+  )
+
   const bestPrice = Math.min(...vendors.map((v) => v.price))
   const bestRating = Math.max(...vendors.map((v) => v.rating))
   const bestLikes = Math.max(...vendors.map((v) => v.likes.length))
+
+  function renderValue(value: string | string[] | undefined | number): string {
+    if (value === undefined || value === null || value === '') return '—'
+    if (Array.isArray(value)) return value.length > 0 ? value.join(' · ') : '—'
+    return String(value)
+  }
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[10px]">
         <thead>
           <tr className="border-b border-card-border">
-            <th className="text-left py-2 px-2 w-[80px] text-gray-500 font-medium">Parameter</th>
+            <th className="text-left py-2 px-2 w-[110px] text-gray-500 font-medium sticky left-0 bg-white z-10">Parameter</th>
             {vendors.map((v) => (
-              <th key={v.id} className="py-2 px-2 text-center">
+              <th key={v.id} className="py-2 px-2 text-center min-w-[100px]">
                 <span className="font-medium text-dark">{unlocked ? v.name : v.code}</span>
                 {v.id === selectedId && <span className="block text-magenta bg-magenta-light text-[9px] rounded-full px-1.5 mt-0.5 mx-auto w-fit">Added</span>}
                 {v.likes.length > 0 && <span className="block text-magenta text-[9px] mt-0.5">♥ {v.likes.length} likes</span>}
@@ -796,26 +813,59 @@ function CompareTable({
           </tr>
         </thead>
         <tbody>
-          {params.map((param) => (
-            <tr key={param} className="border-b border-card-border/50">
-              <td className="py-2 px-2 text-gray-500">{param}</td>
-              {vendors.map((v) => {
-                let value = ''
-                let highlight = false
-                switch (param) {
-                  case 'Price': value = formatINR(v.price); highlight = v.price === bestPrice; break
-                  case 'Style': value = v.style; break
-                  case 'Capacity': value = v.capacity ? v.capacity.toString() : '—'; break
-                  case 'Area': value = v.area; break
-                  case 'Rating': value = `★ ${v.rating}`; highlight = v.rating === bestRating; break
-                  case 'Likes': value = `♥ ${v.likes.length}`; highlight = v.likes.length === bestLikes && bestLikes > 0; break
-                }
-                return <td key={v.id} className={`py-2 px-2 text-center ${highlight ? 'text-magenta font-bold' : 'text-dark'}`}>{value}</td>
-              })}
+          {/* Generic rows */}
+          <tr className="border-b border-card-border/50">
+            <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Price</td>
+            {vendors.map((v) => (
+              <td key={v.id} className={`py-2 px-2 text-center ${v.price === bestPrice ? 'text-magenta font-bold' : 'text-dark'}`}>{formatINR(v.price)}</td>
+            ))}
+          </tr>
+          <tr className="border-b border-card-border/50">
+            <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Style</td>
+            {vendors.map((v) => (
+              <td key={v.id} className="py-2 px-2 text-center text-dark">{v.style || '—'}</td>
+            ))}
+          </tr>
+          <tr className="border-b border-card-border/50">
+            <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Area</td>
+            {vendors.map((v) => (
+              <td key={v.id} className="py-2 px-2 text-center text-dark">{v.area || '—'}</td>
+            ))}
+          </tr>
+          <tr className="border-b border-card-border/50">
+            <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Rating</td>
+            {vendors.map((v) => (
+              <td key={v.id} className={`py-2 px-2 text-center ${v.rating === bestRating ? 'text-magenta font-bold' : 'text-dark'}`}>★ {v.rating}</td>
+            ))}
+          </tr>
+          <tr className="border-b border-card-border/50">
+            <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Likes</td>
+            {vendors.map((v) => (
+              <td key={v.id} className={`py-2 px-2 text-center ${v.likes.length === bestLikes && bestLikes > 0 ? 'text-magenta font-bold' : 'text-dark'}`}>♥ {v.likes.length}</td>
+            ))}
+          </tr>
+
+          {/* Category-specific rows — pulled from the same questions the vendor fills out per listing */}
+          {usefulCategoryFields.length > 0 && (
+            <tr className="border-b border-card-border">
+              <td className="py-2 px-2 text-[9px] font-semibold text-gray-400 uppercase tracking-wider sticky left-0 bg-white" colSpan={vendors.length + 1}>
+                {categoryLabel} details
+              </td>
+            </tr>
+          )}
+          {usefulCategoryFields.map(field => (
+            <tr key={field.key} className="border-b border-card-border/50">
+              <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">{field.label}</td>
+              {vendors.map(v => (
+                <td key={v.id} className="py-2 px-2 text-center text-dark">
+                  {renderValue(v.categoryFields?.[field.key])}
+                </td>
+              ))}
             </tr>
           ))}
+
           <tr>
-            <td className="py-2 px-2" />
+            <td className="py-2 px-2 sticky left-0 bg-white" />
             {vendors.map((v) => (
               <td key={v.id} className="py-2 px-2 text-center">
                 <button onClick={() => onSelect(v.id)} className={`px-3 py-1.5 rounded-lg text-[11px] font-medium ${v.id === selectedId ? 'bg-magenta text-white' : 'border border-magenta text-magenta'}`}>
