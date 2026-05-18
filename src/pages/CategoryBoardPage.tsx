@@ -726,8 +726,19 @@ function VisualGridCard({
           </div>
         </div>
         <div>
-          <p className="text-white/80 text-[9px]">{unlocked ? v.name : v.code} · {v.style}</p>
+          <p className="text-white/80 text-[9px]">
+            {unlocked ? v.name : v.code} · {v.style}
+            {v.category && <> · {v.category}</>}
+          </p>
           <p className="text-white font-bold text-xs">{formatINR(v.price)}</p>
+          {v.includes && v.includes.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {v.includes.slice(0, 3).map((inc, i) => (
+                <span key={i} className="bg-black/40 text-white text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-sm">{inc}</span>
+              ))}
+              {v.includes.length > 3 && <span className="text-white/70 text-[8px] pt-0.5">+{v.includes.length - 3} more</span>}
+            </div>
+          )}
           <div className="flex gap-1.5 mt-1.5">
             <button onClick={(e) => { e.stopPropagation(); onLike() }} className={`px-2 py-1 rounded-md text-[10px] font-medium ${userLiked ? 'bg-magenta text-white' : 'bg-white/25 text-white'}`}>
               ♥{v.likes.length > 0 ? ` ${v.likes.length}` : ''}

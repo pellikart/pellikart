@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Category, Vendor } from '@/lib/types'
 import { formatINR, bgStyle } from '@/lib/helpers'
+import ListingDetailSheet from './ListingDetailSheet'
 
 interface Props {
   category: Category
@@ -17,8 +18,6 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const navigate = useNavigate()
   const wrapperClass = `rounded-xl overflow-hidden relative ${spanTwo ? 'span-2' : ''} min-h-[90px]`
-
-  const likeNames = vendor.likes.map((l) => l.name)
 
   return (
     <>
@@ -64,92 +63,16 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
         </button>
       </div>
 
-      {/* Vendor Detail Sheet */}
+      {/* Vendor Detail Sheet — shared with the Category Board so couples see the same rich data */}
       {showDetail && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setShowDetail(false)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-[480px] max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            {/* Hero gradient */}
-            <div className="h-40 relative" style={bgStyle(vendor.photo)}>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <button onClick={() => setShowDetail(false)} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/30 flex items-center justify-center backdrop-blur-sm">
-                <span className="text-white text-sm">✕</span>
-              </button>
-              <div className="absolute bottom-3 left-4 right-4">
-                <span className="bg-white/90 text-dark text-[9px] font-medium px-1.5 py-0.5 rounded-full">{category.label}</span>
-                <p className="text-white font-bold text-lg mt-1">{unlocked ? vendor.name : vendor.code}</p>
-              </div>
-            </div>
-
-            <div className="p-4">
-              {/* Rating + Likes row */}
-              <div className="flex items-center gap-3 mb-4">
-                <span className="bg-dark/10 text-dark text-[11px] font-medium px-2 py-1 rounded-full">★ {vendor.rating}</span>
-                {likeNames.length > 0 && (
-                  <span className="bg-magenta-light text-magenta text-[11px] px-2 py-1 rounded-full">♥ {vendor.likes.length} · {likeNames.join(', ')}</span>
-                )}
-                {vendor.booked && (
-                  <span className="bg-green-100 text-green-600 text-[10px] font-semibold px-2 py-1 rounded-full">Booked ✓</span>
-                )}
-              </div>
-
-              {/* Details grid */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <DetailRow label="Style" value={vendor.style} />
-                <DetailRow label="Area" value={vendor.area} />
-                <DetailRow label="Package" value={vendor.packageTier} />
-                {vendor.capacity && <DetailRow label="Capacity" value={`${vendor.capacity} guests`} />}
-                <DetailRow label="Price" value={formatINR(vendor.price)} highlight />
-                {vendor.booked && <DetailRow label="Paid" value={formatINR(vendor.amountPaid)} />}
-              </div>
-
-              {/* Photo gallery */}
-              {(vendor.listingPhotos?.length || vendor.portfolioPhotos?.length) ? (
-                <>
-                  <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Gallery</p>
-                  <div className="grid grid-cols-3 gap-1.5 mb-4">
-                    {[...(vendor.listingPhotos || []), ...(vendor.portfolioPhotos || [])].filter(Boolean).slice(0, 9).map((src, i) => (
-                      <div key={i} className="aspect-square rounded-lg overflow-hidden">
-                        <img src={src} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="mb-4 py-4 text-center rounded-xl bg-empty-bg">
-                  <p className="text-[10px] text-gray-400">No photos uploaded yet</p>
-                </div>
-              )}
-
-              {/* Package details */}
-              <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Package Details</p>
-              <div className="bg-empty-bg rounded-xl p-3 mb-4">
-                <p className="text-[12px] font-medium text-dark mb-1">{vendor.packageTier}</p>
-                <ul className="space-y-1">
-                  <PackageItem text={`${vendor.style} setup & execution`} />
-                  <PackageItem text={`Covers ${vendor.area} region`} />
-                  {vendor.capacity && <PackageItem text={`Up to ${vendor.capacity} guest capacity`} />}
-                  <PackageItem text="Dedicated coordinator on event day" />
-                  <PackageItem text="Includes setup & teardown" />
-                </ul>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setShowDetail(false); navigate(`/category/${ritualId}/${category.id}`) }}
-                  className="flex-1 py-2.5 rounded-xl border border-magenta text-magenta text-[11px] font-semibold active:bg-magenta-light transition-colors"
-                >
-                  Swap vendor
-                </button>
-                {unlocked && !vendor.booked && (
-                  <button className="flex-1 py-2.5 rounded-xl bg-magenta text-white text-[11px] font-semibold active:opacity-90 transition-opacity">
-                    Book this vendor
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <ListingDetailSheet
+          vendor={vendor}
+          unlocked={unlocked}
+          onClose={() => setShowDetail(false)}
+          ritualId={ritualId}
+          categoryId={category.id}
+          selectedTierHours={category.selectedTierHours}
+        />
       )}
 
       {/* Remove Confirmation */}
@@ -175,20 +98,3 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
   )
 }
 
-function DetailRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div>
-      <p className="text-[9px] text-gray-400 uppercase tracking-wider">{label}</p>
-      <p className={`text-[12px] font-medium mt-0.5 ${highlight ? 'text-magenta font-bold' : 'text-dark'}`}>{value}</p>
-    </div>
-  )
-}
-
-function PackageItem({ text }: { text: string }) {
-  return (
-    <li className="flex items-start gap-1.5 text-[10px] text-gray-600">
-      <span className="text-magenta mt-px">✓</span>
-      <span>{text}</span>
-    </li>
-  )
-}
