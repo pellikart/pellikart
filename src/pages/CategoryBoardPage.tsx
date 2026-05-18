@@ -776,6 +776,7 @@ function CompareTable({
 }: {
   vendors: Vendor[]; selectedId: string | null; unlocked: boolean; categoryLabel: string; onSelect: (id: string) => void;
 }) {
+  const [includesExpanded, setIncludesExpanded] = useState(false)
   const listingConfig = getListingConfig(categoryLabel)
   // Flatten all category-specific fields from the listing creation flow
   const categoryFields = listingConfig.steps.flatMap(s => s.fields)
@@ -785,6 +786,10 @@ function CompareTable({
       const val = v.categoryFields?.[f.key]
       return Array.isArray(val) ? val.length > 0 : !!val
     })
+  )
+  // Inclusions: one row per inclusion that at least one vendor offers.
+  const usefulInclusions = listingConfig.inclusions.filter(inc =>
+    vendors.some(v => v.includes?.includes(inc))
   )
 
   const bestPrice = Math.min(...vendors.map((v) => v.price))
@@ -861,6 +866,35 @@ function CompareTable({
                   {renderValue(v.categoryFields?.[field.key])}
                 </td>
               ))}
+            </tr>
+          ))}
+
+          {/* What's included — collapsible. Default closed to keep the table compact. */}
+          {usefulInclusions.length > 0 && (
+            <tr className="border-b border-card-border">
+              <td className="p-0 sticky left-0 bg-white" colSpan={vendors.length + 1}>
+                <button
+                  type="button"
+                  onClick={() => setIncludesExpanded(v => !v)}
+                  className="w-full flex items-center justify-between py-2 px-2 text-[9px] font-semibold text-gray-400 uppercase tracking-wider active:bg-empty-bg"
+                >
+                  <span>What's included <span className="text-gray-300">({usefulInclusions.length})</span></span>
+                  <span className={`text-dark text-[11px] transition-transform ${includesExpanded ? 'rotate-180' : ''}`}>▾</span>
+                </button>
+              </td>
+            </tr>
+          )}
+          {includesExpanded && usefulInclusions.map(inc => (
+            <tr key={inc} className="border-b border-card-border/50">
+              <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">{inc}</td>
+              {vendors.map(v => {
+                const has = v.includes?.includes(inc)
+                return (
+                  <td key={v.id} className={`py-2 px-2 text-center ${has ? 'text-green-600' : 'text-gray-300'}`}>
+                    {has ? '✓' : '—'}
+                  </td>
+                )
+              })}
             </tr>
           ))}
 

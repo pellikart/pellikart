@@ -142,6 +142,7 @@ export const mockVendors: Record<string, Vendor> = {
     style: "Royal Heritage", area: "Rajouri Garden, Delhi", capacity: 1500, price: 850000,
     rating: 4.8, packageTier: "Premium", likes: [{ userId: "u-mom", name: "Mom" }, { userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
     categoryFields: { venueType: "Palace", setting: "Indoor", capacity: "1500", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Veg only", alcoholPolicy: "Allowed", outsideCatering: "Not allowed", musicRestriction: "Till 12 AM" },
+    includes: ["AC Hall", "Parking", "Valet", "Bridal Suite", "Guest Rooms", "Sound System", "In-house Catering", "Generator Backup", "CCTV", "Security", "Furniture", "Basic Lighting", "Cleaning"],
     category: "Venue", bundleMandatory: true, bundledListings: ["v-catering-3", "v-decor-3"],
     hourlyPricing: [{ hours: 12, price: 550000 }, { hours: 24, price: 850000 }],
     paidRooms: [
@@ -162,18 +163,21 @@ export const mockVendors: Record<string, Vendor> = {
     style: "Rustic Farmhouse", area: "Chattarpur, Delhi", capacity: 800, price: 550000,
     rating: 4.5, packageTier: "Standard", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
     categoryFields: { venueType: "Farmhouse", setting: "Both", capacity: "800", roomsAvailable: "10-20", parkingSpots: "100 cars", foodPolicy: "Non-veg allowed", alcoholPolicy: "Allowed", outsideCatering: "Allowed", musicRestriction: "Till 10 PM" },
+    includes: ["AC Hall", "Parking", "Lawn Area", "Pool Access", "Bridal Suite", "Sound System", "Generator Backup", "Furniture", "Basic Lighting", "Cleaning"],
   },
   "v-venue-3": {
     id: "v-venue-3", code: "Venue 003", name: "Skyline Banquets", photo: img("venue", 3),
     style: "Modern Rooftop", area: "Connaught Place, Delhi", capacity: 500, price: 420000,
     rating: 4.3, packageTier: "Standard", likes: [], booked: false, amountPaid: 0,
     categoryFields: { venueType: "Rooftop", setting: "Outdoor", capacity: "500", roomsAvailable: "None", parkingSpots: "50 cars", foodPolicy: "Veg only", alcoholPolicy: "BYOB only", outsideCatering: "In-house mandatory", musicRestriction: "Till 10 PM" },
+    includes: ["Sound System", "Elevator", "Wi-Fi", "CCTV", "Security", "In-house Catering", "Furniture", "Basic Lighting", "Cleaning"],
   },
   "v-venue-4": {
     id: "v-venue-4", code: "Venue 004", name: "Garden Bliss Resort", photo: img("venue", 4),
     style: "Garden Party", area: "Gurugram, Haryana", capacity: 1200, price: 720000,
     rating: 4.6, packageTier: "Premium", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
     categoryFields: { venueType: "Resort", setting: "Outdoor", capacity: "1200", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Non-veg allowed", alcoholPolicy: "Allowed", outsideCatering: "In-house mandatory", musicRestriction: "Till 12 AM" },
+    includes: ["AC Hall", "Parking", "Valet", "Bridal Suite", "Guest Rooms", "Lawn Area", "Pool Access", "Sound System", "In-house Catering", "Generator Backup", "Wi-Fi", "Security"],
     category: "Venue", bundleMandatory: true, bundledListings: ["v-catering-1", "v-decor-1"],
     hourlyPricing: [{ hours: 12, price: 480000 }, { hours: 24, price: 720000 }],
     paidRooms: [

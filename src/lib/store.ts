@@ -412,6 +412,7 @@ export const useStore = create<AppState & LiveModeState & {
               bundleMandatory: parentVendor?.bundleMandatory,
               hourlyPricing: parentVendor?.hourlyPricing,
               paidRooms: parentVendor?.paidRooms,
+              includes: parentVendor?.includes,
             }
           }
           set({ vendors: scaledVendors, ritualBoards: mockBoards })
@@ -457,6 +458,7 @@ export const useStore = create<AppState & LiveModeState & {
           bundleMandatory: parentVendor?.bundleMandatory,
           hourlyPricing: parentVendor?.hourlyPricing,
           paidRooms: parentVendor?.paidRooms,
+          includes: parentVendor?.includes,
         };
       }
 
@@ -963,6 +965,7 @@ export const useStore = create<AppState & LiveModeState & {
             bundleMandatory: parentVendor?.bundleMandatory,
             hourlyPricing: parentVendor?.hourlyPricing,
             paidRooms: parentVendor?.paidRooms,
+            includes: parentVendor?.includes,
           },
         },
       };
