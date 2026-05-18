@@ -3,6 +3,8 @@ import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
 import { formatINR, bgStyle, getEffectivePrice } from '@/lib/helpers'
+import { getListingConfig } from '@/lib/vendor-category-config'
+import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 
 interface Props {
@@ -22,6 +24,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   // Local mock-up state: how many of each paid room the couple is interested in.
   // Not persisted — only here to visualize the inventory cap + a separate subtotal.
   const [roomSelections, setRoomSelections] = useState<Record<string, number>>({})
+  const [roomsExpanded, setRoomsExpanded] = useState(false)
 
   // In live mode, the vendor object has all the data. In demo mode, look up parent vendor.
   const parentVendor = _liveMode ? null : (() => {
@@ -42,11 +45,32 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
   const likeNames = vendor.likes.map((l) => l.name)
 
-  // Category-specific fields to display
+  // Category-specific fields to display, paired with proper labels from the listing config.
   const categoryFields = vendor.categoryFields || {}
-  const fieldEntries = Object.entries(categoryFields).filter(([, v]) =>
-    v && (typeof v === 'string' ? v : v.length > 0)
-  )
+  const labeledFields: { label: string; value: string }[] = (() => {
+    const config = vendor.category ? getListingConfig(vendor.category) : null
+    if (!config) return []
+    const out: { label: string; value: string }[] = []
+    for (const step of config.steps) {
+      for (const field of step.fields) {
+        const raw = categoryFields[field.key]
+        if (raw === undefined || raw === null || raw === '') continue
+        if (Array.isArray(raw) && raw.length === 0) continue
+        let display: string
+        if (Array.isArray(raw)) {
+          display = raw.join(', ')
+        } else if (field.type === 'slider' && field.sliderUnit) {
+          display = `${raw} ${field.sliderUnit}`
+        } else if (field.type === 'number' && field.numberUnit) {
+          display = `${raw} ${field.numberUnit}`
+        } else {
+          display = raw
+        }
+        out.push({ label: field.label, value: display })
+      }
+    }
+    return out
+  })()
 
   // Availability check for couple's event dates
   const { onboardingData } = useStore()
@@ -170,17 +194,65 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </div>
             )}
 
-            {/* Category-Specific Details */}
-            {fieldEntries.length > 0 && (
+            {/* Mandatory bundle prices — for venues that require in-house catering/decor */}
+            {vendor.category === 'Venue' && vendor.bundleMandatory && vendor.bundledListings && vendor.bundledListings.length > 0 && (() => {
+              const bundles = buildBundleEntries(vendor.bundledListings, allVendors)
+              if (bundles.length === 0) return null
+              const venuePrice = getEffectivePrice(vendor, selectedTierHours)
+              const bundleTotal = bundles.reduce((s, b) => s + b.price, 0)
+              return (
+                <div className="mb-4 p-3 rounded-xl bg-magenta-light/40 border border-magenta/20">
+                  <p className="text-[11px] font-semibold text-dark">Required add-ons</p>
+                  <p className="text-[10px] text-gray-600 mb-2">This venue mandates the following in-house services. They're added automatically when you select the venue.</p>
+                  <div className="space-y-1.5 mb-2">
+                    {bundles.map(b => (
+                      <div key={b.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium text-dark truncate">{b.name}</p>
+                          <p className="text-[9px] text-gray-400">{b.category}</p>
+                        </div>
+                        <p className="text-[11px] font-semibold text-magenta shrink-0">{formatINR(b.price)}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-2 border-t border-magenta/20 space-y-0.5">
+                    <div className="flex justify-between text-[10px] text-gray-500">
+                      <span>Venue</span><span>{formatINR(venuePrice)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-500">
+                      <span>Required add-ons</span><span>{formatINR(bundleTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-[12px] font-bold text-dark pt-1">
+                      <span>Total commitment</span><span className="text-magenta">{formatINR(venuePrice + bundleTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Rituals / events this listing is suitable for */}
+            {vendor.rituals && vendor.rituals.length > 0 && (
+              <div className="mb-4">
+                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Good for</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {vendor.rituals.map((r, i) => (
+                    <span key={i} className="bg-magenta-light text-magenta text-[9px] font-medium px-2 py-1 rounded-full">{r}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Category-Specific Details — labeled */}
+            {labeledFields.length > 0 && (
               <div className="mb-4">
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Details</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {fieldEntries.map(([key, val]) => {
-                    const values = typeof val === 'string' ? [val] : val
-                    return values.map((v, i) => (
-                      <span key={`${key}-${i}`} className="bg-mustard-light text-mustard text-[9px] font-medium px-2 py-1 rounded-full">{v}</span>
-                    ))
-                  })}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl border border-card-border p-3">
+                  {labeledFields.map((f, i) => (
+                    <div key={i}>
+                      <p className="text-[9px] text-gray-400 uppercase tracking-wider">{f.label}</p>
+                      <p className="text-[11px] font-medium text-dark mt-0.5">{f.value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -245,16 +317,30 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </>
             )}
 
-            {/* Paid rooms (Venue) — interactive mock-up */}
+            {/* Paid rooms (Venue) — collapsible interactive mock-up */}
             {vendor.paidRooms && vendor.paidRooms.length > 0 && (() => {
               const roomsSubtotal = vendor.paidRooms.reduce((sum, r) => sum + (roomSelections[r.id] || 0) * r.price, 0)
+              const totalRoomCount = vendor.paidRooms.reduce((sum, r) => sum + r.count, 0)
+              const pickedCount = Object.values(roomSelections).reduce((s, n) => s + n, 0)
               return (
-                <>
-                  <div className="flex items-baseline justify-between mb-1">
-                    <p className="text-[10px] font-semibold text-dark uppercase tracking-wider">Rooms available ({vendor.paidRooms.length})</p>
-                  </div>
-                  <p className="text-[9px] text-gray-400 italic mb-2">Charged separately — not included in venue price.</p>
-                  <div className="space-y-2 mb-2">
+                <div className="mb-4 rounded-xl border border-card-border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setRoomsExpanded(v => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 active:bg-empty-bg"
+                  >
+                    <div className="text-left">
+                      <p className="text-[11px] font-semibold text-dark">Rooms available</p>
+                      <p className="text-[10px] text-gray-500">
+                        {vendor.paidRooms.length} {vendor.paidRooms.length === 1 ? 'option' : 'options'} · {totalRoomCount} total {totalRoomCount === 1 ? 'room' : 'rooms'}
+                        {pickedCount > 0 && <span className="text-magenta font-medium"> · {pickedCount} picked</span>}
+                      </p>
+                    </div>
+                    <span className={`text-dark text-[12px] transition-transform ${roomsExpanded ? 'rotate-180' : ''}`}>▾</span>
+                  </button>
+                  {roomsExpanded && (<>
+                  <p className="text-[9px] text-gray-400 italic px-3 pb-2">Charged separately — not included in venue price.</p>
+                  <div className="space-y-2 px-3 pb-3 border-t border-card-border pt-2">
                     {vendor.paidRooms.map((room) => {
                       const picked = roomSelections[room.id] || 0
                       const atMax = picked >= room.count
@@ -313,12 +399,13 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                     })}
                   </div>
                   {roomsSubtotal > 0 && (
-                    <div className="mb-4 p-2.5 rounded-xl bg-mustard-light/40 border border-mustard/30 flex items-center justify-between">
+                    <div className="mx-3 mb-3 p-2.5 rounded-xl bg-mustard-light/40 border border-mustard/30 flex items-center justify-between">
                       <span className="text-[11px] font-medium text-dark">Rooms subtotal</span>
                       <span className="text-[14px] font-bold text-magenta">{formatINR(roomsSubtotal)}</span>
                     </div>
                   )}
-                </>
+                  </>)}
+                </div>
               )
             })()}
 
