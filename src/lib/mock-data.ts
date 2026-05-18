@@ -143,6 +143,19 @@ export const mockVendors: Record<string, Vendor> = {
     rating: 4.8, packageTier: "Premium", likes: [{ userId: "u-mom", name: "Mom" }, { userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
     categoryFields: { venueType: "Palace", setting: "Indoor", capacity: "1500", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Veg only", alcoholPolicy: "Allowed", outsideCatering: "Not allowed", musicRestriction: "Till 12 AM" },
     category: "Venue", bundleMandatory: true, bundledListings: ["v-catering-3", "v-decor-3"],
+    hourlyPricing: [{ hours: 12, price: 550000 }, { hours: 24, price: 850000 }],
+    paidRooms: [
+      {
+        id: "pr-grand-1", sharing: 2, count: 8, price: 12000,
+        amenities: ["AC", "Attached bathroom", "Hot water 24x7", "Wi-Fi", "TV", "Tea/coffee maker", "Daily housekeeping", "Breakfast included"],
+        photos: ["/images/gallery/venue/1.jpg", "/images/gallery/venue/5.jpg"],
+      },
+      {
+        id: "pr-grand-2", sharing: 4, count: 12, price: 18000,
+        amenities: ["AC", "Attached bathroom", "Hot water 24x7", "Wi-Fi", "Mini fridge", "Daily housekeeping", "Breakfast included", "Room service"],
+        photos: ["/images/gallery/venue/2.jpg", "/images/gallery/venue/6.jpg", "/images/gallery/venue/3.jpg"],
+      },
+    ],
   },
   "v-venue-2": {
     id: "v-venue-2", code: "Venue 002", name: "Lakeview Farms", photo: img("venue", 2),
@@ -162,6 +175,24 @@ export const mockVendors: Record<string, Vendor> = {
     rating: 4.6, packageTier: "Premium", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
     categoryFields: { venueType: "Resort", setting: "Outdoor", capacity: "1200", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Non-veg allowed", alcoholPolicy: "Allowed", outsideCatering: "In-house mandatory", musicRestriction: "Till 12 AM" },
     category: "Venue", bundleMandatory: true, bundledListings: ["v-catering-1", "v-decor-1"],
+    hourlyPricing: [{ hours: 12, price: 480000 }, { hours: 24, price: 720000 }],
+    paidRooms: [
+      {
+        id: "pr-garden-1", sharing: 2, count: 6, price: 9500,
+        amenities: ["AC", "Attached bathroom", "Wi-Fi", "Balcony", "Tea/coffee maker", "Daily housekeeping"],
+        photos: ["/images/gallery/venue/4.jpg", "/images/gallery/venue/8.jpg"],
+      },
+      {
+        id: "pr-garden-2", sharing: 4, count: 10, price: 14000,
+        amenities: ["AC", "Attached bathroom", "Hot water 24x7", "Wi-Fi", "TV", "Mini fridge", "Balcony"],
+        photos: ["/images/gallery/venue/7.jpg", "/images/gallery/venue/4.jpg"],
+      },
+      {
+        id: "pr-garden-3", sharing: 6, count: 4, price: 22000,
+        amenities: ["AC", "Attached bathroom", "Hot water 24x7", "Wi-Fi", "TV", "Mini fridge", "Balcony", "Room service", "Breakfast included"],
+        photos: ["/images/gallery/venue/8.jpg"],
+      },
+    ],
   },
 
   // === CATERING ===

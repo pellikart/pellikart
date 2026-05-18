@@ -7,7 +7,7 @@
 export interface SelectField {
   key: string
   label: string
-  type: 'single' | 'multi' | 'toggle' | 'slider'
+  type: 'single' | 'multi' | 'toggle' | 'slider' | 'number'
   options?: string[]
   /** For toggle fields */
   toggleLabels?: [string, string]
@@ -16,8 +16,13 @@ export interface SelectField {
   sliderMax?: number
   sliderStep?: number
   sliderUnit?: string
-  /** Show this field only when another field's value is not in the excluded list */
-  visibleWhen?: { key: string; notEquals: string | string[] }
+  /** For number-stepper fields */
+  numberMin?: number
+  numberMax?: number
+  numberStep?: number
+  numberUnit?: string
+  /** Conditional visibility based on another field's value */
+  visibleWhen?: { key: string; notEquals?: string | string[]; equals?: string | string[] }
 }
 
 export interface CategoryOnboardingConfig {
@@ -230,9 +235,16 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'venueType', label: 'Venue type', type: 'single', options: ['Banquet Hall', 'Farmhouse', 'Resort', 'Hotel', 'Lawn', 'Palace', 'Rooftop', 'Convention Center'] },
           { key: 'setting', label: 'Setting', type: 'single', options: ['Indoor', 'Outdoor', 'Both'] },
           { key: 'capacity', label: 'Guest capacity', type: 'slider', sliderMin: 50, sliderMax: 2000, sliderStep: 50, sliderUnit: 'guests' },
-          { key: 'roomsAvailable', label: 'Rooms available', type: 'single', options: ['None', '1-5', '5-10', '10-20', '20+'] },
+        ],
+      },
+      {
+        title: 'Rooms & parking',
+        subtitle: 'Let couples know what extras come with the venue.',
+        fields: [
           { key: 'parkingSpots', label: 'Parking', type: 'single', options: ['No parking', '20 cars', '50 cars', '100 cars', '200+ cars'] },
           { key: 'valetParking', label: 'Is valet parking available?', type: 'single', options: ['Yes', 'No'], visibleWhen: { key: 'parkingSpots', notEquals: 'No parking' } },
+          { key: 'complimentaryRooms', label: 'Are complimentary rooms available?', type: 'single', options: ['Yes', 'No'] },
+          { key: 'complimentaryRoomsCount', label: 'How many?', type: 'number', numberMin: 1, numberMax: 50, numberStep: 1, numberUnit: 'rooms', visibleWhen: { key: 'complimentaryRooms', equals: 'Yes' } },
         ],
       },
       {

@@ -5,6 +5,8 @@ import { VendorListing } from '@/lib/vendor-types'
 import { formatINR } from '@/lib/helpers'
 import { getListingConfig, RITUALS, type SelectField } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
+import PaidRoomsEditor from '@/components/PaidRoomsEditor'
+import type { PaidRoom } from '@/lib/vendor-types'
 
 export default function VendorAddListing() {
   const navigate = useNavigate()
@@ -39,6 +41,10 @@ export default function VendorAddListing() {
   const [linkedVenueMandatory, setLinkedVenueMandatory] = useState(false)
   // Venue-only: per-duration price tiers
   const [hourlyPricing, setHourlyPricing] = useState<{ hours: number; price: number }[]>([])
+  // Venue-only: paid lodging rooms
+  const [paidRooms, setPaidRooms] = useState<PaidRoom[]>([])
+  // Per-room pending File uploads (live mode publish replaces blob URLs with public URLs)
+  const [paidRoomFiles, setPaidRoomFiles] = useState<Record<string, File[]>>({})
 
   // When category changes (Venue vendor switching listing type), reset category-dependent state
   function changeCategory(next: string) {
@@ -54,14 +60,21 @@ export default function VendorAddListing() {
     setLinkedVenueIds([])
     setLinkedVenueMandatory(false)
     setHourlyPricing([])
+    setPaidRooms([])
+    setPaidRoomFiles({})
   }
 
-  // Steps: 1=Photos & Name, 2=Rituals, 3..N=Category-specific steps, [N+1=Style & Price], N+2=Inclusions, N+3=Review
-  // Venue listings skip the Style & Price step entirely (no style chips, price is per-tier on Review).
+  // Steps: 1=Photos & Name, 2=Rituals, 3..N=Category-specific steps, [Paid Rooms (Venue)],
+  // [N+1=Style & Price], N+2=Inclusions, N+3=Review
+  // Venue listings skip the Style & Price step but gain a "Paid rooms" step right after
+  // their category-specific steps.
   const categoryStepCount = config.steps.length
   const hasStylePriceStep = category !== 'Venue'
-  const stylePriceStep = hasStylePriceStep ? 3 + categoryStepCount : -1
-  const inclusionsStep = hasStylePriceStep ? stylePriceStep + 1 : 3 + categoryStepCount
+  const hasPaidRoomsStep = category === 'Venue'
+  const extraVenueSteps = hasPaidRoomsStep ? 1 : 0
+  const paidRoomsStep = hasPaidRoomsStep ? 3 + categoryStepCount : -1
+  const stylePriceStep = hasStylePriceStep ? 3 + categoryStepCount + extraVenueSteps : -1
+  const inclusionsStep = hasStylePriceStep ? stylePriceStep + 1 : 3 + categoryStepCount + extraVenueSteps
   const reviewStep = inclusionsStep + 1
   const totalSteps = reviewStep
 
@@ -97,19 +110,29 @@ export default function VendorAddListing() {
   function isFieldVisible(field: SelectField, values: Record<string, string | string[]>): boolean {
     if (!field.visibleWhen) return true
     const dep = values[field.visibleWhen.key]
-    const excluded = field.visibleWhen.notEquals
-    const excludedList = Array.isArray(excluded) ? excluded : [excluded]
-    return typeof dep === 'string' ? !excludedList.includes(dep) : true
+    const { notEquals, equals } = field.visibleWhen
+    if (equals !== undefined) {
+      const list = Array.isArray(equals) ? equals : [equals]
+      return typeof dep === 'string' && list.includes(dep)
+    }
+    if (notEquals !== undefined) {
+      const list = Array.isArray(notEquals) ? notEquals : [notEquals]
+      return typeof dep === 'string' ? !list.includes(dep) : true
+    }
+    return true
   }
 
   function setCategoryField(key: string, value: string | string[]) {
     setCategoryFields(prev => {
       const next = { ...prev, [key]: value }
-      // Drop any fields whose visibility condition no longer holds
       for (const stepCfg of config.steps) {
         for (const f of stepCfg.fields) {
-          if (f.visibleWhen && !isFieldVisible(f, next)) {
+          if (!f.visibleWhen) continue
+          if (!isFieldVisible(f, next)) {
             delete next[f.key]
+          } else if (f.type === 'number' && next[f.key] === undefined) {
+            // Field just became visible — pre-fill with its min so the displayed value is the stored value
+            next[f.key] = String(f.numberMin ?? 0)
           }
         }
       }
@@ -154,6 +177,18 @@ export default function VendorAddListing() {
       ? (hourlyPricing.find(t => t.hours === 24)?.price || hourlyPricing[0].price || price)
       : price
 
+    // Upload paid-room photos in live mode and replace blob URLs with public URLs.
+    let paidRoomsForPayload: PaidRoom[] = paidRooms
+    if (category === 'Venue' && paidRooms.length > 0 && _liveMode && _vendorDbId) {
+      paidRoomsForPayload = await Promise.all(paidRooms.map(async room => {
+        const files = paidRoomFiles[room.id] || []
+        if (files.length === 0) return room
+        const uploaded = await uploadPhotos(_vendorDbId, files, 'listing')
+        // Replace the room's photos with uploaded URLs (drop the blob previews).
+        return uploaded.length > 0 ? { ...room, photos: uploaded } : room
+      }))
+    }
+
     const listing: VendorListing = {
       id: `vl-${Date.now()}`,
       name: name || `${category} Listing`,
@@ -170,6 +205,7 @@ export default function VendorAddListing() {
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
       hourlyPricing: category === 'Venue' && hourlyPricing.length > 0 ? hourlyPricing : undefined,
+      paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
     }
     addListing(listing)
 
@@ -405,6 +441,25 @@ export default function VendorAddListing() {
             </div>
           )
         })}
+
+        {/* Paid rooms step (Venue only) */}
+        {step === paidRoomsStep && hasPaidRoomsStep && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">Paid rooms (optional)</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Add rooms you rent out for guests. Each room can have its own occupancy, price, amenities, and photos.</p>
+            <PaidRoomsEditor
+              value={paidRooms}
+              onChange={setPaidRooms}
+              onFilesAdded={(roomId, files) =>
+                setPaidRoomFiles(prev => ({ ...prev, [roomId]: [...(prev[roomId] || []), ...files] }))
+              }
+            />
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setStep(paidRoomsStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              <button onClick={() => setStep(paidRoomsStep + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
+            </div>
+          </div>
+        )}
 
         {/* Style & Price step */}
         {step === stylePriceStep && (
@@ -747,6 +802,43 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
           })}
         </div>
         {selected.length > 0 && <p className="text-[9px] text-gray-400 mt-1">{selected.length} selected</p>}
+      </div>
+    )
+  }
+
+  if (field.type === 'number') {
+    const min = field.numberMin ?? 0
+    const max = field.numberMax ?? 999
+    const step = field.numberStep ?? 1
+    const numVal = typeof value === 'string' ? (parseInt(value) || min) : min
+    const dec = () => onChange(String(Math.max(min, numVal - step)))
+    const inc = () => onChange(String(Math.min(max, numVal + step)))
+    return (
+      <div>
+        <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
+        <div className="inline-flex items-stretch rounded-xl border border-card-border overflow-hidden">
+          <button
+            type="button" onClick={dec}
+            disabled={numVal <= min}
+            className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+          >−</button>
+          <input
+            type="number"
+            min={min} max={max} step={step}
+            value={numVal}
+            onChange={(e) => {
+              const n = parseInt(e.target.value) || min
+              onChange(String(Math.min(max, Math.max(min, n))))
+            }}
+            className="w-14 text-center text-[13px] font-medium text-dark outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <button
+            type="button" onClick={inc}
+            disabled={numVal >= max}
+            className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+          >+</button>
+          {field.numberUnit && <span className="px-3 flex items-center text-[11px] text-gray-500 border-l border-card-border bg-empty-bg">{field.numberUnit}</span>}
+        </div>
       </div>
     )
   }

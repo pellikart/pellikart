@@ -33,6 +33,7 @@ export interface Vendor {
   listingPhotos?: string[];
   listingVideos?: string[];
   hourlyPricing?: { hours: number; price: number }[];
+  paidRooms?: import('./vendor-types').PaidRoom[];
   categoryFields?: Record<string, string | string[]>;
   includes?: string[];
   phone?: string;

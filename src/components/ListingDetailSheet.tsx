@@ -19,6 +19,9 @@ interface Props {
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
   const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier } = useStore()
+  // Local mock-up state: how many of each paid room the couple is interested in.
+  // Not persisted — only here to visualize the inventory cap + a separate subtotal.
+  const [roomSelections, setRoomSelections] = useState<Record<string, number>>({})
 
   // In live mode, the vendor object has all the data. In demo mode, look up parent vendor.
   const parentVendor = _liveMode ? null : (() => {
@@ -241,6 +244,83 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                 </div>
               </>
             )}
+
+            {/* Paid rooms (Venue) — interactive mock-up */}
+            {vendor.paidRooms && vendor.paidRooms.length > 0 && (() => {
+              const roomsSubtotal = vendor.paidRooms.reduce((sum, r) => sum + (roomSelections[r.id] || 0) * r.price, 0)
+              return (
+                <>
+                  <div className="flex items-baseline justify-between mb-1">
+                    <p className="text-[10px] font-semibold text-dark uppercase tracking-wider">Rooms available ({vendor.paidRooms.length})</p>
+                  </div>
+                  <p className="text-[9px] text-gray-400 italic mb-2">Charged separately — not included in venue price.</p>
+                  <div className="space-y-2 mb-2">
+                    {vendor.paidRooms.map((room) => {
+                      const picked = roomSelections[room.id] || 0
+                      const atMax = picked >= room.count
+                      const atMin = picked <= 0
+                      return (
+                        <div key={room.id} className="rounded-xl border border-card-border overflow-hidden">
+                          {room.photos.length > 0 && (
+                            <div className="flex gap-1 overflow-x-auto">
+                              {room.photos.slice(0, 6).map((p, i) => (
+                                <img key={i} src={p} alt="" className="h-20 w-28 object-cover flex-shrink-0" />
+                              ))}
+                            </div>
+                          )}
+                          <div className="p-2.5">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <p className="text-[12px] font-semibold text-dark">{room.sharing} sharing</p>
+                                <p className="text-[10px] text-gray-500">{room.count} {room.count === 1 ? 'room' : 'rooms'} available</p>
+                              </div>
+                              <p className="text-[12px] font-bold text-magenta">{formatINR(room.price)}</p>
+                            </div>
+                            {room.amenities.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {room.amenities.map((a, i) => (
+                                  <span key={i} className="bg-empty-bg text-[9px] text-gray-600 px-1.5 py-0.5 rounded-full">{a}</span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between pt-2 border-t border-card-border/50">
+                              <span className="text-[10px] text-gray-500">How many?</span>
+                              <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() => setRoomSelections(prev => ({ ...prev, [room.id]: Math.max(0, picked - 1) }))}
+                                  disabled={atMin}
+                                  className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+                                >−</button>
+                                <span className="w-10 flex items-center justify-center text-[12px] font-semibold text-dark">{picked}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setRoomSelections(prev => ({ ...prev, [room.id]: Math.min(room.count, picked + 1) }))}
+                                  disabled={atMax}
+                                  className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+                                >+</button>
+                              </div>
+                            </div>
+                            {atMax && <p className="text-[9px] text-mustard mt-1 text-right">Max available</p>}
+                            {picked > 0 && (
+                              <p className="text-[10px] text-gray-500 mt-1 text-right">
+                                {formatINR(room.price)} × {picked} = <span className="font-semibold text-dark">{formatINR(room.price * picked)}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {roomsSubtotal > 0 && (
+                    <div className="mb-4 p-2.5 rounded-xl bg-mustard-light/40 border border-mustard/30 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-dark">Rooms subtotal</span>
+                      <span className="text-[14px] font-bold text-magenta">{formatINR(roomsSubtotal)}</span>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
 
             {/* Liked by */}
             {likeNames.length > 0 && (

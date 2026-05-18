@@ -3,6 +3,36 @@ export interface BlockedTimeRange {
   to: string    // e.g. '14:00'
 }
 
+export interface PaidRoom {
+  /** Stable per-room id (so we can edit/remove individual rooms). */
+  id: string
+  /** Number of people the room is sized for (2, 4, 6, etc.). */
+  sharing: number
+  /** Inventory: how many rooms of this exact configuration are available. */
+  count: number
+  /** Price per night/room — vendor decides the unit context. */
+  price: number
+  /** Selected amenities from the predefined list. */
+  amenities: string[]
+  /** Photo URLs (blob in demo, public Supabase URLs in live mode). */
+  photos: string[]
+}
+
+export const ROOM_AMENITIES = [
+  'AC',
+  'Attached bathroom',
+  'Hot water 24x7',
+  'TV',
+  'Wi-Fi',
+  'Mini fridge',
+  'Tea/coffee maker',
+  'Wardrobe',
+  'Balcony',
+  'Room service',
+  'Daily housekeeping',
+  'Breakfast included',
+] as const
+
 export interface VendorProfile {
   businessName: string
   category: string
@@ -51,6 +81,8 @@ export interface VendorListing {
   videos?: string[]
   /** Venue-only: per-duration price tiers, e.g. [{ hours: 12, price: 500000 }, ...] */
   hourlyPricing?: { hours: number; price: number }[]
+  /** Venue-only: paid lodging rooms the venue offers, grouped by sharing capacity. */
+  paidRooms?: PaidRoom[]
   /** Index of the photo to use as listing cover (defaults to 0 / first photo) */
   coverPhotoIndex?: number
   category: string

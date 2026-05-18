@@ -101,6 +101,7 @@ export function buildLiveVendorMap(
       bundledListings: (l.bundled_listings as string[]) || [],
       bundleMandatory: (l.bundle_mandatory as boolean) || false,
       hourlyPricing: (l.hourly_pricing as { hours: number; price: number }[]) || undefined,
+      paidRooms: (l.paid_rooms as import('./vendor-types').PaidRoom[]) || undefined,
     }
   }
 
@@ -408,6 +409,8 @@ export const useStore = create<AppState & LiveModeState & {
               category: parentVendor?.category,
               bundledListings: parentVendor?.bundledListings,
               bundleMandatory: parentVendor?.bundleMandatory,
+              hourlyPricing: parentVendor?.hourlyPricing,
+              paidRooms: parentVendor?.paidRooms,
             }
           }
           set({ vendors: scaledVendors, ritualBoards: mockBoards })
@@ -451,6 +454,8 @@ export const useStore = create<AppState & LiveModeState & {
           category: parentVendor?.category,
           bundledListings: parentVendor?.bundledListings,
           bundleMandatory: parentVendor?.bundleMandatory,
+          hourlyPricing: parentVendor?.hourlyPricing,
+          paidRooms: parentVendor?.paidRooms,
         };
       }
 
@@ -955,6 +960,8 @@ export const useStore = create<AppState & LiveModeState & {
             category: parentVendor?.category,
             bundledListings: parentVendor?.bundledListings,
             bundleMandatory: parentVendor?.bundleMandatory,
+            hourlyPricing: parentVendor?.hourlyPricing,
+            paidRooms: parentVendor?.paidRooms,
           },
         },
       };
