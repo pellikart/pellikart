@@ -7,6 +7,7 @@ import { getListingConfig, RITUALS, type SelectField } from '@/lib/vendor-catego
 import { uploadPhotos } from '@/lib/supabase-db'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuBuilder from '@/components/MenuBuilder'
+import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
 import type { PaidRoom, MenuSection } from '@/lib/vendor-types'
 
 export default function VendorAddListing() {
@@ -47,6 +48,10 @@ export default function VendorAddListing() {
   const [paidRoomFiles, setPaidRoomFiles] = useState<Record<string, File[]>>({})
   // Catering-only: curated menu
   const [menu, setMenu] = useState<MenuSection[]>([])
+  // Decor-only: portfolio of designs — each becomes its own published listing
+  const [designs, setDesigns] = useState<DesignDraft[]>([])
+  // Per-design pending File uploads (live mode publish replaces blob URLs with public URLs)
+  const [designFiles, setDesignFiles] = useState<Record<string, { photos: File[]; videos: File[] }>>({})
 
   // When category changes (Venue vendor switching listing type), reset category-dependent state
   function changeCategory(next: string) {
@@ -64,32 +69,46 @@ export default function VendorAddListing() {
     setPaidRooms([])
     setPaidRoomFiles({})
     setMenu([])
+    setDesigns([])
+    setDesignFiles({})
+    setStep(1)
   }
 
-  // Steps: 1=Photos & Name, 2=Rituals, 3..M=Category-specific. After that,
-  // the order of conditional steps varies by category:
+  // Steps: 1=Photos & Name (skipped for Decor), then Rituals, then category-specific,
+  // then category-conditional steps, then Review. Order of conditional steps:
   //   - Venue:       Inclusions → Paid rooms → Review
   //   - Catering:    Menu → Pricing → Review
-  //   - Decor:       (nothing) → Review
+  //   - Decor:       Designs (per-design listings) → Review (no Photos & Name, no Pricing, no Inclusions)
   //   - Photography: Pricing → Review (no Inclusions)
   //   - Others:      Pricing → Inclusions → Review
   const categoryStepCount = config.steps.length
+  const hasPhotosNameStep = category !== 'Decor'
   const hasStylePriceStep = category !== 'Venue' && category !== 'Decor'
   const hasPaidRoomsStep = category === 'Venue'
   const hasMenuStep = category === 'Catering'
+  const hasDesignsStep = category === 'Decor'
   const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering'
 
-  let nextStep = 3 + categoryStepCount
+  // Each category gets a contiguous run of steps. Decor skips Photos & Name, so its
+  // step indices start at 1 with Rituals.
+  const photosNameStep = hasPhotosNameStep ? 1 : -1
+  const ritualsStep = hasPhotosNameStep ? 2 : 1
+  const categoryStepStart = ritualsStep + 1
+
+  let nextStep = categoryStepStart + categoryStepCount
   let inclusionsStep = -1
   let paidRoomsStep = -1
   let menuStep = -1
   let stylePriceStep = -1
+  let designsStep = -1
   if (category === 'Venue') {
     if (hasInclusionsStep) inclusionsStep = nextStep++
     if (hasPaidRoomsStep) paidRoomsStep = nextStep++
   } else if (category === 'Catering') {
     if (hasMenuStep) menuStep = nextStep++
     if (hasStylePriceStep) stylePriceStep = nextStep++
+  } else if (category === 'Decor') {
+    if (hasDesignsStep) designsStep = nextStep++
   } else {
     if (hasStylePriceStep) stylePriceStep = nextStep++
     if (hasInclusionsStep) inclusionsStep = nextStep++
@@ -209,6 +228,66 @@ export default function VendorAddListing() {
       }))
     }
 
+    const createdAt = new Date().toISOString().split('T')[0]
+
+    // Decor: fan out each design into its own listing — shared category fields,
+    // rituals, and shared decor logistics. Photos/videos and price per design.
+    if (category === 'Decor') {
+      const ts = Date.now()
+      // Upload each design's photos/videos in live mode and replace blob URLs.
+      const designListings: VendorListing[] = await Promise.all(designs.map(async (d, i) => {
+        let designPhotos = d.photos
+        let designVideos = d.videos
+        if (_liveMode && _vendorDbId) {
+          const files = designFiles[d.id]
+          if (files?.photos.length) {
+            const uploaded = await uploadPhotos(_vendorDbId, files.photos, 'listing')
+            if (uploaded.length > 0) designPhotos = uploaded
+          }
+          if (files?.videos.length) {
+            const uploaded = await uploadPhotos(_vendorDbId, files.videos, 'listing')
+            if (uploaded.length > 0) designVideos = uploaded
+          }
+        }
+        return {
+          id: `vl-${ts}-${i}`,
+          name: d.name.trim() || `Design ${i + 1}`,
+          photos: designPhotos,
+          videos: designVideos.length > 0 ? designVideos : undefined,
+          coverPhotoIndex: 0,
+          category,
+          price: d.price,
+          style: '',
+          rituals,
+          categoryFields,
+          includes,
+          createdAt,
+        }
+      }))
+      for (const l of designListings) addListing(l)
+
+      // Apply Decor → venue links to each newly-created design listing
+      if (linkedVenueIds.length > 0) {
+        for (const venueId of linkedVenueIds) {
+          const venue = vendorListings.find(l => l.id === venueId)
+          if (!venue) continue
+          let existing = venue.bundledListings || []
+          for (const dl of designListings) {
+            if (!existing.includes(dl.id)) existing = [...existing, dl.id]
+          }
+          updateListing({
+            ...venue,
+            bundledListings: existing,
+            bundleMandatory: linkedVenueMandatory ? true : venue.bundleMandatory,
+          })
+        }
+      }
+
+      setPublishing(false)
+      navigate('/vendor/listings')
+      return
+    }
+
     const listing: VendorListing = {
       id: `vl-${Date.now()}`,
       name: name || `${category} Listing`,
@@ -221,7 +300,7 @@ export default function VendorAddListing() {
       rituals,
       categoryFields,
       includes,
-      createdAt: new Date().toISOString().split('T')[0],
+      createdAt,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
       hourlyPricing: category === 'Venue' && hourlyPricing.length > 0 ? hourlyPricing : undefined,
@@ -230,9 +309,9 @@ export default function VendorAddListing() {
     }
     addListing(listing)
 
-    // If this Decor/Catering listing was linked to any venues, append it to each
+    // If this Catering listing was linked to any venues, append it to each
     // venue's bundle so the existing user-side mandatory-bundle popup picks it up.
-    if (linkedVenueIds.length > 0 && (category === 'Decor' || category === 'Catering')) {
+    if (linkedVenueIds.length > 0 && category === 'Catering') {
       for (const venueId of linkedVenueIds) {
         const venue = vendorListings.find(l => l.id === venueId)
         if (!venue) continue
@@ -291,7 +370,7 @@ export default function VendorAddListing() {
       <div className="flex-1 px-5 py-5 overflow-y-auto">
 
         {/* Step 1: Photos & Name */}
-        {step === 1 && (
+        {step === photosNameStep && hasPhotosNameStep && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">What do you want to list?</h1>
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Add photos and a name for your {category.toLowerCase()} listing.</p>
@@ -366,15 +445,32 @@ export default function VendorAddListing() {
               />
             </div>
 
-            <button onClick={() => setStep(2)} className="mt-6 w-full py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">
+            <button onClick={() => setStep(ritualsStep)} className="mt-6 w-full py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">
               Next
             </button>
           </div>
         )}
 
-        {/* Step 2: Rituals / Events */}
-        {step === 2 && (
+        {/* Rituals / Events step */}
+        {step === ritualsStep && (
           <div className="animate-fadeIn">
+            {/* Listing type picker for Decor (since Photos & Name step is skipped) */}
+            {!hasPhotosNameStep && allowedCategories.length > 1 && (
+              <div className="mb-4">
+                <p className="text-[11px] font-medium text-dark mb-1.5">Listing type</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {allowedCategories.map(c => (
+                    <button
+                      key={c} onClick={() => changeCategory(c)}
+                      className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${c === category ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <h1 className="text-[20px] font-bold text-dark">Which events is this for?</h1>
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Select all the rituals/events where couples can use this listing. This helps us match you with the right couples.</p>
 
@@ -428,15 +524,19 @@ export default function VendorAddListing() {
             })()}
 
             <div className="flex gap-2 mt-6">
-              <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
-              <button onClick={() => setStep(3)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
+              {hasPhotosNameStep ? (
+                <button onClick={() => setStep(photosNameStep)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              ) : (
+                <button onClick={() => navigate('/vendor/listings')} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
+              )}
+              <button onClick={() => setStep(categoryStepStart)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
             </div>
           </div>
         )}
 
         {/* Category-specific steps */}
         {config.steps.map((stepConfig, idx) => {
-          const stepNum = 3 + idx
+          const stepNum = categoryStepStart + idx
           if (step !== stepNum) return null
           return (
             <div key={stepNum} className="animate-fadeIn">
@@ -462,6 +562,33 @@ export default function VendorAddListing() {
             </div>
           )
         })}
+
+        {/* Designs step (Decor only) — each design becomes its own published listing */}
+        {step === designsStep && hasDesignsStep && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">Add your designs</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Each design becomes a separate listing couples can browse. Add photos, a price, and an optional name per design.</p>
+            <DesignsEditor
+              value={designs}
+              onChange={setDesigns}
+              onFilesAdded={(designId, kind, files) =>
+                setDesignFiles(prev => {
+                  const entry = prev[designId] || { photos: [], videos: [] }
+                  return {
+                    ...prev,
+                    [designId]: kind === 'photo'
+                      ? { ...entry, photos: [...entry.photos, ...files] }
+                      : { ...entry, videos: [...entry.videos, ...files] },
+                  }
+                })
+              }
+            />
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setStep(designsStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              <button onClick={() => setStep(designsStep + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
+            </div>
+          </div>
+        )}
 
         {/* Menu step (Catering only) */}
         {step === menuStep && hasMenuStep && (
@@ -557,9 +684,39 @@ export default function VendorAddListing() {
         {step === reviewStep && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">Review & publish</h1>
-            <p className="text-[11px] text-gray-400 mt-1 mb-5">Here's how your listing will look to couples.</p>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">
+              {category === 'Decor'
+                ? `Each design will be published as its own listing — ${designs.length} ${designs.length === 1 ? 'listing' : 'listings'} total.`
+                : "Here's how your listing will look to couples."}
+            </p>
 
-            {/* Preview card */}
+            {/* Decor: grid of design tiles instead of single preview card */}
+            {category === 'Decor' && (
+              <div className="rounded-2xl border border-card-border p-3 mb-4">
+                {designs.length === 0 ? (
+                  <p className="text-[11px] text-gray-500 italic text-center py-4">No designs added — go back and add at least one before publishing.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {designs.map((d, i) => (
+                      <div key={d.id} className="rounded-xl overflow-hidden border border-card-border">
+                        {d.photos[0] ? (
+                          <img src={d.photos[0]} alt="" className="w-full h-24 object-cover" />
+                        ) : (
+                          <div className="w-full h-24 bg-empty-bg flex items-center justify-center text-gray-400 text-[10px]">No photo</div>
+                        )}
+                        <div className="p-2">
+                          <p className="text-[11px] font-semibold text-dark truncate">{d.name.trim() || `Design ${i + 1}`}</p>
+                          <p className="text-[10px] font-bold text-mustard mt-0.5">{d.price > 0 ? formatINR(d.price) : 'Price not set'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Standard preview card (non-Decor) */}
+            {category !== 'Decor' && (
             <div className="rounded-2xl border border-card-border overflow-hidden mb-4">
               {photoPreviews.length > 0 ? (
                 <img src={photoPreviews[coverIndex] || photoPreviews[0]} alt="" className="w-full h-40 object-cover" />
@@ -614,6 +771,7 @@ export default function VendorAddListing() {
                 )}
               </div>
             </div>
+            )}
 
             {/* Venue-only: per-duration hourly pricing tiers */}
             {category === 'Venue' && (
