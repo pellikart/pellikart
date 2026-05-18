@@ -66,26 +66,35 @@ export default function VendorAddListing() {
     setMenu([])
   }
 
-  // Steps: 1=Photos & Name, 2=Rituals, 3..N=Category-specific steps,
-  // [Paid rooms (Venue only)], [Menu (Catering only)], [Pricing (non-Venue/non-Decor)],
-  // [Inclusions (not Decor/Photography/Catering)], Review.
+  // Steps: 1=Photos & Name, 2=Rituals, 3..M=Category-specific. After that,
+  // the order of conditional steps varies by category:
+  //   - Venue:       Inclusions → Paid rooms → Review
+  //   - Catering:    Menu → Pricing → Review
+  //   - Decor:       (nothing) → Review
+  //   - Photography: Pricing → Review (no Inclusions)
+  //   - Others:      Pricing → Inclusions → Review
   const categoryStepCount = config.steps.length
   const hasStylePriceStep = category !== 'Venue' && category !== 'Decor'
   const hasPaidRoomsStep = category === 'Venue'
   const hasMenuStep = category === 'Catering'
   const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering'
-  const extraVenueSteps = hasPaidRoomsStep ? 1 : 0
-  const extraCateringSteps = hasMenuStep ? 1 : 0
-  const paidRoomsStep = hasPaidRoomsStep ? 3 + categoryStepCount : -1
-  const menuStep = hasMenuStep ? 3 + categoryStepCount : -1
-  const stylePriceStep = hasStylePriceStep ? 3 + categoryStepCount + extraVenueSteps + extraCateringSteps : -1
-  // The step after pricing (or after paid rooms / menu) — anchor for Inclusions/Review.
-  const afterPricing = hasStylePriceStep ? stylePriceStep
-    : hasPaidRoomsStep ? paidRoomsStep
-    : hasMenuStep ? menuStep
-    : 2 + categoryStepCount
-  const inclusionsStep = hasInclusionsStep ? afterPricing + 1 : -1
-  const reviewStep = (hasInclusionsStep ? inclusionsStep : afterPricing) + 1
+
+  let nextStep = 3 + categoryStepCount
+  let inclusionsStep = -1
+  let paidRoomsStep = -1
+  let menuStep = -1
+  let stylePriceStep = -1
+  if (category === 'Venue') {
+    if (hasInclusionsStep) inclusionsStep = nextStep++
+    if (hasPaidRoomsStep) paidRoomsStep = nextStep++
+  } else if (category === 'Catering') {
+    if (hasMenuStep) menuStep = nextStep++
+    if (hasStylePriceStep) stylePriceStep = nextStep++
+  } else {
+    if (hasStylePriceStep) stylePriceStep = nextStep++
+    if (hasInclusionsStep) inclusionsStep = nextStep++
+  }
+  const reviewStep = nextStep
   const totalSteps = reviewStep
 
   const pr = config.priceRange
