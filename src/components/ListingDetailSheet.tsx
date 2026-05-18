@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice } from '@/lib/helpers'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 
 interface Props {
@@ -10,12 +10,15 @@ interface Props {
   onClose: () => void
   unlocked: boolean
   onSwitchListing?: (id: string) => void
+  ritualId?: string
+  categoryId?: string
+  selectedTierHours?: number
 }
 
 
-export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing }: Props) {
+export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
-  const { _liveMode, _listingVendorMap, vendors: allVendors } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier } = useStore()
 
   // In live mode, the vendor object has all the data. In demo mode, look up parent vendor.
   const parentVendor = _liveMode ? null : (() => {
@@ -32,6 +35,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
   // Gallery: use only listing photos
   const gallery = (vendor.listingPhotos || []).filter(Boolean)
+  const videos = (vendor.listingVideos || []).filter(Boolean)
 
   const likeNames = vendor.likes.map((l) => l.name)
 
@@ -86,7 +90,40 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             </div>
 
             {/* Price */}
-            <p className="text-[20px] font-bold text-magenta mb-3">{formatINR(vendor.price)}</p>
+            <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
+            {vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
+              <p className="text-[10px] text-gray-400 mb-3">
+                {selectedTierHours ? `For ${selectedTierHours} hr rental` : `Default rate`}
+              </p>
+            )}
+            {!vendor.hourlyPricing?.length && <div className="mb-3" />}
+
+            {/* Hourly tier picker — only when vendor has tiers */}
+            {vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && ritualId && categoryId && (
+              <div className="mb-4 p-2.5 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Pick rental duration</p>
+                <div className="flex flex-col gap-1.5">
+                  {vendor.hourlyPricing.map((tier) => {
+                    const isSelected = selectedTierHours === tier.hours
+                    return (
+                      <button
+                        key={tier.hours}
+                        onClick={() => selectVendorTier(ritualId, categoryId, tier.hours)}
+                        className={`w-full flex items-center justify-between py-2 px-3 rounded-lg text-left transition-all ${isSelected ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border bg-white'}`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-mustard' : 'border-gray-300'}`}>
+                            {isSelected && <span className="w-2 h-2 rounded-full bg-mustard" />}
+                          </span>
+                          <span className="text-[12px] font-medium text-dark">{tier.hours} hr rental</span>
+                        </span>
+                        <span className="text-[12px] font-semibold text-magenta">{formatINR(tier.price)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Details Grid */}
             <div className="grid grid-cols-2 gap-3 mb-4">
@@ -181,6 +218,25 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                     <div key={i} className="aspect-square rounded-lg overflow-hidden">
                       <img src={src} alt="" className="w-full h-full object-cover" />
                     </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Videos */}
+            {videos.length > 0 && (
+              <>
+                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Videos</p>
+                <div className="grid grid-cols-2 gap-1.5 mb-4">
+                  {videos.slice(0, 6).map((src, i) => (
+                    <video
+                      key={i}
+                      src={src}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="w-full aspect-video rounded-lg bg-black object-cover"
+                    />
                   ))}
                 </div>
               </>

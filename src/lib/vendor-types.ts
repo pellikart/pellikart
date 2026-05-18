@@ -9,6 +9,7 @@ export interface VendorProfile {
   city: string
   area: string
   phone: string
+  secondaryPhone?: string
   whatsapp: string
   email: string
   instagram?: string
@@ -16,6 +17,7 @@ export interface VendorProfile {
   experience: number
   teamSize: string
   portfolioPhotos: string[]
+  portfolioVideos?: string[]
   rating: number
   profileCompleteness: number
   /** Category-specific onboarding field values (key → selected value(s)) */
@@ -46,6 +48,9 @@ export interface VendorListing {
   id: string
   name: string
   photos: string[]
+  videos?: string[]
+  /** Venue-only: per-duration price tiers, e.g. [{ hours: 12, price: 500000 }, ...] */
+  hourlyPricing?: { hours: number; price: number }[]
   /** Index of the photo to use as listing cover (defaults to 0 / first photo) */
   coverPhotoIndex?: number
   category: string

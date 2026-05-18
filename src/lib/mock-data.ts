@@ -142,6 +142,7 @@ export const mockVendors: Record<string, Vendor> = {
     style: "Royal Heritage", area: "Rajouri Garden, Delhi", capacity: 1500, price: 850000,
     rating: 4.8, packageTier: "Premium", likes: [{ userId: "u-mom", name: "Mom" }, { userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
     categoryFields: { venueType: "Palace", setting: "Indoor", capacity: "1500", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Veg only", alcoholPolicy: "Allowed", outsideCatering: "Not allowed", musicRestriction: "Till 12 AM" },
+    category: "Venue", bundleMandatory: true, bundledListings: ["v-catering-3", "v-decor-3"],
   },
   "v-venue-2": {
     id: "v-venue-2", code: "Venue 002", name: "Lakeview Farms", photo: img("venue", 2),
@@ -160,6 +161,7 @@ export const mockVendors: Record<string, Vendor> = {
     style: "Garden Party", area: "Gurugram, Haryana", capacity: 1200, price: 720000,
     rating: 4.6, packageTier: "Premium", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
     categoryFields: { venueType: "Resort", setting: "Outdoor", capacity: "1200", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Non-veg allowed", alcoholPolicy: "Allowed", outsideCatering: "In-house mandatory", musicRestriction: "Till 12 AM" },
+    category: "Venue", bundleMandatory: true, bundledListings: ["v-catering-1", "v-decor-1"],
   },
 
   // === CATERING ===

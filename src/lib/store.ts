@@ -84,10 +84,13 @@ export function buildLiveVendorMap(
       // Extended fields
       description: (parentVendor?.description as string) || '',
       portfolioPhotos: (parentVendor?.portfolio_photos as string[]) || [],
+      portfolioVideos: (parentVendor?.portfolio_videos as string[]) || [],
       listingPhotos: (l.photos as string[]) || [],
+      listingVideos: (l.videos as string[]) || [],
       categoryFields: (l.category_fields as Record<string, string | string[]>) || {},
       includes: (l.includes as string[]) || [],
       phone: (parentVendor?.phone as string) || '',
+      secondaryPhone: (parentVendor?.secondary_phone as string) || undefined,
       whatsapp: (parentVendor?.whatsapp as string) || '',
       email: (parentVendor?.email as string) || '',
       instagram: (parentVendor?.instagram as string) || '',
@@ -97,6 +100,7 @@ export function buildLiveVendorMap(
       category: cat,
       bundledListings: (l.bundled_listings as string[]) || [],
       bundleMandatory: (l.bundle_mandatory as boolean) || false,
+      hourlyPricing: (l.hourly_pricing as { hours: number; price: number }[]) || undefined,
     }
   }
 
@@ -402,6 +406,8 @@ export const useStore = create<AppState & LiveModeState & {
               // Inherit category-specific fields so the Compare table shows real detail for design listings
               categoryFields: parentVendor?.categoryFields,
               category: parentVendor?.category,
+              bundledListings: parentVendor?.bundledListings,
+              bundleMandatory: parentVendor?.bundleMandatory,
             }
           }
           set({ vendors: scaledVendors, ritualBoards: mockBoards })
@@ -443,6 +449,8 @@ export const useStore = create<AppState & LiveModeState & {
           // Inherit category-specific fields so the Compare table shows real detail for design listings
           categoryFields: parentVendor?.categoryFields,
           category: parentVendor?.category,
+          bundledListings: parentVendor?.bundledListings,
+          bundleMandatory: parentVendor?.bundleMandatory,
         };
       }
 
@@ -466,18 +474,37 @@ export const useStore = create<AppState & LiveModeState & {
   getMaxTrials: () => maxTrialsForTier(get().subscription),
 
   selectVendor: (ritualId, categoryId, vendorId) => {
-    const { _liveMode, _userId, _listingVendorMap } = get()
+    const { _liveMode, _userId, _listingVendorMap, vendors } = get()
+    // When selecting a venue with hourly pricing, default the tier to 24 hr (or first tier).
+    const v = vendors[vendorId]
+    const defaultTier = v?.hourlyPricing && v.hourlyPricing.length > 0
+      ? (v.hourlyPricing.find(t => t.hours === 24)?.hours || v.hourlyPricing[0].hours)
+      : undefined
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedVendorId: vendorId } : c) }
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedVendorId: vendorId, selectedTierHours: defaultTier } : c) }
           : b
       ),
     }))
     if (_liveMode) {
-      updateBoardCategory(categoryId, { selectedVendorId: vendorId })
+      updateBoardCategory(categoryId, { selectedVendorId: vendorId, selectedTierHours: defaultTier })
       const vid = _listingVendorMap[vendorId]
       if (vid) trackEvent(vid, 'vendor_select', _userId, vendorId)
+    }
+  },
+
+  selectVendorTier: (ritualId, categoryId, tierHours) => {
+    const { _liveMode } = get()
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedTierHours: tierHours } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { selectedTierHours: tierHours })
     }
   },
 
@@ -926,6 +953,8 @@ export const useStore = create<AppState & LiveModeState & {
             // can surface the same detail for design listings.
             categoryFields: parentVendor?.categoryFields,
             category: parentVendor?.category,
+            bundledListings: parentVendor?.bundledListings,
+            bundleMandatory: parentVendor?.bundleMandatory,
           },
         },
       };

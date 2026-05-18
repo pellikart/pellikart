@@ -1,3 +1,18 @@
+import type { Vendor } from './types'
+
+/**
+ * Returns the effective price for a vendor given the couple's selected hourly tier.
+ * Falls back to vendor.price (which the vendor side sets to the 24 hr tier by default).
+ */
+export function getEffectivePrice(vendor: Vendor | undefined, tierHours?: number): number {
+  if (!vendor) return 0
+  if (tierHours && vendor.hourlyPricing) {
+    const tier = vendor.hourlyPricing.find(t => t.hours === tierHours)
+    if (tier) return tier.price
+  }
+  return vendor.price
+}
+
 export function bgStyle(photo: string): { background: string } {
   if (!photo) return { background: '#f3f4f6' }
   const val = photo.startsWith('url(') ? photo : `url(${photo})`

@@ -29,10 +29,14 @@ export interface Vendor {
   // Extended fields (populated in live mode from Supabase)
   description?: string;
   portfolioPhotos?: string[];
+  portfolioVideos?: string[];
   listingPhotos?: string[];
+  listingVideos?: string[];
+  hourlyPricing?: { hours: number; price: number }[];
   categoryFields?: Record<string, string | string[]>;
   includes?: string[];
   phone?: string;
+  secondaryPhone?: string;
   whatsapp?: string;
   email?: string;
   instagram?: string;
@@ -86,6 +90,8 @@ export interface Category {
   removed: boolean;
   /** Decor brief — only meaningful when label === 'Decor' */
   decorBrief?: DecorBrief | null;
+  /** Venue-only: which hourly tier (by hours) the couple picked for the selected vendor */
+  selectedTierHours?: number;
 }
 
 export interface SuggestedVendor {
@@ -134,6 +140,7 @@ export interface AppState {
   completeOnboarding: (data: OnboardingData) => void;
   subscribe: (tier: SubscriptionTier) => void;
   selectVendor: (ritualId: string, categoryId: string, vendorId: string) => void;
+  selectVendorTier: (ritualId: string, categoryId: string, tierHours: number | undefined) => void;
   addToShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   removeFromShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   toggleLike: (vendorId: string, userName: string, userId: string) => void;

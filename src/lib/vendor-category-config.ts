@@ -16,6 +16,8 @@ export interface SelectField {
   sliderMax?: number
   sliderStep?: number
   sliderUnit?: string
+  /** Show this field only when another field's value is not in the excluded list */
+  visibleWhen?: { key: string; notEquals: string | string[] }
 }
 
 export interface CategoryOnboardingConfig {
@@ -219,7 +221,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
   Venue: {
     styles: ['Royal Heritage', 'Garden Party', 'Modern Rooftop', 'Rustic Farmhouse', 'Beachside', 'Palace', 'Boutique Hotel'],
     inclusions: ['AC Hall', 'Parking', 'Valet', 'Bridal Suite', 'Guest Rooms', 'Sound System', 'In-house Catering', 'Generator Backup', 'Lawn Area', 'Pool Access', 'Elevator', 'Wi-Fi', 'CCTV', 'Security', 'Furniture', 'Basic Lighting', 'Cleaning'],
-    priceRange: { min: 100000, max: 2000000, step: 50000 },
+    priceRange: { min: 100000, max: 5000000, step: 50000 },
     steps: [
       {
         title: 'Venue details',
@@ -230,6 +232,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'capacity', label: 'Guest capacity', type: 'slider', sliderMin: 50, sliderMax: 2000, sliderStep: 50, sliderUnit: 'guests' },
           { key: 'roomsAvailable', label: 'Rooms available', type: 'single', options: ['None', '1-5', '5-10', '10-20', '20+'] },
           { key: 'parkingSpots', label: 'Parking', type: 'single', options: ['No parking', '20 cars', '50 cars', '100 cars', '200+ cars'] },
+          { key: 'valetParking', label: 'Is valet parking available?', type: 'single', options: ['Yes', 'No'], visibleWhen: { key: 'parkingSpots', notEquals: 'No parking' } },
         ],
       },
       {

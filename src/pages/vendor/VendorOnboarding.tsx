@@ -17,6 +17,7 @@ export default function VendorOnboarding() {
   const [category, setCategory] = useState('')
   const [area, setArea] = useState('')
   const [phone, setPhone] = useState('')
+  const [secondaryPhone, setSecondaryPhone] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [email, setEmail] = useState('')
   const [instagram, setInstagram] = useState('')
@@ -26,13 +27,9 @@ export default function VendorOnboarding() {
   const [teamSize, setTeamSize] = useState('')
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [videoFiles, setVideoFiles] = useState<File[]>([])
+  const [videoPreviews, setVideoPreviews] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
-  // For Venue vendors who also run in-house Catering / Decor
-  const [additionalServices, setAdditionalServices] = useState<string[]>([])
-
-  function toggleAdditionalService(service: string) {
-    setAdditionalServices(prev => prev.includes(service) ? prev.filter(s => s !== service) : [...prev, service])
-  }
 
   // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, 5=Portfolio Photos, 6=Ready
   // Category-specific specialty details are now captured per-listing, not at the profile level.
@@ -55,6 +52,20 @@ export default function VendorOnboarding() {
     setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
   }
 
+  function handleVideoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) {
+      const files = Array.from(e.target.files)
+      setVideoFiles(prev => [...prev, ...files].slice(0, 5))
+      const previews = files.map(f => URL.createObjectURL(f))
+      setVideoPreviews(prev => [...prev, ...previews].slice(0, 5))
+    }
+  }
+
+  function removeVideo(index: number) {
+    setVideoFiles(prev => prev.filter((_, i) => i !== index))
+    setVideoPreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
   async function handleGoLive() {
     setUploading(true)
 
@@ -69,12 +80,22 @@ export default function VendorOnboarding() {
       portfolioUrls = []
     }
 
+    // Videos — same flow. Re-uses uploadPhotos (any File type) for live mode.
+    let portfolioVideoUrls: string[] = videoPreviews
+    if (vendorDbId && videoFiles.length > 0) {
+      const uploaded = await uploadPhotos(vendorDbId, videoFiles, 'portfolio')
+      if (uploaded.length > 0) portfolioVideoUrls = uploaded
+    } else if (videoFiles.length === 0) {
+      portfolioVideoUrls = []
+    }
+
     const profile: VendorProfile = {
       businessName: businessName || 'My Business',
       category: category || 'Photography',
       city: 'Hyderabad',
       area: area || 'Jubilee Hills',
       phone: phone || '+919876543210',
+      secondaryPhone: secondaryPhone.trim() || undefined,
       whatsapp: sameAsPhone ? (phone || '+919876543210') : (whatsapp || '+919876543210'),
       email: email || 'vendor@example.com',
       instagram: instagram.trim() || undefined,
@@ -82,10 +103,9 @@ export default function VendorOnboarding() {
       experience: parseInt(experience) || 5,
       teamSize: teamSize || '2-5',
       portfolioPhotos: portfolioUrls,
+      portfolioVideos: portfolioVideoUrls.length > 0 ? portfolioVideoUrls : undefined,
       rating: 0,
       profileCompleteness: portfolioUrls.length > 0 ? 90 : 70,
-      // Venue vendors can declare they also offer in-house catering / decor
-      categoryFields: additionalServices.length > 0 ? { additionalServices } : undefined,
     }
     const defaultPackages: VendorPackage[] = []
     await completeVendorOnboarding(profile, defaultPackages)
@@ -128,29 +148,18 @@ export default function VendorOnboarding() {
                 <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g. Lens & Light Studio" className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard" />
               </div>
               <div>
-                <label className="text-[12px] font-medium text-dark block mb-1.5">Category</label>
-                <div className="grid grid-cols-2 gap-2">
+                <label className="text-[12px] font-medium text-dark block mb-1">Category</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className={`w-full px-3 py-2.5 rounded-xl border text-[13px] outline-none bg-white focus:border-mustard ${category ? 'border-mustard text-dark' : 'border-card-border text-gray-400'}`}
+                >
+                  <option value="" disabled>Select a category</option>
                   {CATEGORIES.map((c) => (
-                    <button key={c} onClick={() => { setCategory(c); if (c !== 'Venue') setAdditionalServices([]) }} className={`py-2 px-3 rounded-xl text-[11px] font-medium text-left transition-all ${category === c ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>
-                      {c}
-                    </button>
+                    <option key={c} value={c}>{c}</option>
                   ))}
-                </div>
+                </select>
               </div>
-              {category === 'Venue' && (
-                <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
-                  <label className="text-[12px] font-medium text-dark block mb-2">Do you also offer in-house services?</label>
-                  <div className="flex flex-col gap-1.5">
-                    {['Catering', 'Decor'].map(s => (
-                      <label key={s} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="accent-mustard" checked={additionalServices.includes(s)} onChange={() => toggleAdditionalService(s)} />
-                        <span className="text-[12px] text-dark">{s}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-gray-500 mt-2">You'll be able to create {additionalServices.length === 0 ? 'venue' : `venue, ${additionalServices.map(s => s.toLowerCase()).join(' and ')}`} listings under your profile.</p>
-                </div>
-              )}
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1">Where you're based</label>
                 <div className="flex flex-wrap gap-1.5">
@@ -175,6 +184,10 @@ export default function VendorOnboarding() {
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1">Phone number</label>
                 <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard" />
+              </div>
+              <div>
+                <label className="text-[12px] font-medium text-dark block mb-1">Secondary number <span className="text-[10px] text-gray-400 font-normal">(optional)</span></label>
+                <input type="tel" value={secondaryPhone} onChange={(e) => setSecondaryPhone(e.target.value)} placeholder="+91 90000 00000" className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard" />
               </div>
               <div>
                 <label className="flex items-center gap-2 mb-1">
@@ -264,8 +277,32 @@ export default function VendorOnboarding() {
 
             <p className="text-[10px] text-gray-400">{photoPreviews.length}/10 photos · JPG, PNG, WebP · Max 5MB each</p>
 
+            <p className="text-[13px] font-semibold text-dark mt-6 mb-2">Videos <span className="text-[10px] text-gray-400 font-normal">(optional)</span></p>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {videoPreviews.map((v, i) => (
+                <div key={i} className="aspect-square rounded-xl overflow-hidden relative group bg-black">
+                  <video src={v} className="w-full h-full object-cover" muted playsInline />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                  </div>
+                  <button
+                    onClick={() => removeVideo(i)}
+                    className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                  >×</button>
+                </div>
+              ))}
+              {videoPreviews.length < 5 && (
+                <label className="aspect-square rounded-xl border-2 border-dashed border-mustard/30 flex flex-col items-center justify-center cursor-pointer active:bg-mustard-light/20">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                  <span className="text-[9px] text-gray-400 mt-1">Add videos</span>
+                  <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideoSelect} />
+                </label>
+              )}
+            </div>
+            <p className="text-[10px] text-gray-400">{videoPreviews.length}/5 videos · MP4, MOV, WebM · Max 50MB each</p>
+
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">
-              {photoPreviews.length === 0 ? 'Skip for now' : 'Next'}
+              {photoPreviews.length === 0 && videoPreviews.length === 0 ? 'Skip for now' : 'Next'}
             </button>
           </div>
         )}

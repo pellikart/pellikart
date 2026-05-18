@@ -1,12 +1,13 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { formatINR, bgStyle } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice } from '@/lib/helpers'
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
 import { trackEvent, trackImpressions, selectBidDb, createBids, fetchCoupleBids } from '@/lib/supabase-db'
 import { getListingConfig, type SelectField } from '@/lib/vendor-category-config'
+import { shouldShowBundlePopup, buildBundleEntries, planBundleApplication } from '@/lib/bundle'
 
 const SETTING_OPTIONS = ['Indoor', 'Outdoor', 'Both']
 const COVERAGE_OPTIONS = ['Mandap only', 'Stage only', 'Entrance + Stage', 'Full venue', 'Specific area']
@@ -154,7 +155,7 @@ export default function CategoryBoardPage() {
   let ritualTotal = 0
   for (const cat of board.categories) {
     if (!cat.removed && cat.selectedVendorId && vendors[cat.selectedVendorId]) {
-      ritualTotal += vendors[cat.selectedVendorId].price
+      ritualTotal += getEffectivePrice(vendors[cat.selectedVendorId], cat.selectedTierHours)
     }
   }
   const bookingAmount = Math.round(ritualTotal * 0.04)
@@ -165,13 +166,10 @@ export default function CategoryBoardPage() {
     const next = vendors[newVendorId]
 
     // Intercept: if this is a venue with a mandatory bundle, show the popup first.
-    if (next?.category === 'Venue' && next.bundleMandatory && next.bundledListings && next.bundledListings.length > 0) {
-      const bundles = next.bundledListings
-        .map(id => vendors[id])
-        .filter(Boolean)
-        .map(v => ({ id: v.id, name: v.name || v.code, category: v.category || '', price: v.price }))
+    if (shouldShowBundlePopup(next)) {
+      const bundles = buildBundleEntries(next!.bundledListings!, vendors)
       if (bundles.length > 0) {
-        setBundlePopup({ venueId: newVendorId, venueName: next.name || next.code, bundles })
+        setBundlePopup({ venueId: newVendorId, venueName: next!.name || next!.code, bundles })
         return
       }
     }
@@ -199,11 +197,9 @@ export default function CategoryBoardPage() {
     // Apply the venue swap (with price-change popup wiring intact)
     doSwap(bundlePopup.venueId, prev, venueVendor, prevId)
     // Apply each bundled listing into its matching category on this same ritual
-    for (const b of bundlePopup.bundles) {
-      const targetCat = board.categories.find(c => c.label === b.category)
-      if (!targetCat) continue  // category not present on this board — skip silently
-      if (targetCat.removed) restoreCategory(ritualId!, targetCat.id)
-      selectVendor(ritualId!, targetCat.id, b.id)
+    for (const step of planBundleApplication(board, bundlePopup.bundles)) {
+      if (step.needsRestore) restoreCategory(ritualId!, step.categoryId)
+      selectVendor(ritualId!, step.categoryId, step.listingId)
     }
     setBundlePopup(null)
   }
@@ -619,6 +615,9 @@ export default function CategoryBoardPage() {
           unlocked={unlocked}
           onClose={() => setDetailVendorId(null)}
           onSwitchListing={(id) => { addDesignAsVendor(mockDesigns.find((d) => d.id === id)!); setDetailVendorId(id) }}
+          ritualId={ritualId}
+          categoryId={categoryId}
+          selectedTierHours={category.selectedTierHours}
         />
       )}
 

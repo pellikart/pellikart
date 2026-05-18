@@ -32,6 +32,7 @@ export async function upsertVendor(userId: string, profile: VendorProfile, isLiv
       city: profile.city,
       area: profile.area,
       phone: profile.phone,
+      secondary_phone: profile.secondaryPhone || null,
       whatsapp: profile.whatsapp,
       email: profile.email,
       instagram: profile.instagram || null,
@@ -40,6 +41,7 @@ export async function upsertVendor(userId: string, profile: VendorProfile, isLiv
       team_size: profile.teamSize,
       category_fields: profile.categoryFields || {},
       portfolio_photos: profile.portfolioPhotos || [],
+      portfolio_videos: profile.portfolioVideos || [],
       is_live: isLive,
       onboarding_complete: true,
       updated_at: new Date().toISOString(),
@@ -57,6 +59,7 @@ export async function updateVendorFields(userId: string, updates: Partial<Vendor
   if (updates.category !== undefined) mapped.category = updates.category
   if (updates.area !== undefined) mapped.area = updates.area
   if (updates.phone !== undefined) mapped.phone = updates.phone
+  if (updates.secondaryPhone !== undefined) mapped.secondary_phone = updates.secondaryPhone || null
   if (updates.whatsapp !== undefined) mapped.whatsapp = updates.whatsapp
   if (updates.email !== undefined) mapped.email = updates.email
   if (updates.instagram !== undefined) mapped.instagram = updates.instagram || null
@@ -65,6 +68,7 @@ export async function updateVendorFields(userId: string, updates: Partial<Vendor
   if (updates.teamSize !== undefined) mapped.team_size = updates.teamSize
   if (updates.categoryFields !== undefined) mapped.category_fields = updates.categoryFields
   if (updates.portfolioPhotos !== undefined) mapped.portfolio_photos = updates.portfolioPhotos
+  if (updates.portfolioVideos !== undefined) mapped.portfolio_videos = updates.portfolioVideos
 
   await supabase.from('vendors').update(mapped).eq('user_id', userId)
 }
@@ -90,6 +94,7 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       vendor_id: vendorId,
       name: listing.name,
       photos: listing.photos,
+      videos: listing.videos || [],
       cover_photo_index: listing.coverPhotoIndex ?? 0,
       category: listing.category,
       price: listing.price,
@@ -99,6 +104,7 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       includes: listing.includes,
       bundled_listings: listing.bundledListings || [],
       bundle_mandatory: listing.bundleMandatory || false,
+      hourly_pricing: listing.hourlyPricing || [],
     })
     .select()
     .maybeSingle()
@@ -113,6 +119,7 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
     .update({
       name: listing.name,
       photos: listing.photos,
+      videos: listing.videos || [],
       cover_photo_index: listing.coverPhotoIndex ?? 0,
       category: listing.category,
       price: listing.price,
@@ -122,6 +129,7 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
       includes: listing.includes,
       bundled_listings: listing.bundledListings || [],
       bundle_mandatory: listing.bundleMandatory || false,
+      hourly_pricing: listing.hourlyPricing || [],
       updated_at: new Date().toISOString(),
     })
     .eq('id', listingDbId)
@@ -366,6 +374,7 @@ export async function fetchRitualBoards(coupleId: string) {
         suggestedVendors: c.suggested_vendors || [],
         removed: c.is_removed || false,
         decorBrief: c.decor_brief || null,
+        selectedTierHours: c.selected_tier_hours ?? undefined,
       })),
   })) as RitualBoard[]
 }
@@ -440,6 +449,7 @@ export async function updateBoardCategory(categoryId: string, updates: Partial<C
   if (updates.shortlistedVendorIds !== undefined) mapped.shortlisted_vendor_ids = updates.shortlistedVendorIds
   if (updates.suggestedVendors !== undefined) mapped.suggested_vendors = updates.suggestedVendors
   if (updates.removed !== undefined) mapped.is_removed = updates.removed
+  if (updates.selectedTierHours !== undefined) mapped.selected_tier_hours = updates.selectedTierHours ?? null
 
   await supabase.from('board_categories').update(mapped).eq('id', categoryId)
 }

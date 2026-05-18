@@ -86,6 +86,25 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
             </div>
           )}
 
+          {/* Portfolio videos */}
+          {vendor.portfolioVideos && vendor.portfolioVideos.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Showreel</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {vendor.portfolioVideos.slice(0, 6).map((src, i) => (
+                  <video
+                    key={i}
+                    src={src}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full aspect-video rounded-lg bg-black object-cover"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Listings by this vendor */}
           {vendorListings.length > 0 && (
             <div className="mb-4">
