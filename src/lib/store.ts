@@ -102,6 +102,7 @@ export function buildLiveVendorMap(
       bundleMandatory: (l.bundle_mandatory as boolean) || false,
       hourlyPricing: (l.hourly_pricing as { hours: number; price: number }[]) || undefined,
       paidRooms: (l.paid_rooms as import('./vendor-types').PaidRoom[]) || undefined,
+      menu: (l.menu as import('./vendor-types').MenuSection[]) || undefined,
       rituals: (l.rituals as string[]) || undefined,
     }
   }

@@ -3,6 +3,16 @@ export interface BlockedTimeRange {
   to: string    // e.g. '14:00'
 }
 
+/** Catering-only: one section of the curated menu. */
+export interface MenuSection {
+  /** Section name, matches one of MENU_SECTIONS from dish-bank.ts */
+  section: string
+  /** Dish IDs (from DISH_BANK) the caterer offers in this section */
+  dishIds: number[]
+  /** How many dishes the couple can pick from this section (0 = section disabled) */
+  pickLimit: number
+}
+
 export interface PaidRoom {
   /** Stable per-room id (so we can edit/remove individual rooms). */
   id: string
@@ -83,6 +93,8 @@ export interface VendorListing {
   hourlyPricing?: { hours: number; price: number }[]
   /** Venue-only: paid lodging rooms the venue offers, grouped by sharing capacity. */
   paidRooms?: PaidRoom[]
+  /** Catering-only: curated menu sections (dish bank picks + per-section pick limits). */
+  menu?: MenuSection[]
   /** Index of the photo to use as listing cover (defaults to 0 / first photo) */
   coverPhotoIndex?: number
   category: string

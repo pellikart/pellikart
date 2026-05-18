@@ -268,7 +268,8 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         title: 'Menu details',
         subtitle: 'What are you serving?',
         fields: [
-          { key: 'cuisineTypes', label: 'Cuisine', type: 'multi', options: ['South Indian', 'North Indian', 'Mughlai', 'Rajasthani', 'Multi-Cuisine', 'Continental', 'Chinese', 'Fusion'] },
+          { key: 'servingStyle', label: 'Serving style', type: 'single', options: ['Buffet', 'Banti Bojanalu'] },
+          { key: 'cuisineTypes', label: 'Cuisine', type: 'multi', options: ['Andhra Style', 'Godavari Style', 'Rayalaseema Style', 'Telangana Style', 'Hyderabadi', 'Pure-Veg Traditional', 'Others'] },
           { key: 'foodType', label: 'Food type', type: 'single', options: ['Veg only', 'Non-veg', 'Both'] },
           { key: 'menuItems', label: 'Items in menu', type: 'single', options: ['10', '15', '20', '25', '30+'] },
           { key: 'liveCounters', label: 'Live counters', type: 'single', options: ['None', '1', '2', '3', '4+'] },
@@ -300,10 +301,9 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'coverageType', label: 'Coverage type', type: 'single', options: ['Photo only', 'Video only', 'Photo + Video'] },
           { key: 'shootStyles', label: 'Shoot style', type: 'multi', options: ['Candid', 'Traditional', 'Cinematic', 'Documentary', 'Fine Art'] },
           { key: 'coverageHours', label: 'Coverage hours', type: 'single', options: ['4h', '6h', '8h', '10h', '12h', 'Full day'] },
-          { key: 'photographers', label: 'Photographers', type: 'single', options: ['1', '2', '3'] },
-          { key: 'videographers', label: 'Videographers', type: 'single', options: ['0', '1', '2'] },
+          { key: 'photographers', label: 'Photographers', type: 'number', numberMin: 1, numberMax: 10, numberStep: 1 },
+          { key: 'videographers', label: 'Videographers', type: 'number', numberMin: 0, numberMax: 10, numberStep: 1 },
           { key: 'liveCoverage', label: 'Live coverage / streaming', type: 'single', options: ['Yes, included', 'Add-on', 'Not available'] },
-          { key: 'equipment', label: 'Equipment used', type: 'multi', options: ['DSLR', 'Mirrorless', 'Drone', 'Gimbal', 'Studio Lights', 'LED Panels'] },
         ],
       },
       {

@@ -6,6 +6,7 @@ import { formatINR, bgStyle, getEffectivePrice } from '@/lib/helpers'
 import { getListingConfig } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
+import MenuPicker from './MenuPicker'
 
 interface Props {
   vendor: Vendor
@@ -315,6 +316,14 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                   ))}
                 </div>
               </>
+            )}
+
+            {/* Catering menu — interactive picker per section */}
+            {vendor.menu && vendor.menu.length > 0 && (
+              <div className="mb-4">
+                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Menu</p>
+                <MenuPicker menu={vendor.menu} />
+              </div>
             )}
 
             {/* Paid rooms (Venue) — collapsible interactive mock-up */}

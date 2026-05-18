@@ -34,6 +34,7 @@ export interface Vendor {
   listingVideos?: string[];
   hourlyPricing?: { hours: number; price: number }[];
   paidRooms?: import('./vendor-types').PaidRoom[];
+  menu?: import('./vendor-types').MenuSection[];
   rituals?: string[];
   categoryFields?: Record<string, string | string[]>;
   includes?: string[];

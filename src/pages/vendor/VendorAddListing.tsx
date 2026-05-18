@@ -6,7 +6,8 @@ import { formatINR } from '@/lib/helpers'
 import { getListingConfig, RITUALS, type SelectField } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
-import type { PaidRoom } from '@/lib/vendor-types'
+import MenuBuilder from '@/components/MenuBuilder'
+import type { PaidRoom, MenuSection } from '@/lib/vendor-types'
 
 export default function VendorAddListing() {
   const navigate = useNavigate()
@@ -26,7 +27,6 @@ export default function VendorAddListing() {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [videoFiles, setVideoFiles] = useState<File[]>([])
   const [videoPreviews, setVideoPreviews] = useState<string[]>([])
-  const [style, setStyle] = useState('')
   const [price, setPrice] = useState(config.priceRange.min + Math.floor((config.priceRange.max - config.priceRange.min) / 3))
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
@@ -45,6 +45,8 @@ export default function VendorAddListing() {
   const [paidRooms, setPaidRooms] = useState<PaidRoom[]>([])
   // Per-room pending File uploads (live mode publish replaces blob URLs with public URLs)
   const [paidRoomFiles, setPaidRoomFiles] = useState<Record<string, File[]>>({})
+  // Catering-only: curated menu
+  const [menu, setMenu] = useState<MenuSection[]>([])
 
   // When category changes (Venue vendor switching listing type), reset category-dependent state
   function changeCategory(next: string) {
@@ -52,7 +54,6 @@ export default function VendorAddListing() {
     setCategory(next)
     const nextConfig = getListingConfig(next)
     setPrice(nextConfig.priceRange.min + Math.floor((nextConfig.priceRange.max - nextConfig.priceRange.min) / 3))
-    setStyle('')
     setIncludes([])
     setCategoryFields({})
     setBundledListings([])
@@ -62,20 +63,29 @@ export default function VendorAddListing() {
     setHourlyPricing([])
     setPaidRooms([])
     setPaidRoomFiles({})
+    setMenu([])
   }
 
-  // Steps: 1=Photos & Name, 2=Rituals, 3..N=Category-specific steps, [Paid Rooms (Venue)],
-  // [N+1=Style & Price], N+2=Inclusions, N+3=Review
-  // Venue listings skip the Style & Price step but gain a "Paid rooms" step right after
-  // their category-specific steps.
+  // Steps: 1=Photos & Name, 2=Rituals, 3..N=Category-specific steps,
+  // [Paid rooms (Venue only)], [Menu (Catering only)], [Pricing (non-Venue/non-Decor)],
+  // [Inclusions (not Decor/Photography/Catering)], Review.
   const categoryStepCount = config.steps.length
-  const hasStylePriceStep = category !== 'Venue'
+  const hasStylePriceStep = category !== 'Venue' && category !== 'Decor'
   const hasPaidRoomsStep = category === 'Venue'
+  const hasMenuStep = category === 'Catering'
+  const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering'
   const extraVenueSteps = hasPaidRoomsStep ? 1 : 0
+  const extraCateringSteps = hasMenuStep ? 1 : 0
   const paidRoomsStep = hasPaidRoomsStep ? 3 + categoryStepCount : -1
-  const stylePriceStep = hasStylePriceStep ? 3 + categoryStepCount + extraVenueSteps : -1
-  const inclusionsStep = hasStylePriceStep ? stylePriceStep + 1 : 3 + categoryStepCount + extraVenueSteps
-  const reviewStep = inclusionsStep + 1
+  const menuStep = hasMenuStep ? 3 + categoryStepCount : -1
+  const stylePriceStep = hasStylePriceStep ? 3 + categoryStepCount + extraVenueSteps + extraCateringSteps : -1
+  // The step after pricing (or after paid rooms / menu) — anchor for Inclusions/Review.
+  const afterPricing = hasStylePriceStep ? stylePriceStep
+    : hasPaidRoomsStep ? paidRoomsStep
+    : hasMenuStep ? menuStep
+    : 2 + categoryStepCount
+  const inclusionsStep = hasInclusionsStep ? afterPricing + 1 : -1
+  const reviewStep = (hasInclusionsStep ? inclusionsStep : afterPricing) + 1
   const totalSteps = reviewStep
 
   const pr = config.priceRange
@@ -172,10 +182,11 @@ export default function VendorAddListing() {
     }
 
     // For Venue with hourly pricing, the base price defaults to the 24 hr tier
-    // (so couples see that by default). Fall back to first tier, else slider price.
+    // (so couples see that by default). For Decor there's no listing-level price
+    // (couples use the Customize/bid flow). Other categories use the slider.
     const effectivePrice = category === 'Venue' && hourlyPricing.length > 0
       ? (hourlyPricing.find(t => t.hours === 24)?.price || hourlyPricing[0].price || price)
-      : price
+      : category === 'Decor' ? 0 : price
 
     // Upload paid-room photos in live mode and replace blob URLs with public URLs.
     let paidRoomsForPayload: PaidRoom[] = paidRooms
@@ -197,7 +208,7 @@ export default function VendorAddListing() {
       coverPhotoIndex: coverIndex,
       category,
       price: effectivePrice,
-      style,
+      style: '',
       rituals,
       categoryFields,
       includes,
@@ -206,6 +217,7 @@ export default function VendorAddListing() {
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
       hourlyPricing: category === 'Venue' && hourlyPricing.length > 0 ? hourlyPricing : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
+      menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
     }
     addListing(listing)
 
@@ -442,6 +454,23 @@ export default function VendorAddListing() {
           )
         })}
 
+        {/* Menu step (Catering only) */}
+        {step === menuStep && hasMenuStep && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">Build your menu</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Tap a section to expand. Pick the dishes you offer and set how many the couple can choose from each section.</p>
+            <MenuBuilder
+              value={menu}
+              foodType={categoryFields.foodType as string | undefined}
+              onChange={setMenu}
+            />
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setStep(menuStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              <button onClick={() => setStep(menuStep + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
+            </div>
+          </div>
+        )}
+
         {/* Paid rooms step (Venue only) */}
         {step === paidRoomsStep && hasPaidRoomsStep && (
           <div className="animate-fadeIn">
@@ -461,57 +490,33 @@ export default function VendorAddListing() {
           </div>
         )}
 
-        {/* Style & Price step */}
+        {/* Pricing step (non-Venue categories only) */}
         {step === stylePriceStep && (
           <div className="animate-fadeIn">
-            <h1 className="text-[20px] font-bold text-dark">{category === 'Venue' ? 'Style' : 'Style & pricing'}</h1>
-            <p className="text-[11px] text-gray-400 mt-1 mb-5">
-              {category === 'Venue'
-                ? "You'll set per-duration prices on the next page."
-                : 'Pick a style and set your price.'}
-            </p>
+            <h1 className="text-[20px] font-bold text-dark">Pricing</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Set your price.</p>
 
-            {category !== 'Venue' && (
-              <>
-                <label className="text-[11px] font-medium text-dark block mb-2">Style</label>
-                <div className="flex flex-wrap gap-1.5 mb-5">
-                  {config.styles.map((s) => (
-                    <button
-                      key={s} onClick={() => setStyle(s)}
-                      className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${style === s ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {category !== 'Venue' && (
-              <>
-                <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
-                <p className="text-[24px] font-bold text-mustard mb-2">{formatINR(price)}</p>
-                <input
-                  type="range" min={pr.min} max={pr.max} step={pr.step}
-                  value={price} onChange={(e) => setPrice(Number(e.target.value))}
-                  className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
-                  style={{ background: `linear-gradient(to right, #D4A017 ${((price - pr.min) / (pr.max - pr.min)) * 100}%, #eee ${((price - pr.min) / (pr.max - pr.min)) * 100}%)` }}
-                />
-                <div className="flex justify-between text-[9px] text-gray-400 mt-1">
-                  <span>{formatINR(pr.min)}</span><span>{formatINR(pr.max)}</span>
-                </div>
-              </>
-            )}
+            <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
+            <p className="text-[24px] font-bold text-mustard mb-2">{formatINR(price)}</p>
+            <input
+              type="range" min={pr.min} max={pr.max} step={pr.step}
+              value={price} onChange={(e) => setPrice(Number(e.target.value))}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
+              style={{ background: `linear-gradient(to right, #D4A017 ${((price - pr.min) / (pr.max - pr.min)) * 100}%, #eee ${((price - pr.min) / (pr.max - pr.min)) * 100}%)` }}
+            />
+            <div className="flex justify-between text-[9px] text-gray-400 mt-1">
+              <span>{formatINR(pr.min)}</span><span>{formatINR(pr.max)}</span>
+            </div>
 
             <div className="flex gap-2 mt-6">
               <button onClick={() => setStep(stylePriceStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
-              <button onClick={() => setStep(inclusionsStep)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
+              <button onClick={() => setStep(stylePriceStep + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
             </div>
           </div>
         )}
 
-        {/* Inclusions step */}
-        {step === inclusionsStep && (
+        {/* Inclusions step (skipped for Decor, Photography, Catering) */}
+        {hasInclusionsStep && step === inclusionsStep && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">What's included?</h1>
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Tap everything that's part of this listing.</p>
@@ -554,12 +559,15 @@ export default function VendorAddListing() {
               )}
               <div className="p-3">
                 <p className="text-[14px] font-bold text-dark">{name || `${category} Listing`}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{category === 'Venue' ? vendorProfile?.area : `${style || 'No style selected'} · ${vendorProfile?.area}`}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{vendorProfile?.area}</p>
                 {(() => {
                   if (category === 'Venue') {
                     const tier = hourlyPricing.find(t => t.hours === 24) || hourlyPricing[0]
                     if (!tier || !tier.price) return <p className="text-[12px] text-gray-400 italic mt-1">Price not set</p>
                     return <p className="text-[16px] font-bold text-mustard mt-1">{formatINR(tier.price)} <span className="text-[10px] font-normal text-gray-400">/ {tier.hours} hr</span></p>
+                  }
+                  if (category === 'Decor') {
+                    return <p className="text-[12px] text-gray-400 italic mt-1">Couples request a quote via Customize</p>
                   }
                   return <p className="text-[16px] font-bold text-mustard mt-1">{formatINR(price)}{category === 'Catering' ? ' /plate' : category === 'Invitations' ? ' /invite' : ''}</p>
                 })()}
@@ -725,7 +733,7 @@ export default function VendorAddListing() {
             })()}
 
             <div className="flex gap-2">
-              <button onClick={() => setStep(inclusionsStep)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              <button onClick={() => setStep(reviewStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
               <button onClick={handlePublish} disabled={publishing} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-50">
                 {publishing ? 'Publishing...' : 'Publish listing'}
               </button>
