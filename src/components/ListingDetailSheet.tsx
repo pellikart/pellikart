@@ -48,8 +48,11 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
   // Category-specific fields to display, paired with proper labels from the listing config.
   const categoryFields = vendor.categoryFields || {}
+  // Fall back to parsing the category from vendor.code ("Decor 001" → "Decor") for mock
+  // data entries that don't carry an explicit category field.
+  const derivedCategory = vendor.category || vendor.code?.split(' ')[0]
   const labeledFields: { label: string; value: string }[] = (() => {
-    const config = vendor.category ? getListingConfig(vendor.category) : null
+    const config = derivedCategory ? getListingConfig(derivedCategory) : null
     if (!config) return []
     const out: { label: string; value: string }[] = []
     for (const step of config.steps) {

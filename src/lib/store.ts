@@ -408,7 +408,7 @@ export const useStore = create<AppState & LiveModeState & {
               packageTier: design.description, likes: [], booked: false, amountPaid: 0,
               // Inherit category-specific fields so the Compare table shows real detail for design listings
               categoryFields: parentVendor?.categoryFields,
-              category: parentVendor?.category,
+              category: parentVendor?.category || (parentVendor?.code as string | undefined)?.split(' ')[0],
               bundledListings: parentVendor?.bundledListings,
               bundleMandatory: parentVendor?.bundleMandatory,
               hourlyPricing: parentVendor?.hourlyPricing,
@@ -454,7 +454,7 @@ export const useStore = create<AppState & LiveModeState & {
           packageTier: design.description, likes: [], booked: false, amountPaid: 0,
           // Inherit category-specific fields so the Compare table shows real detail for design listings
           categoryFields: parentVendor?.categoryFields,
-          category: parentVendor?.category,
+          category: parentVendor?.category || (parentVendor?.code as string | undefined)?.split(' ')[0],
           bundledListings: parentVendor?.bundledListings,
           bundleMandatory: parentVendor?.bundleMandatory,
           hourlyPricing: parentVendor?.hourlyPricing,
@@ -961,7 +961,7 @@ export const useStore = create<AppState & LiveModeState & {
             // Inherit the parent vendor's category-specific fields so the Compare table
             // can surface the same detail for design listings.
             categoryFields: parentVendor?.categoryFields,
-            category: parentVendor?.category,
+            category: parentVendor?.category || (parentVendor?.code as string | undefined)?.split(' ')[0],
             bundledListings: parentVendor?.bundledListings,
             bundleMandatory: parentVendor?.bundleMandatory,
             hourlyPricing: parentVendor?.hourlyPricing,
