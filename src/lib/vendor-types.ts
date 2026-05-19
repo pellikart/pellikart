@@ -95,6 +95,10 @@ export interface VendorListing {
   paidRooms?: PaidRoom[]
   /** Catering-only: curated menu sections (dish bank picks + per-section pick limits). */
   menu?: MenuSection[]
+  /** Whether transport & logistics is bundled into the listing price. */
+  transportIncluded?: boolean
+  /** Extra transport & logistics charge in ₹ (only meaningful when transportIncluded === false). */
+  transportExtra?: number
   /** Index of the photo to use as listing cover (defaults to 0 / first photo) */
   coverPhotoIndex?: number
   category: string

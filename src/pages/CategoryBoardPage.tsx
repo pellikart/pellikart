@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { formatINR, bgStyle, getEffectivePrice } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getListingTotal } from '@/lib/helpers'
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
@@ -155,7 +155,7 @@ export default function CategoryBoardPage() {
   let ritualTotal = 0
   for (const cat of board.categories) {
     if (!cat.removed && cat.selectedVendorId && vendors[cat.selectedVendorId]) {
-      ritualTotal += getEffectivePrice(vendors[cat.selectedVendorId], cat.selectedTierHours)
+      ritualTotal += getListingTotal(vendors[cat.selectedVendorId], cat.selectedTierHours)
     }
   }
   const bookingAmount = Math.round(ritualTotal * 0.04)

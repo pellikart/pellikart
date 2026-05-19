@@ -6,7 +6,9 @@ import { uploadPhotos } from '@/lib/supabase-db'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
-const TEAM_SIZES = ['Solo', '2-5', '5-10', '10+']
+const TEAM_SIZES_DEFAULT = ['Solo', '2-5', '5-10', '10+']
+// Decor crews are usually larger — start at 5 and step up by 5 to 30+.
+const TEAM_SIZES_DECOR = ['5', '10', '15', '20', '25', '30+']
 
 export default function VendorOnboarding() {
   const navigate = useNavigate()
@@ -235,9 +237,9 @@ export default function VendorOnboarding() {
               </div>
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1.5">Team size</label>
-                <div className="flex gap-2">
-                  {TEAM_SIZES.map((t) => (
-                    <button key={t} onClick={() => setTeamSize(t)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${teamSize === t ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>
+                <div className="flex flex-wrap gap-2">
+                  {(category === 'Decor' ? TEAM_SIZES_DECOR : TEAM_SIZES_DEFAULT).map((t) => (
+                    <button key={t} onClick={() => setTeamSize(t)} className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-[12px] font-medium transition-all ${teamSize === t ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>
                       {t}
                     </button>
                   ))}

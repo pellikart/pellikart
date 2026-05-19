@@ -1,7 +1,7 @@
 import type { Vendor } from './types'
 
 /**
- * Returns the effective price for a vendor given the couple's selected hourly tier.
+ * Returns the base price for a vendor given the couple's selected hourly tier.
  * Falls back to vendor.price (which the vendor side sets to the 24 hr tier by default).
  */
 export function getEffectivePrice(vendor: Vendor | undefined, tierHours?: number): number {
@@ -11,6 +11,17 @@ export function getEffectivePrice(vendor: Vendor | undefined, tierHours?: number
     if (tier) return tier.price
   }
   return vendor.price
+}
+
+/**
+ * Returns the total price the couple should expect to pay, including
+ * transport/logistics extras when the vendor doesn't bundle them.
+ */
+export function getListingTotal(vendor: Vendor | undefined, tierHours?: number): number {
+  if (!vendor) return 0
+  const base = getEffectivePrice(vendor, tierHours)
+  const extra = vendor.transportIncluded === false ? (vendor.transportExtra || 0) : 0
+  return base + extra
 }
 
 export function bgStyle(photo: string): { background: string } {

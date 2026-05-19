@@ -104,6 +104,8 @@ export function buildLiveVendorMap(
       paidRooms: (l.paid_rooms as import('./vendor-types').PaidRoom[]) || undefined,
       menu: (l.menu as import('./vendor-types').MenuSection[]) || undefined,
       rituals: (l.rituals as string[]) || undefined,
+      transportIncluded: (l.transport_included as boolean | null) ?? undefined,
+      transportExtra: (l.transport_extra as number | null) ?? undefined,
     }
   }
 
@@ -414,6 +416,8 @@ export const useStore = create<AppState & LiveModeState & {
               hourlyPricing: parentVendor?.hourlyPricing,
               paidRooms: parentVendor?.paidRooms,
               includes: parentVendor?.includes,
+              transportIncluded: parentVendor?.transportIncluded,
+              transportExtra: parentVendor?.transportExtra,
             }
           }
           set({ vendors: scaledVendors, ritualBoards: mockBoards })
@@ -460,6 +464,8 @@ export const useStore = create<AppState & LiveModeState & {
           hourlyPricing: parentVendor?.hourlyPricing,
           paidRooms: parentVendor?.paidRooms,
           includes: parentVendor?.includes,
+          transportIncluded: parentVendor?.transportIncluded,
+          transportExtra: parentVendor?.transportExtra,
         };
       }
 
@@ -967,6 +973,8 @@ export const useStore = create<AppState & LiveModeState & {
             hourlyPricing: parentVendor?.hourlyPricing,
             paidRooms: parentVendor?.paidRooms,
             includes: parentVendor?.includes,
+            transportIncluded: parentVendor?.transportIncluded,
+            transportExtra: parentVendor?.transportExtra,
           },
         },
       };

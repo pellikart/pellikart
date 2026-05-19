@@ -144,6 +144,7 @@ export const mockVendors: Record<string, Vendor> = {
     categoryFields: { venueType: "Palace", setting: "Indoor", capacity: "1500", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Veg only", alcoholPolicy: "Allowed", outsideCatering: "Not allowed", musicRestriction: "Till 12 AM" },
     includes: ["AC Hall", "Parking", "Valet", "Bridal Suite", "Guest Rooms", "Sound System", "In-house Catering", "Generator Backup", "CCTV", "Security", "Furniture", "Basic Lighting", "Cleaning"],
     category: "Venue", bundleMandatory: true, bundledListings: ["v-catering-3", "v-decor-3"],
+    transportIncluded: true,
     hourlyPricing: [{ hours: 12, price: 550000 }, { hours: 24, price: 850000 }],
     paidRooms: [
       {
@@ -164,6 +165,7 @@ export const mockVendors: Record<string, Vendor> = {
     rating: 4.5, packageTier: "Standard", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
     categoryFields: { venueType: "Farmhouse", setting: "Both", capacity: "800", roomsAvailable: "10-20", parkingSpots: "100 cars", foodPolicy: "Non-veg allowed", alcoholPolicy: "Allowed", outsideCatering: "Allowed", musicRestriction: "Till 10 PM" },
     includes: ["AC Hall", "Parking", "Lawn Area", "Pool Access", "Bridal Suite", "Sound System", "Generator Backup", "Furniture", "Basic Lighting", "Cleaning"],
+    transportIncluded: false, transportExtra: 15000,
   },
   "v-venue-3": {
     id: "v-venue-3", code: "Venue 003", name: "Skyline Banquets", photo: img("venue", 3),
@@ -179,6 +181,7 @@ export const mockVendors: Record<string, Vendor> = {
     categoryFields: { venueType: "Resort", setting: "Outdoor", capacity: "1200", roomsAvailable: "20+", parkingSpots: "200+ cars", foodPolicy: "Non-veg allowed", alcoholPolicy: "Allowed", outsideCatering: "In-house mandatory", musicRestriction: "Till 12 AM" },
     includes: ["AC Hall", "Parking", "Valet", "Bridal Suite", "Guest Rooms", "Lawn Area", "Pool Access", "Sound System", "In-house Catering", "Generator Backup", "Wi-Fi", "Security"],
     category: "Venue", bundleMandatory: true, bundledListings: ["v-catering-1", "v-decor-1"],
+    transportIncluded: false, transportExtra: 25000,
     hourlyPricing: [{ hours: 12, price: 480000 }, { hours: 24, price: 720000 }],
     paidRooms: [
       {
@@ -205,6 +208,7 @@ export const mockVendors: Record<string, Vendor> = {
     style: "North Indian Royal", area: "Lajpat Nagar, Delhi", price: 320000,
     rating: 4.7, packageTier: "Premium (800 pax)", likes: [{ userId: "u-mom", name: "Mom" }, { userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
     categoryFields: { cuisineTypes: ["North Indian", "Mughlai"], foodType: "Both", menuItems: "25", liveCounters: "3", minPlates: "200", maxPlates: "1000", teamSize: "20-40 staff", staffIncluded: "Included", crockeryIncluded: "Included", specialCounters: ["Chaat Station", "Dessert Bar", "Paan Counter"] },
+    transportIncluded: false, transportExtra: 8000,
   },
   "v-catering-2": {
     id: "v-catering-2", code: "Catering 002", name: "Flavours & Forks", photo: img("catering", 2),
@@ -217,6 +221,7 @@ export const mockVendors: Record<string, Vendor> = {
     style: "Rajasthani Thali", area: "Karol Bagh, Delhi", price: 250000,
     rating: 4.2, packageTier: "Standard (600 pax)", likes: [{ userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
     categoryFields: { cuisineTypes: ["Rajasthani"], foodType: "Veg only", menuItems: "20", liveCounters: "2", minPlates: "100", maxPlates: "1000", teamSize: "10-20 staff", staffIncluded: "Extra charge", crockeryIncluded: "Extra charge", specialCounters: ["Chaat Station"] },
+    transportIncluded: true,
   },
 
   // === DECOR ===
@@ -225,12 +230,14 @@ export const mockVendors: Record<string, Vendor> = {
     style: "Floral Luxury", area: "South Delhi", price: 280000,
     rating: 4.9, packageTier: "Premium", likes: [{ userId: "u-mom", name: "Mom" }, { userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
     categoryFields: { decorType: "Full venue", decorSpeciality: ["Floral", "Ceiling Work"], flowerType: "Fresh flowers", ledLighting: "Included", propsIncluded: "All props included", setupArea: "Large (full venue)", setupTeamSize: "8-15 people", setupTime: "8 hours", teardownIncluded: "Yes", reusableElements: "All fresh (premium)" },
+    transportIncluded: false, transportExtra: 12000,
   },
   "v-decor-2": {
     id: "v-decor-2", code: "Decor 002", name: "DreamScape Events", photo: img("decor", 2),
     style: "Modern Minimalist", area: "Noida, UP", price: 180000,
     rating: 4.3, packageTier: "Standard", likes: [], booked: false, amountPaid: 0,
     categoryFields: { decorType: "Stage only", decorSpeciality: ["Modern Minimal", "LED & Lighting"], flowerType: "Mix of both", ledLighting: "Included", propsIncluded: "Selected props only", setupArea: "Medium (lawn)", setupTeamSize: "5-8 people", setupTime: "6 hours", teardownIncluded: "Extra charge", reusableElements: "Mix of fresh & reusable" },
+    transportIncluded: true,
   },
   "v-decor-3": {
     id: "v-decor-3", code: "Decor 003", name: "Royal Mandaps", photo: img("decor", 3),

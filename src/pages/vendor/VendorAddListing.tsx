@@ -48,6 +48,9 @@ export default function VendorAddListing() {
   const [paidRoomFiles, setPaidRoomFiles] = useState<Record<string, File[]>>({})
   // Catering-only: curated menu
   const [menu, setMenu] = useState<MenuSection[]>([])
+  // Transport & logistics — collected on Review step for every category
+  const [transportIncluded, setTransportIncluded] = useState<boolean | null>(null)
+  const [transportExtra, setTransportExtra] = useState<number>(0)
   // Decor-only: portfolio of designs — each becomes its own published listing
   const [designs, setDesigns] = useState<DesignDraft[]>([])
   // Per-design pending File uploads (live mode publish replaces blob URLs with public URLs)
@@ -71,6 +74,8 @@ export default function VendorAddListing() {
     setMenu([])
     setDesigns([])
     setDesignFiles({})
+    setTransportIncluded(null)
+    setTransportExtra(0)
     setStep(1)
   }
 
@@ -229,6 +234,11 @@ export default function VendorAddListing() {
     }
 
     const createdAt = new Date().toISOString().split('T')[0]
+    // Transport & logistics — applied uniformly across all listings produced by this flow.
+    const transportFields = {
+      transportIncluded: transportIncluded === null ? undefined : transportIncluded,
+      transportExtra: transportIncluded === false && transportExtra > 0 ? transportExtra : undefined,
+    }
 
     // Decor: fan out each design into its own listing — shared category fields,
     // rituals, and shared decor logistics. Photos/videos and price per design.
@@ -262,6 +272,7 @@ export default function VendorAddListing() {
           categoryFields,
           includes,
           createdAt,
+          ...transportFields,
         }
       }))
       for (const l of designListings) addListing(l)
@@ -306,6 +317,7 @@ export default function VendorAddListing() {
       hourlyPricing: category === 'Venue' && hourlyPricing.length > 0 ? hourlyPricing : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
+      ...transportFields,
     }
     addListing(listing)
 
@@ -772,6 +784,38 @@ export default function VendorAddListing() {
               </div>
             </div>
             )}
+
+            {/* Transport & logistics — asked for every category */}
+            <div className="mb-4 p-3 rounded-xl bg-empty-bg border border-card-border">
+              <p className="text-[12px] font-semibold text-dark mb-1">Transport &amp; logistics included?</p>
+              <div className="flex gap-1.5 mb-2">
+                <button
+                  type="button"
+                  onClick={() => { setTransportIncluded(true); setTransportExtra(0) }}
+                  className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === true ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+                >Yes</button>
+                <button
+                  type="button"
+                  onClick={() => setTransportIncluded(false)}
+                  className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === false ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+                >No</button>
+              </div>
+              {transportIncluded === false && (
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Extra amount couples will pay</label>
+                  <div className="relative max-w-[200px]">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                    <input
+                      type="number" min={0} step={500} value={transportExtra || ''}
+                      onChange={(e) => setTransportExtra(Math.max(0, parseInt(e.target.value) || 0))}
+                      placeholder="0"
+                      className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
+                    />
+                  </div>
+                  {transportExtra > 0 && <p className="text-[9px] text-gray-400 mt-0.5">Shown to couples as a sub-line in the total: +{formatINR(transportExtra)}</p>}
+                </div>
+              )}
+            </div>
 
             {/* Venue-only: per-duration hourly pricing tiers */}
             {category === 'Venue' && (

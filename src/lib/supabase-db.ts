@@ -107,6 +107,8 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       hourly_pricing: listing.hourlyPricing || [],
       paid_rooms: listing.paidRooms || [],
       menu: listing.menu || [],
+      transport_included: listing.transportIncluded ?? null,
+      transport_extra: listing.transportExtra ?? null,
     })
     .select()
     .maybeSingle()
@@ -134,6 +136,8 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
       hourly_pricing: listing.hourlyPricing || [],
       paid_rooms: listing.paidRooms || [],
       menu: listing.menu || [],
+      transport_included: listing.transportIncluded ?? null,
+      transport_extra: listing.transportExtra ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', listingDbId)

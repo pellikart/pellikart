@@ -36,6 +36,8 @@ export interface Vendor {
   paidRooms?: import('./vendor-types').PaidRoom[];
   menu?: import('./vendor-types').MenuSection[];
   rituals?: string[];
+  transportIncluded?: boolean;
+  transportExtra?: number;
   categoryFields?: Record<string, string | string[]>;
   includes?: string[];
   phone?: string;

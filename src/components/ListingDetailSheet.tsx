@@ -123,11 +123,31 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {/* Price */}
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
             {vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
-              <p className="text-[10px] text-gray-400 mb-3">
+              <p className="text-[10px] text-gray-400">
                 {selectedTierHours ? `For ${selectedTierHours} hr rental` : `Default rate`}
               </p>
             )}
-            {!vendor.hourlyPricing?.length && <div className="mb-3" />}
+            {/* Transport & logistics sub-line */}
+            {vendor.transportIncluded === false && vendor.transportExtra && vendor.transportExtra > 0 ? (
+              <>
+                <p className="text-[11px] text-gray-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-gray-400">
+                  Transport &amp; logistics: <span className="font-semibold text-dark">+{formatINR(vendor.transportExtra)}</span>
+                </p>
+                <p className="text-[12px] font-semibold text-dark mt-1 pt-1 border-t border-card-border/50">
+                  Total: <span className="text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours) + vendor.transportExtra)}</span>
+                </p>
+                <div className="mb-3" />
+              </>
+            ) : vendor.transportIncluded === true ? (
+              <>
+                <p className="text-[10px] text-green-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0">
+                  Transport &amp; logistics included
+                </p>
+                <div className="mb-3" />
+              </>
+            ) : (
+              <div className="mb-3" />
+            )}
 
             {/* Hourly tier picker — only when vendor has tiers */}
             {vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && ritualId && categoryId && (
