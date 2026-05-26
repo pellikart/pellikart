@@ -286,6 +286,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'crockeryIncluded', label: 'Crockery & cutlery', type: 'single', options: ['Included', 'Extra charge', 'Client provides'] },
           { key: 'specialCounters', label: 'Special counters', type: 'multi', options: ['Chaat Station', 'Ice Cream Bar', 'Paan Counter', 'Dessert Bar', 'Juice Bar', 'Dosa Counter', 'Pasta Counter'] },
           { key: 'orderLeadDays', label: 'How many days prior ordering is needed?', type: 'number', numberMin: 1, numberMax: 90, numberStep: 1, numberUnit: 'days' },
+          { key: 'backupFoodPlates', label: 'Is backup food / plates available?', type: 'single', options: ['Yes', 'No'] },
         ],
       },
     ],
