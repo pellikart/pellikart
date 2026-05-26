@@ -687,7 +687,7 @@ export default function VendorAddListing() {
 
             <div className="flex gap-2 mt-6">
               <button onClick={() => setStep(inclusionsStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
-              <button onClick={() => setStep(reviewStep)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
+              <button onClick={() => setStep(inclusionsStep + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
             </div>
           </div>
         )}
