@@ -1,6 +1,78 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatINR } from '@/lib/helpers'
 import type { SizePrice } from '@/lib/vendor-types'
+
+/**
+ * One size row with its own local string state so the input is always
+ * responsive — sidesteps the empty-string ↔ zero round-trip that can
+ * happen with `value={num || ''}` on type="number" controlled inputs.
+ */
+function SizeRow({
+  row,
+  onChange,
+  onRemove,
+}: {
+  row: SizePrice
+  onChange: (next: SizePrice) => void
+  onRemove: () => void
+}) {
+  const [w, setW] = useState(row.widthFt ? String(row.widthFt) : '')
+  const [h, setH] = useState(row.heightFt ? String(row.heightFt) : '')
+  const [p, setP] = useState(row.price ? String(row.price) : '')
+
+  // Skip the first commit so we don't bounce the parent's state right after mount.
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return }
+    onChange({
+      widthFt: parseFloat(w) || 0,
+      heightFt: parseFloat(h) || 0,
+      price: parseInt(p) || 0,
+    })
+    // We intentionally don't depend on onChange to avoid infinite loops if
+    // the parent passes a new reference each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w, h, p])
+
+  return (
+    <div className="flex items-center gap-1.5 mb-1.5">
+      <div className="relative flex-1">
+        <input
+          type="number" inputMode="decimal" min={0} step="any" value={w}
+          onChange={(e) => setW(e.target.value)}
+          placeholder="W"
+          className="w-full pl-2 pr-6 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
+        />
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">ft</span>
+      </div>
+      <span className="text-[11px] text-gray-400">×</span>
+      <div className="relative flex-1">
+        <input
+          type="number" inputMode="decimal" min={0} step="any" value={h}
+          onChange={(e) => setH(e.target.value)}
+          placeholder="H"
+          className="w-full pl-2 pr-6 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
+        />
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">ft</span>
+      </div>
+      <div className="relative w-[110px]">
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+        <input
+          type="number" inputMode="numeric" min={0} step={1000} value={p}
+          onChange={(e) => setP(e.target.value)}
+          placeholder="Price"
+          className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove size"
+        className="w-7 h-7 rounded-full bg-empty-bg text-gray-500 text-[12px] flex items-center justify-center active:bg-red-50 active:text-red-500 shrink-0"
+      >×</button>
+    </div>
+  )
+}
 
 export interface DesignDraft {
   id: string
@@ -155,57 +227,19 @@ export default function DesignsEditor({ value, onChange, onFilesAdded }: Props) 
             </div>
 
             {(design.sizes || []).map((sz, sizeIdx) => (
-              <div key={sizeIdx} className="flex items-center gap-1.5 mb-1.5">
-                <div className="relative flex-1">
-                  <input
-                    type="number" min={0} step={0.5} value={sz.widthFt || ''}
-                    onChange={(e) => {
-                      const next = [...(design.sizes || [])]
-                      next[sizeIdx] = { ...next[sizeIdx], widthFt: parseFloat(e.target.value) || 0 }
-                      update(design.id, { sizes: next })
-                    }}
-                    placeholder="W"
-                    className="w-full pl-2 pr-6 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
-                  />
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">ft</span>
-                </div>
-                <span className="text-[11px] text-gray-400">×</span>
-                <div className="relative flex-1">
-                  <input
-                    type="number" min={0} step={0.5} value={sz.heightFt || ''}
-                    onChange={(e) => {
-                      const next = [...(design.sizes || [])]
-                      next[sizeIdx] = { ...next[sizeIdx], heightFt: parseFloat(e.target.value) || 0 }
-                      update(design.id, { sizes: next })
-                    }}
-                    placeholder="H"
-                    className="w-full pl-2 pr-6 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
-                  />
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">ft</span>
-                </div>
-                <div className="relative w-[110px]">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
-                  <input
-                    type="number" min={0} step={1000} value={sz.price || ''}
-                    onChange={(e) => {
-                      const next = [...(design.sizes || [])]
-                      next[sizeIdx] = { ...next[sizeIdx], price: parseInt(e.target.value) || 0 }
-                      update(design.id, { sizes: next })
-                    }}
-                    placeholder="Price"
-                    className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = (design.sizes || []).filter((_, i) => i !== sizeIdx)
-                    update(design.id, { sizes: next.length > 0 ? next : undefined })
-                  }}
-                  aria-label="Remove size"
-                  className="w-7 h-7 rounded-full bg-empty-bg text-gray-500 text-[12px] flex items-center justify-center active:bg-red-50 active:text-red-500 shrink-0"
-                >×</button>
-              </div>
+              <SizeRow
+                key={`${design.id}-${sizeIdx}`}
+                row={sz}
+                onChange={(nextRow) => {
+                  const next = [...(design.sizes || [])]
+                  next[sizeIdx] = nextRow
+                  update(design.id, { sizes: next })
+                }}
+                onRemove={() => {
+                  const next = (design.sizes || []).filter((_, i) => i !== sizeIdx)
+                  update(design.id, { sizes: next.length > 0 ? next : undefined })
+                }}
+              />
             ))}
 
             <button
