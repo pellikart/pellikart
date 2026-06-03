@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { useVendorStore } from '@/lib/vendor-store'
 import { AuthProvider, useAuth } from '@/lib/auth-context'
+import { fetchVendor } from '@/lib/supabase-db'
 import LandingPage from './pages/LandingPage'
 import TryAppPage from './pages/TryAppPage'
 import WhyUsPage from './pages/WhyUsPage'
@@ -82,37 +83,71 @@ function LiveApp() {
   // when profile loads from DB with the old role ('couple')
   const pendingRoleRef = useRef<string | null>(localStorage.getItem('pellikart_pending_role'))
 
-  // Apply pending role + initialize stores
+  // Whether this user already has a completed vendor record.
+  // null = not yet checked; we block store init until this resolves so a
+  // returning vendor never sees the role-select / couple flow flicker.
+  const [hasCompletedVendor, setHasCompletedVendor] = useState<boolean | null>(null)
+
+  // One-shot lookup: does this auth user already own a completed vendor row?
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setHasCompletedVendor(null)
+      return
+    }
+    let cancelled = false
+    fetchVendor(user.id).then(v => {
+      if (cancelled) return
+      setHasCompletedVendor(!!(v && v.onboarding_complete))
+    })
+    return () => { cancelled = true }
+  }, [user])
 
-    // Use pending role until the DB profile catches up
-    let effectiveRole: 'couple' | 'vendor' = (profile?.role as 'couple' | 'vendor') || 'couple'
+  // Apply effective role + initialize stores
+  useEffect(() => {
+    if (!user || hasCompletedVendor === null) return
 
-    if (pendingRoleRef.current && (pendingRoleRef.current === 'couple' || pendingRoleRef.current === 'vendor')) {
-      effectiveRole = pendingRoleRef.current
+    const picked = pendingRoleRef.current as 'couple' | 'vendor' | null
+    const dbRole = profile?.role as 'couple' | 'vendor' | undefined
 
-      // Update DB if profile doesn't match yet
-      if (profile && profile.role !== pendingRoleRef.current) {
-        updateRole(pendingRoleRef.current)
-      }
+    // Determine the effective role for this session.
+    //  1. A user with a completed vendor record is always 'vendor' —
+    //     prevents a returning vendor from clobbering their role by
+    //     accidentally tapping "couple" on the AuthPage role-select.
+    //  2. Otherwise use the picked role (new signup flow).
+    //  3. Fall back to the DB role, then 'couple' default.
+    let effectiveRole: 'couple' | 'vendor'
+    if (hasCompletedVendor) {
+      effectiveRole = 'vendor'
+    } else if (picked === 'couple' || picked === 'vendor') {
+      effectiveRole = picked
+    } else {
+      effectiveRole = dbRole || 'couple'
+    }
 
-      // Only clear pending role once the profile in DB has caught up
-      if (profile && profile.role === pendingRoleRef.current) {
-        pendingRoleRef.current = null
-        localStorage.removeItem('pellikart_pending_role')
-      }
+    // Sync DB profile.role if it disagrees with the effective role.
+    if (profile && profile.role !== effectiveRole) {
+      updateRole(effectiveRole)
+    }
+
+    // Clear pending role once the DB has caught up (or there's no profile
+    // yet to reconcile against — happens when the auth trigger hasn't run).
+    if (!profile || profile.role === effectiveRole) {
+      pendingRoleRef.current = null
+      localStorage.removeItem('pellikart_pending_role')
     }
 
     // Initialize stores with the correct role
-    console.log('[LiveApp] init stores — role:', effectiveRole, 'userId:', user.id, 'profile:', profile?.role || 'null', 'pending:', pendingRoleRef.current)
+    console.log('[LiveApp] init stores — role:', effectiveRole, 'userId:', user.id, 'hasCompletedVendor:', hasCompletedVendor, 'profile:', profile?.role || 'null', 'picked:', picked)
     initStore(user.id, effectiveRole)
     if (effectiveRole === 'vendor') {
       initVendorStore(user.id)
     }
-  }, [user, profile, updateRole, initStore, initVendorStore])
+  }, [user, profile, hasCompletedVendor, updateRole, initStore, initVendorStore])
 
-  if (loading) {
+  // Keep showing the splash while we resolve who this user is — both auth
+  // load AND the vendor lookup must finish, otherwise AppRoutes briefly
+  // renders RoleSelectPage before the stores initialize.
+  if (loading || (user && hasCompletedVendor === null)) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">
