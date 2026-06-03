@@ -34,12 +34,20 @@ function SizeRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [w, h, p])
 
+  // Allow only digits + a single decimal point for ft inputs; digits only for price.
+  function sanitizeDecimal(s: string): string {
+    const cleaned = s.replace(/[^0-9.]/g, '')
+    const firstDot = cleaned.indexOf('.')
+    if (firstDot === -1) return cleaned
+    return cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '')
+  }
+
   return (
     <div className="flex items-center gap-1.5 mb-1.5">
       <div className="relative flex-1">
         <input
-          type="number" inputMode="decimal" min={0} step="any" value={w}
-          onChange={(e) => setW(e.target.value)}
+          type="text" inputMode="decimal" autoComplete="off" value={w}
+          onChange={(e) => setW(sanitizeDecimal(e.target.value))}
           placeholder="W"
           className="w-full pl-2 pr-6 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
         />
@@ -48,8 +56,8 @@ function SizeRow({
       <span className="text-[11px] text-gray-400">×</span>
       <div className="relative flex-1">
         <input
-          type="number" inputMode="decimal" min={0} step="any" value={h}
-          onChange={(e) => setH(e.target.value)}
+          type="text" inputMode="decimal" autoComplete="off" value={h}
+          onChange={(e) => setH(sanitizeDecimal(e.target.value))}
           placeholder="H"
           className="w-full pl-2 pr-6 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
         />
@@ -58,8 +66,8 @@ function SizeRow({
       <div className="relative w-[110px]">
         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
         <input
-          type="number" inputMode="numeric" min={0} step={1000} value={p}
-          onChange={(e) => setP(e.target.value)}
+          type="text" inputMode="numeric" autoComplete="off" value={p}
+          onChange={(e) => setP(e.target.value.replace(/[^0-9]/g, ''))}
           placeholder="Price"
           className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
         />
