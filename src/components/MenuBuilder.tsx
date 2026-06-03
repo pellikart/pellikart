@@ -13,19 +13,23 @@ interface Props {
 function getOrCreateSection(menu: MenuSection[], section: string): MenuSection {
   const found = menu.find(s => s.section === section)
   if (found) return found
-  return { section, dishIds: [], pickLimit: 1 }
+  return { section, dishIds: [], customDishes: [], pickLimit: 1 }
 }
 
 function upsertSection(menu: MenuSection[], updated: MenuSection): MenuSection[] {
   const next = menu.filter(s => s.section !== updated.section)
-  // Only keep sections that have something configured (dishes or non-default limit)
-  if (updated.dishIds.length === 0 && updated.pickLimit === 0) return next
+  // Only keep sections that have something configured. Custom dishes count too —
+  // a section with only custom dishes is still a valid offering.
+  const customCount = updated.customDishes?.length || 0
+  if (updated.dishIds.length === 0 && customCount === 0 && updated.pickLimit === 0) return next
   next.push(updated)
   return next
 }
 
 export default function MenuBuilder({ value, foodType, onChange }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  // Per-section draft text for the "add custom dish" input
+  const [customDrafts, setCustomDrafts] = useState<Record<string, string>>({})
 
   const vegOnly = foodType === 'Veg only'
 
@@ -60,15 +64,46 @@ export default function MenuBuilder({ value, foodType, onChange }: Props) {
     onChange(upsertSection(value, updated))
   }
 
+  function addCustomDish(section: string) {
+    const raw = customDrafts[section]
+    const name = raw?.trim()
+    if (!name) return
+    const sec = getOrCreateSection(value, section)
+    const existing = sec.customDishes || []
+    // Dedupe case-insensitively against existing customs AND default dishes.
+    const lower = name.toLowerCase()
+    if (existing.some(d => d.toLowerCase() === lower)) return
+    const defaultsSelected = DISH_BANK.filter(d => sec.dishIds.includes(d.id))
+    if (defaultsSelected.some(d => d.name.toLowerCase() === lower)) return
+    const updated: MenuSection = {
+      ...sec,
+      customDishes: [...existing, name],
+    }
+    onChange(upsertSection(value, updated))
+    setCustomDrafts(prev => ({ ...prev, [section]: '' }))
+  }
+
+  function removeCustomDish(section: string, name: string) {
+    const sec = getOrCreateSection(value, section)
+    const updated: MenuSection = {
+      ...sec,
+      customDishes: (sec.customDishes || []).filter(d => d !== name),
+    }
+    onChange(upsertSection(value, updated))
+  }
+
   return (
     <div className="space-y-2">
       {MENU_SECTIONS.map(section => {
         const dishes = dishesFor(section)
         if (dishes.length === 0) return null
         const sec = value.find(s => s.section === section)
-        const picked = sec?.dishIds.length || 0
+        const customs = sec?.customDishes || []
+        const picked = (sec?.dishIds.length || 0) + customs.length
+        const totalOffered = dishes.length + customs.length
         const limit = sec?.pickLimit ?? 1
         const isOpen = expanded.has(section)
+        const draft = customDrafts[section] || ''
 
         return (
           <div key={section} className="rounded-xl border border-card-border overflow-hidden">
@@ -80,7 +115,8 @@ export default function MenuBuilder({ value, foodType, onChange }: Props) {
               <div className="text-left">
                 <p className="text-[12px] font-semibold text-dark">{section}</p>
                 <p className="text-[10px] text-gray-500">
-                  {picked} / {dishes.length} offered
+                  {picked} / {totalOffered} offered
+                  {customs.length > 0 && <span className="text-gray-400"> ({customs.length} custom)</span>}
                   {picked > 0 && <span className="text-mustard font-medium"> · couple picks {limit}</span>}
                 </p>
               </div>
@@ -100,20 +136,20 @@ export default function MenuBuilder({ value, foodType, onChange }: Props) {
                       className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
                     >−</button>
                     <input
-                      type="number" min={0} max={dishes.length} value={limit}
-                      onChange={(e) => setPickLimit(section, Math.min(dishes.length, Math.max(0, parseInt(e.target.value) || 0)))}
+                      type="number" min={0} max={totalOffered} value={limit}
+                      onChange={(e) => setPickLimit(section, Math.min(totalOffered, Math.max(0, parseInt(e.target.value) || 0)))}
                       className="w-10 text-center text-[12px] font-semibold text-dark outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button
                       type="button"
-                      onClick={() => setPickLimit(section, Math.min(dishes.length, limit + 1))}
-                      disabled={limit >= dishes.length}
+                      onClick={() => setPickLimit(section, Math.min(totalOffered, limit + 1))}
+                      disabled={limit >= totalOffered}
                       className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
                     >+</button>
                   </div>
                 </div>
 
-                {/* Dish chips */}
+                {/* Dish chips — defaults from DISH_BANK, then any custom dishes the vendor added */}
                 <div className="flex flex-wrap gap-1.5">
                   {dishes.map(d => {
                     const sel = sec?.dishIds.includes(d.id) || false
@@ -130,6 +166,44 @@ export default function MenuBuilder({ value, foodType, onChange }: Props) {
                       </button>
                     )
                   })}
+                  {customs.map(name => (
+                    <span
+                      key={`custom:${name}`}
+                      className="inline-flex items-center gap-1 py-1 pl-2.5 pr-1 rounded-full text-[10px] font-medium bg-mustard text-white"
+                    >
+                      <span className="mr-0.5">✓</span>{name}
+                      <button
+                        type="button"
+                        onClick={() => removeCustomDish(section, name)}
+                        aria-label={`Remove ${name}`}
+                        className="w-4 h-4 rounded-full bg-white/25 flex items-center justify-center text-[10px] leading-none active:bg-white/40"
+                      >×</button>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Add custom dish */}
+                <div className="flex items-center gap-1.5 pt-1">
+                  <input
+                    type="text"
+                    value={draft}
+                    onChange={(e) => setCustomDrafts(prev => ({ ...prev, [section]: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addCustomDish(section)
+                      }
+                    }}
+                    maxLength={60}
+                    placeholder="Add another dish…"
+                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addCustomDish(section)}
+                    disabled={!draft.trim()}
+                    className="px-3 py-1.5 rounded-lg bg-mustard text-white text-[11px] font-semibold disabled:opacity-40"
+                  >Add</button>
                 </div>
               </div>
             )}

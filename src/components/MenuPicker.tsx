@@ -13,7 +13,8 @@ interface Props {
  */
 export default function MenuPicker({ menu }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [picks, setPicks] = useState<Record<string, Set<number>>>({})
+  // Picks track either a dish ID (number, from DISH_BANK) or a custom dish name (string).
+  const [picks, setPicks] = useState<Record<string, Set<number | string>>>({})
 
   if (menu.length === 0) return null
 
@@ -26,15 +27,15 @@ export default function MenuPicker({ menu }: Props) {
     })
   }
 
-  function togglePick(section: string, dishId: number, limit: number) {
+  function togglePick(section: string, key: number | string, limit: number) {
     setPicks(prev => {
-      const current = prev[section] || new Set<number>()
-      const has = current.has(dishId)
+      const current = prev[section] || new Set<number | string>()
+      const has = current.has(key)
       const next = new Set(current)
       if (has) {
-        next.delete(dishId)
+        next.delete(key)
       } else if (next.size < limit) {
-        next.add(dishId)
+        next.add(key)
       } else {
         // At cap — ignore. We could replace oldest, but explicit is friendlier.
         return prev
@@ -43,15 +44,17 @@ export default function MenuPicker({ menu }: Props) {
     })
   }
 
-  // Only show sections the vendor actually offers something in (dishes + a positive limit).
-  const offered = menu.filter(s => s.dishIds.length > 0 && s.pickLimit > 0)
+  // Only show sections the vendor actually offers something in (defaults or customs, with a positive limit).
+  const offered = menu.filter(s => (s.dishIds.length > 0 || (s.customDishes?.length || 0) > 0) && s.pickLimit > 0)
   if (offered.length === 0) return null
 
   return (
     <div className="space-y-2">
       {offered.map(sec => {
         const sectionDishes = DISH_BANK.filter(d => sec.dishIds.includes(d.id))
-        const picked = picks[sec.section] || new Set<number>()
+        const customs = sec.customDishes || []
+        const totalOffered = sectionDishes.length + customs.length
+        const picked = picks[sec.section] || new Set<number | string>()
         const atCap = picked.size >= sec.pickLimit
         const isOpen = expanded.has(sec.section)
         return (
@@ -64,7 +67,7 @@ export default function MenuPicker({ menu }: Props) {
               <div className="text-left">
                 <p className="text-[11px] font-semibold text-dark">{sec.section}</p>
                 <p className="text-[10px] text-gray-500">
-                  {sectionDishes.length} on offer · pick up to {sec.pickLimit}
+                  {totalOffered} on offer · pick up to {sec.pickLimit}
                   {picked.size > 0 && <span className="text-magenta font-medium"> · {picked.size} picked</span>}
                 </p>
               </div>
@@ -91,6 +94,21 @@ export default function MenuPicker({ menu }: Props) {
                       >
                         {sel && <span className="mr-0.5">✓ </span>}{d.name}
                         {d.veg === 'Non-Veg' && <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-red-500" />}
+                      </button>
+                    )
+                  })}
+                  {customs.map(name => {
+                    const sel = picked.has(name)
+                    const disabled = !sel && atCap
+                    return (
+                      <button
+                        key={`custom:${name}`}
+                        type="button"
+                        onClick={() => togglePick(sec.section, name, sec.pickLimit)}
+                        disabled={disabled}
+                        className={`py-1 px-2.5 rounded-full text-[10px] font-medium transition-all ${sel ? 'bg-mustard text-white' : disabled ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-empty-bg text-gray-700 border border-card-border active:bg-mustard-light/40'}`}
+                      >
+                        {sel && <span className="mr-0.5">✓ </span>}{name}
                       </button>
                     )
                   })}

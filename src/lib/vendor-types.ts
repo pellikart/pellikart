@@ -9,6 +9,8 @@ export interface MenuSection {
   section: string
   /** Dish IDs (from DISH_BANK) the caterer offers in this section */
   dishIds: number[]
+  /** Free-form dish names the caterer typed in themselves (not in DISH_BANK) */
+  customDishes?: string[]
   /** How many dishes the couple can pick from this section (0 = section disabled) */
   pickLimit: number
 }
