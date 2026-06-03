@@ -315,7 +315,6 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'editedPhotos', label: 'Edited photos', type: 'single', options: ['200', '500', '800', '1000', 'All'] },
           { key: 'highlightReel', label: 'Highlight reel', type: 'single', options: ['Not included', '3 min', '5 min', '10 min'] },
           { key: 'fullVideo', label: 'Full ceremony video', type: 'single', options: ['Yes', 'No'] },
-          { key: 'preWedding', label: 'Pre-wedding shoot', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
           { key: 'droneShots', label: 'Drone shots', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
           { key: 'sameDayEdit', label: 'Same-day edit', type: 'single', options: ['Yes', 'No'] },
           { key: 'deliveryFormat', label: 'Delivery format', type: 'single', options: ['USB Drive', 'Google Drive', 'Both'] },
