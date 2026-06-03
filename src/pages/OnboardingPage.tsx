@@ -4,7 +4,7 @@ import { useStore } from '@/lib/store'
 import { OnboardingData } from '@/lib/types'
 import { formatINR } from '@/lib/helpers'
 
-const PRESET_EVENTS = ['Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
+const PRESET_EVENTS = ['Pre-Wedding Shoot', 'Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
 const GUEST_OPTIONS = ['100-200', '200-500', '500-1000', '1000+']
 const EVENT_BUDGET_MIN = 25000
 const EVENT_BUDGET_MAX = 5000000
@@ -15,6 +15,7 @@ function defaultBudgetFor(event: string): number {
   if (lower.includes('pelli') && lower.includes('wedding')) return 1000000
   if (lower === 'reception') return 600000
   if (lower === 'sangeeth' || lower === 'mehendi') return 300000
+  if (lower.includes('pre-wedding') || lower.includes('pre wedding')) return 75000
   return 200000
 }
 

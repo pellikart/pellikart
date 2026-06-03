@@ -110,6 +110,7 @@ describe('Vendor Category Config', () => {
 
   describe('Rituals', () => {
     it('has expected event names', () => {
+      expect(RITUALS).toContain('Pre-Wedding Shoot')
       expect(RITUALS).toContain('Engagement')
       expect(RITUALS).toContain('Pelli Choopulu')
       expect(RITUALS).toContain('Bottu')
@@ -125,7 +126,7 @@ describe('Vendor Category Config', () => {
     })
 
     it('has correct count', () => {
-      expect(RITUALS.length).toBe(8)
+      expect(RITUALS.length).toBe(9)
     })
   })
 

@@ -716,7 +716,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
 // ─── RITUALS / EVENTS ───────────────────────
 
 /** All rituals/events a listing can be tagged for (used for couple-vendor matching) */
-export const RITUALS = ['Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
+export const RITUALS = ['Pre-Wedding Shoot', 'Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
 
 /** Get the listing config for a category, with a safe fallback */
 export function getListingConfig(category: string): CategoryListingConfig {
