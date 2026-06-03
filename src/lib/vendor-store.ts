@@ -82,9 +82,9 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         description: vendor.description || '',
         experience: parseInt(vendor.years_experience) || 0,
         teamSize: vendor.team_size || '',
-        portfolioPhotos: vendor.portfolio_photos || [],
+        portfolioPhotos: Array.isArray(vendor.portfolio_photos) ? vendor.portfolio_photos : [],
+        portfolioVideos: Array.isArray(vendor.portfolio_videos) ? vendor.portfolio_videos : undefined,
         rating: vendor.rating || 0,
-        profileCompleteness: 0,
         categoryFields: vendor.category_fields || {},
       }
 

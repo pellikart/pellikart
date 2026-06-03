@@ -92,7 +92,6 @@ export default function VendorOnboarding() {
       portfolioPhotos: [],
       portfolioVideos: undefined,
       rating: 0,
-      profileCompleteness: photoFiles.length > 0 ? 90 : 70,
     }
     const defaultPackages: VendorPackage[] = []
     await completeVendorOnboarding(profile, defaultPackages)

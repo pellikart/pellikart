@@ -2,10 +2,35 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos, deletePhoto } from '@/lib/supabase-db'
+import type { VendorProfile as VendorProfileType } from '@/lib/vendor-types'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props', 'Other']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
 const TEAM_SIZES = ['Solo', '2-5', '5-10', '10+']
+
+/**
+ * Derive profile completeness from the live profile fields. Equal-weighted
+ * checks; tuned so onboarding defaults give ~60% and a vendor needs to
+ * write a real description, upload a few photos, and fill the optional
+ * fields to reach 100%.
+ */
+function calcCompleteness(p: VendorProfileType): number {
+  const checks = [
+    p.businessName.trim().length > 0,
+    p.category.trim().length > 0,
+    p.area.trim().length > 0,
+    p.phone.trim().length > 0,
+    p.whatsapp.trim().length > 0,
+    p.email.trim().length > 0,
+    p.description.trim().length >= 50,
+    p.experience > 0,
+    p.teamSize.trim().length > 0,
+    p.portfolioPhotos.length >= 3,
+    !!p.instagram?.trim(),
+    Object.keys(p.categoryFields || {}).length > 0,
+  ]
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100)
+}
 
 export default function VendorProfile() {
   const navigate = useNavigate()
@@ -27,6 +52,12 @@ export default function VendorProfile() {
   const [editTeamSize, setEditTeamSize] = useState('')
 
   if (!p) return null
+
+  // Defensive: portfolio_photos column should be text[] / jsonb array, but a
+  // manual SQL write that set it to a non-array (e.g. '{}' on a jsonb column)
+  // would leave us with an object here and break every spread/.length/.map.
+  // Normalise once so the rest of the component can trust the type.
+  const photos: string[] = Array.isArray(p.portfolioPhotos) ? p.portfolioPhotos : []
 
   function openEdit() {
     setEditName(p!.businessName)
@@ -77,8 +108,8 @@ export default function VendorProfile() {
         <div className="p-4 rounded-2xl bg-mustard-light border border-mustard/20">
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-mustard/15 flex items-center justify-center">
-              {p.portfolioPhotos[0] ? (
-                <img src={p.portfolioPhotos[0]} alt="" className="w-full h-full object-cover" />
+              {photos[0] ? (
+                <img src={photos[0]} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-mustard text-[18px] font-bold">{p.businessName.charAt(0).toUpperCase()}</span>
               )}
@@ -92,15 +123,20 @@ export default function VendorProfile() {
               </div>
             </div>
           </div>
-          <div className="mt-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[9px] text-gray-500">Profile completeness</span>
-              <span className="text-[9px] text-mustard font-semibold">{p.profileCompleteness}%</span>
-            </div>
-            <div className="h-1.5 bg-white rounded-full overflow-hidden">
-              <div className="h-full bg-mustard rounded-full transition-all" style={{ width: `${p.profileCompleteness}%` }} />
-            </div>
-          </div>
+          {(() => {
+            const completeness = calcCompleteness(p)
+            return (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] text-gray-500">Profile completeness</span>
+                  <span className="text-[9px] text-mustard font-semibold">{completeness}%</span>
+                </div>
+                <div className="h-1.5 bg-white rounded-full overflow-hidden">
+                  <div className="h-full bg-mustard rounded-full transition-all" style={{ width: `${completeness}%` }} />
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
 
@@ -124,9 +160,9 @@ export default function VendorProfile() {
           <div className="flex items-center justify-between mb-2">
             <div>
               <p className="text-[12px] font-medium text-dark">Portfolio Photos</p>
-              <p className="text-[10px] text-gray-400">{p.portfolioPhotos.length}/10 photos</p>
+              <p className="text-[10px] text-gray-400">{photos.length}/10 photos</p>
             </div>
-            {p.portfolioPhotos.length < 10 && (
+            {photos.length < 10 && photos.length > 0 && (
               <label className={`text-[10px] font-medium text-mustard cursor-pointer ${uploadingPhotos ? 'opacity-50' : ''}`}>
                 {uploadingPhotos ? 'Uploading...' : '+ Add'}
                 <input
@@ -139,28 +175,28 @@ export default function VendorProfile() {
                       setUploadingPhotos(true)
                       const urls = await uploadPhotos(_vendorDbId, files, 'portfolio')
                       if (urls.length > 0) {
-                        updateVendorProfile({ portfolioPhotos: [...p.portfolioPhotos, ...urls].slice(0, 10) })
+                        updateVendorProfile({ portfolioPhotos: [...photos, ...urls].slice(0, 10) })
                       }
                       setUploadingPhotos(false)
                     } else {
                       const previews = files.map(f => URL.createObjectURL(f))
-                      updateVendorProfile({ portfolioPhotos: [...p.portfolioPhotos, ...previews].slice(0, 10) })
+                      updateVendorProfile({ portfolioPhotos: [...photos, ...previews].slice(0, 10) })
                     }
                   }}
                 />
               </label>
             )}
           </div>
-          {p.portfolioPhotos.length > 0 ? (
+          {photos.length > 0 ? (
             <div className="grid grid-cols-4 gap-1.5">
-              {p.portfolioPhotos.map((photo, i) => (
+              {photos.map((photo, i) => (
                 <div key={i} className="aspect-square rounded-lg overflow-hidden relative group">
                   <img src={photo} alt="" className="w-full h-full object-cover" />
                   {i === 0 && <span className="absolute top-0.5 left-0.5 bg-mustard text-white text-[6px] font-bold px-1 py-0.5 rounded">COVER</span>}
                   <button
                     onClick={async () => {
                       if (_liveMode) await deletePhoto(photo)
-                      updateVendorProfile({ portfolioPhotos: p.portfolioPhotos.filter((_, idx) => idx !== i) })
+                      updateVendorProfile({ portfolioPhotos: photos.filter((_, idx) => idx !== i) })
                     }}
                     className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/50 rounded-full flex items-center justify-center text-white text-[8px] opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity"
                   >×</button>
@@ -181,12 +217,12 @@ export default function VendorProfile() {
                     setUploadingPhotos(true)
                     const urls = await uploadPhotos(_vendorDbId, files, 'portfolio')
                     if (urls.length > 0) {
-                      updateVendorProfile({ portfolioPhotos: [...p!.portfolioPhotos, ...urls].slice(0, 10) })
+                      updateVendorProfile({ portfolioPhotos: [...photos, ...urls].slice(0, 10) })
                     }
                     setUploadingPhotos(false)
                   } else {
                     const previews = files.map(f => URL.createObjectURL(f))
-                    updateVendorProfile({ portfolioPhotos: [...p!.portfolioPhotos, ...previews].slice(0, 10) })
+                    updateVendorProfile({ portfolioPhotos: [...photos, ...previews].slice(0, 10) })
                   }
                 }}
               />

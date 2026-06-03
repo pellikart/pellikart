@@ -15,7 +15,6 @@ const mockProfile: VendorProfile = {
   teamSize: '2-5',
   portfolioPhotos: [],
   rating: 0,
-  profileCompleteness: 70,
   categoryFields: { shootStyles: ['Candid', 'Cinematic'] },
 }
 

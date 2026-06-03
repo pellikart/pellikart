@@ -59,7 +59,6 @@ export interface VendorProfile {
   portfolioPhotos: string[]
   portfolioVideos?: string[]
   rating: number
-  profileCompleteness: number
   /** Category-specific onboarding field values (key → selected value(s)) */
   categoryFields?: Record<string, string | string[]>
 }
