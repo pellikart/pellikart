@@ -33,6 +33,8 @@ export interface Vendor {
   listingPhotos?: string[];
   listingVideos?: string[];
   hourlyPricing?: { hours: number; price: number }[];
+  /** Decor-only: per-size price variants. When set, `price` is the min (starting price). */
+  sizes?: import('./vendor-types').SizePrice[];
   paidRooms?: import('./vendor-types').PaidRoom[];
   menu?: import('./vendor-types').MenuSection[];
   rituals?: string[];

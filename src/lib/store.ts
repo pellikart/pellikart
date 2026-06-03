@@ -101,6 +101,12 @@ export function buildLiveVendorMap(
       bundledListings: (l.bundled_listings as string[]) || [],
       bundleMandatory: (l.bundle_mandatory as boolean) || false,
       hourlyPricing: (l.hourly_pricing as { hours: number; price: number }[]) || undefined,
+      sizes: (() => {
+        const raw = l.sizes
+        return Array.isArray(raw) && raw.length > 0
+          ? (raw as import('./vendor-types').SizePrice[])
+          : undefined
+      })(),
       paidRooms: (l.paid_rooms as import('./vendor-types').PaidRoom[]) || undefined,
       menu: (l.menu as import('./vendor-types').MenuSection[]) || undefined,
       rituals: (l.rituals as string[]) || undefined,

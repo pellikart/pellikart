@@ -3,6 +3,16 @@ export interface BlockedTimeRange {
   to: string    // e.g. '14:00'
 }
 
+/** Decor-only: a size variant for a design, with a per-size price. */
+export interface SizePrice {
+  /** Width in feet */
+  widthFt: number
+  /** Height in feet */
+  heightFt: number
+  /** Price for this size variant in ₹ */
+  price: number
+}
+
 /** Catering-only: one section of the curated menu. */
 export interface MenuSection {
   /** Section name, matches one of MENU_SECTIONS from dish-bank.ts */
@@ -104,6 +114,8 @@ export interface VendorListing {
   coverPhotoIndex?: number
   category: string
   price: number
+  /** Decor-only: per-size price variants. If present, `price` should equal min(sizes.price). */
+  sizes?: SizePrice[]
   style: string
   /** Which rituals/events this listing is suitable for */
   rituals?: string[]

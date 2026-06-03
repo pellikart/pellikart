@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatINR } from '@/lib/helpers'
+import type { SizePrice } from '@/lib/vendor-types'
 
 export interface DesignDraft {
   id: string
@@ -7,6 +8,9 @@ export interface DesignDraft {
   photos: string[]   // blob URLs in demo, public URLs in live mode after upload
   videos: string[]
   price: number
+  /** Optional per-size price variants (width × height in ft, with a price each).
+   *  When non-empty the published listing's `price` is set to min(sizes.price). */
+  sizes?: SizePrice[]
 }
 
 interface Props {
@@ -120,19 +124,98 @@ export default function DesignsEditor({ value, onChange, onFilesAdded }: Props) 
             />
           </div>
 
-          {/* Price */}
-          <div>
-            <label className="text-[10px] text-gray-500 block mb-1">Price</label>
-            <div className="relative max-w-[200px]">
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
-              <input
-                type="number" min={0} step={1000} value={design.price || ''}
-                onChange={(e) => update(design.id, { price: parseInt(e.target.value) || 0 })}
-                placeholder="Price"
-                className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
-              />
+          {/* Price — either a flat price OR per-size variants. If sizes are added,
+              the flat input is hidden and we use the minimum size price as the
+              listing's "starting from" price. */}
+          {(design.sizes?.length || 0) === 0 && (
+            <div>
+              <label className="text-[10px] text-gray-500 block mb-1">Price</label>
+              <div className="relative max-w-[200px]">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                <input
+                  type="number" min={0} step={1000} value={design.price || ''}
+                  onChange={(e) => update(design.id, { price: parseInt(e.target.value) || 0 })}
+                  placeholder="Price"
+                  className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
+                />
+              </div>
+              {design.price > 0 && <p className="text-[9px] text-gray-400 mt-0.5">{formatINR(design.price)}</p>}
             </div>
-            {design.price > 0 && <p className="text-[9px] text-gray-400 mt-0.5">{formatINR(design.price)}</p>}
+          )}
+
+          {/* Sizes & pricing — like Amazon variants, each ft × ft size has its own price */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <div>
+                <label className="text-[10px] text-gray-500 block">Sizes &amp; pricing <span className="text-gray-400 font-normal">(optional)</span></label>
+                {(design.sizes?.length || 0) > 0 && (
+                  <p className="text-[9px] text-gray-400 mt-0.5">Couples see "from {formatINR(Math.min(...(design.sizes || []).map(s => s.price || 0).filter(p => p > 0)) || 0)}"</p>
+                )}
+              </div>
+            </div>
+
+            {(design.sizes || []).map((sz, sizeIdx) => (
+              <div key={sizeIdx} className="flex items-center gap-1.5 mb-1.5">
+                <div className="relative flex-1">
+                  <input
+                    type="number" min={0} step={0.5} value={sz.widthFt || ''}
+                    onChange={(e) => {
+                      const next = [...(design.sizes || [])]
+                      next[sizeIdx] = { ...next[sizeIdx], widthFt: parseFloat(e.target.value) || 0 }
+                      update(design.id, { sizes: next })
+                    }}
+                    placeholder="W"
+                    className="w-full pl-2 pr-6 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">ft</span>
+                </div>
+                <span className="text-[11px] text-gray-400">×</span>
+                <div className="relative flex-1">
+                  <input
+                    type="number" min={0} step={0.5} value={sz.heightFt || ''}
+                    onChange={(e) => {
+                      const next = [...(design.sizes || [])]
+                      next[sizeIdx] = { ...next[sizeIdx], heightFt: parseFloat(e.target.value) || 0 }
+                      update(design.id, { sizes: next })
+                    }}
+                    placeholder="H"
+                    className="w-full pl-2 pr-6 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">ft</span>
+                </div>
+                <div className="relative w-[110px]">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                  <input
+                    type="number" min={0} step={1000} value={sz.price || ''}
+                    onChange={(e) => {
+                      const next = [...(design.sizes || [])]
+                      next[sizeIdx] = { ...next[sizeIdx], price: parseInt(e.target.value) || 0 }
+                      update(design.id, { sizes: next })
+                    }}
+                    placeholder="Price"
+                    className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = (design.sizes || []).filter((_, i) => i !== sizeIdx)
+                    update(design.id, { sizes: next.length > 0 ? next : undefined })
+                  }}
+                  aria-label="Remove size"
+                  className="w-7 h-7 rounded-full bg-empty-bg text-gray-500 text-[12px] flex items-center justify-center active:bg-red-50 active:text-red-500 shrink-0"
+                >×</button>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => {
+                const next = [...(design.sizes || []), { widthFt: 0, heightFt: 0, price: 0 }]
+                update(design.id, { sizes: next })
+              }}
+              className="w-full py-2 rounded-xl border-2 border-dashed border-mustard/30 text-mustard text-[11px] font-semibold active:bg-mustard-light/20"
+            >+ Add size</button>
           </div>
 
           {/* Photos */}

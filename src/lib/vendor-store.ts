@@ -94,12 +94,17 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       const listings: VendorListing[] = dbListings.map((l: Record<string, unknown>) => {
         const localId = `vl-${l.id}`
         listingIdMap[localId] = l.id as string
+        const rawSizes = l.sizes
+        const sizes = Array.isArray(rawSizes) && rawSizes.length > 0
+          ? (rawSizes as Array<{ widthFt: number; heightFt: number; price: number }>)
+          : undefined
         return {
           id: localId,
           name: l.name as string,
           photos: (l.photos as string[]) || [],
           category: l.category as string,
           price: l.price as number,
+          sizes,
           style: (l.style as string) || '',
           rituals: (l.rituals as string[]) || [],
           categoryFields: (l.category_fields as Record<string, string | string[]>) || {},

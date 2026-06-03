@@ -259,6 +259,12 @@ export default function VendorAddListing() {
             if (uploaded.length > 0) designVideos = uploaded
           }
         }
+        // Normalise sizes — keep only complete rows (positive W, H, and price).
+        // If any are valid, the listing price is the cheapest size (the "from" price).
+        const validSizes = (d.sizes || []).filter(s => s.widthFt > 0 && s.heightFt > 0 && s.price > 0)
+        const startingPrice = validSizes.length > 0
+          ? Math.min(...validSizes.map(s => s.price))
+          : d.price
         return {
           id: `vl-${ts}-${i}`,
           name: d.name.trim() || `Design ${i + 1}`,
@@ -266,7 +272,8 @@ export default function VendorAddListing() {
           videos: designVideos.length > 0 ? designVideos : undefined,
           coverPhotoIndex: 0,
           category,
-          price: d.price,
+          price: startingPrice,
+          sizes: validSizes.length > 0 ? validSizes : undefined,
           style: '',
           rituals,
           categoryFields,

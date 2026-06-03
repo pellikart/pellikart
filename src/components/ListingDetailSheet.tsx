@@ -127,6 +127,9 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                 {selectedTierHours ? `For ${selectedTierHours} hr rental` : `Default rate`}
               </p>
             )}
+            {vendor.sizes && vendor.sizes.length > 0 && (
+              <p className="text-[10px] text-gray-400">Starting price · varies by size below</p>
+            )}
             {/* Transport & logistics sub-line */}
             {vendor.transportIncluded === false && vendor.transportExtra && vendor.transportExtra > 0 ? (
               <>
@@ -147,6 +150,26 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </>
             ) : (
               <div className="mb-3" />
+            )}
+
+            {/* Size & pricing options — decor designs with size variants */}
+            {vendor.sizes && vendor.sizes.length > 0 && (
+              <div className="mb-4 p-2.5 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Available sizes</p>
+                <div className="flex flex-col gap-1.5">
+                  {vendor.sizes.map((sz, i) => (
+                    <div
+                      key={i}
+                      className="w-full flex items-center justify-between py-2 px-3 rounded-lg bg-white border border-card-border"
+                    >
+                      <span className="text-[12px] font-medium text-dark">
+                        {sz.widthFt} ft × {sz.heightFt} ft
+                      </span>
+                      <span className="text-[12px] font-semibold text-magenta">{formatINR(sz.price)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Hourly tier picker — only when vendor has tiers */}
