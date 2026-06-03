@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage } from '@/lib/vendor-types'
-import { uploadPhotos } from '@/lib/supabase-db'
+import { uploadPhotos, updateVendorFields } from '@/lib/supabase-db'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
@@ -71,26 +71,11 @@ export default function VendorOnboarding() {
   async function handleGoLive() {
     setUploading(true)
 
-    // Upload photos if in live mode and we have a vendor DB ID
-    const vendorDbId = useVendorStore.getState()._vendorDbId
-    let portfolioUrls: string[] = photoPreviews // fallback to previews for demo
-
-    if (vendorDbId && photoFiles.length > 0) {
-      const uploaded = await uploadPhotos(vendorDbId, photoFiles, 'portfolio')
-      if (uploaded.length > 0) portfolioUrls = uploaded
-    } else if (photoFiles.length === 0) {
-      portfolioUrls = []
-    }
-
-    // Videos — same flow. Re-uses uploadPhotos (any File type) for live mode.
-    let portfolioVideoUrls: string[] = videoPreviews
-    if (vendorDbId && videoFiles.length > 0) {
-      const uploaded = await uploadPhotos(vendorDbId, videoFiles, 'portfolio')
-      if (uploaded.length > 0) portfolioVideoUrls = uploaded
-    } else if (videoFiles.length === 0) {
-      portfolioVideoUrls = []
-    }
-
+    // Initial profile carries empty media arrays. We need the vendor row to
+    // exist (and hand back its DB id) before we can scope storage uploads
+    // under it. We then swap in the real public URLs in a second pass.
+    // Earlier this wrote blob: URLs from URL.createObjectURL into Supabase,
+    // which broke on refresh because blob: URLs are session-scoped.
     const profile: VendorProfile = {
       businessName: businessName || 'My Business',
       category: category || 'Photography',
@@ -104,13 +89,53 @@ export default function VendorOnboarding() {
       description: description || 'Professional wedding services',
       experience: parseInt(experience) || 5,
       teamSize: teamSize || '2-5',
-      portfolioPhotos: portfolioUrls,
-      portfolioVideos: portfolioVideoUrls.length > 0 ? portfolioVideoUrls : undefined,
+      portfolioPhotos: [],
+      portfolioVideos: undefined,
       rating: 0,
-      profileCompleteness: portfolioUrls.length > 0 ? 90 : 70,
+      profileCompleteness: photoFiles.length > 0 ? 90 : 70,
     }
     const defaultPackages: VendorPackage[] = []
     await completeVendorOnboarding(profile, defaultPackages)
+
+    // Now that completeVendorOnboarding has run upsertVendor, _vendorDbId
+    // is populated. Upload photos/videos and persist their public URLs.
+    const { _vendorDbId, _userId, _liveMode } = useVendorStore.getState()
+    if (_liveMode && _vendorDbId && _userId) {
+      const portfolioUrls = photoFiles.length > 0
+        ? await uploadPhotos(_vendorDbId, photoFiles, 'portfolio')
+        : []
+      const portfolioVideoUrls = videoFiles.length > 0
+        ? await uploadPhotos(_vendorDbId, videoFiles, 'portfolio')
+        : []
+
+      if (portfolioUrls.length > 0 || portfolioVideoUrls.length > 0) {
+        const updates: Partial<VendorProfile> = {}
+        if (photoFiles.length > 0) updates.portfolioPhotos = portfolioUrls
+        if (videoFiles.length > 0) updates.portfolioVideos = portfolioVideoUrls
+        await updateVendorFields(_userId, updates)
+
+        // Reflect the real URLs in the local store so the dashboard renders
+        // them immediately, not just after the next refresh.
+        useVendorStore.setState((s) => ({
+          vendorProfile: s.vendorProfile ? {
+            ...s.vendorProfile,
+            ...(photoFiles.length > 0 ? { portfolioPhotos: portfolioUrls } : {}),
+            ...(videoFiles.length > 0 ? { portfolioVideos: portfolioVideoUrls } : {}),
+          } : null,
+        }))
+      }
+    } else if (!_liveMode) {
+      // Demo mode — keep the blob previews on the local profile so the UI
+      // shows something. They won't survive refresh, but demo has no refresh.
+      useVendorStore.setState((s) => ({
+        vendorProfile: s.vendorProfile ? {
+          ...s.vendorProfile,
+          portfolioPhotos: photoPreviews,
+          portfolioVideos: videoPreviews.length > 0 ? videoPreviews : undefined,
+        } : null,
+      }))
+    }
+
     setUploading(false)
     navigate('/vendor')
   }

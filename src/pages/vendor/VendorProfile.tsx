@@ -76,8 +76,12 @@ export default function VendorProfile() {
       <div className="px-4 mt-3 mb-4">
         <div className="p-4 rounded-2xl bg-mustard-light border border-mustard/20">
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0">
-              <img src={p.portfolioPhotos[0]} alt="" className="w-full h-full object-cover" />
+            <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-mustard/15 flex items-center justify-center">
+              {p.portfolioPhotos[0] ? (
+                <img src={p.portfolioPhotos[0]} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-mustard text-[18px] font-bold">{p.businessName.charAt(0).toUpperCase()}</span>
+              )}
             </div>
             <div className="flex-1">
               <p className="text-[14px] font-bold text-dark">{p.businessName}</p>
@@ -164,9 +168,29 @@ export default function VendorProfile() {
               ))}
             </div>
           ) : (
-            <div className="py-4 text-center">
-              <p className="text-[10px] text-gray-400">No photos yet. Add your best work to attract couples.</p>
-            </div>
+            <label className={`block py-7 text-center rounded-lg border-2 border-dashed border-mustard/40 bg-mustard-light/20 cursor-pointer active:bg-mustard-light/40 transition-colors ${uploadingPhotos ? 'opacity-50 pointer-events-none' : ''}`}>
+              <p className="text-[13px] font-semibold text-mustard">{uploadingPhotos ? 'Uploading...' : '+ Add Photos'}</p>
+              <p className="text-[10px] text-gray-500 mt-1">Add your best work to attract couples</p>
+              <input
+                type="file" accept="image/*" multiple className="hidden"
+                disabled={uploadingPhotos}
+                onChange={async (e) => {
+                  if (!e.target.files || e.target.files.length === 0) return
+                  const files = Array.from(e.target.files)
+                  if (_liveMode && _vendorDbId) {
+                    setUploadingPhotos(true)
+                    const urls = await uploadPhotos(_vendorDbId, files, 'portfolio')
+                    if (urls.length > 0) {
+                      updateVendorProfile({ portfolioPhotos: [...p!.portfolioPhotos, ...urls].slice(0, 10) })
+                    }
+                    setUploadingPhotos(false)
+                  } else {
+                    const previews = files.map(f => URL.createObjectURL(f))
+                    updateVendorProfile({ portfolioPhotos: [...p!.portfolioPhotos, ...previews].slice(0, 10) })
+                  }
+                }}
+              />
+            </label>
           )}
         </div>
       </div>
