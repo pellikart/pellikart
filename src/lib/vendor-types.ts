@@ -106,6 +106,13 @@ export interface VendorListing {
   paidRooms?: PaidRoom[]
   /** Catering-only: curated menu sections (dish bank picks + per-section pick limits). */
   menu?: MenuSection[]
+  /** Photography-only: per-hour rate card keyed by role (candidPhotographer, drone, …).
+   *  When present, replaces the single package price — the couple picks people per role
+   *  plus a shared number of hours. `price` holds the per-hour total for 1 of each role. */
+  rateCard?: import('./vendor-category-config').PhotographyRateCard
+  /** Photography-only: the hour blocks the vendor is willing to work (e.g. [4, 6, 8, 10]).
+   *  Couples pick their coverage hours from this set. */
+  availableHours?: number[]
   /** Whether transport & logistics is bundled into the listing price. */
   transportIncluded?: boolean
   /** Extra transport & logistics charge in ₹ (only meaningful when transportIncluded === false). */

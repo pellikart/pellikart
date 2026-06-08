@@ -37,6 +37,11 @@ export interface Vendor {
   sizes?: import('./vendor-types').SizePrice[];
   paidRooms?: import('./vendor-types').PaidRoom[];
   menu?: import('./vendor-types').MenuSection[];
+  /** Photography-only: per-hour rate card keyed by role. When set, `price` is the
+   *  per-hour total for 1 of each offered role (the "₹X/hr" board figure). */
+  rateCard?: import('./vendor-category-config').PhotographyRateCard;
+  /** Photography-only: hour blocks the vendor is willing to work (e.g. [4, 6, 8, 10]). */
+  availableHours?: number[];
   rituals?: string[];
   transportIncluded?: boolean;
   transportExtra?: number;
@@ -99,6 +104,9 @@ export interface Category {
   decorBrief?: DecorBrief | null;
   /** Venue-only: which hourly tier (by hours) the couple picked for the selected vendor */
   selectedTierHours?: number;
+  /** Photography-only: the couple's rate-card selection for the selected vendor —
+   *  how many people per role + shared coverage hours. Drives the live total. */
+  photographyTeam?: { counts: Record<string, number>; hours: number };
 }
 
 export interface SuggestedVendor {
@@ -148,6 +156,7 @@ export interface AppState {
   subscribe: (tier: SubscriptionTier) => void;
   selectVendor: (ritualId: string, categoryId: string, vendorId: string) => void;
   selectVendorTier: (ritualId: string, categoryId: string, tierHours: number | undefined) => void;
+  selectPhotographyTeam: (ritualId: string, categoryId: string, counts: Record<string, number>, hours: number) => void;
   addToShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   removeFromShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   toggleLike: (vendorId: string, userName: string, userId: string) => void;

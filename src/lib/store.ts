@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
+import { getRateCardBaseHourly } from "./helpers";
 import {
   fetchCouple, upsertCouple,
   fetchRitualBoards, insertRitualBoard,
@@ -109,6 +110,14 @@ export function buildLiveVendorMap(
       })(),
       paidRooms: (l.paid_rooms as import('./vendor-types').PaidRoom[]) || undefined,
       menu: (l.menu as import('./vendor-types').MenuSection[]) || undefined,
+      rateCard: (() => {
+        const rc = l.rate_card as import('./vendor-category-config').PhotographyRateCard | null
+        return rc && Object.keys(rc).length > 0 ? rc : undefined
+      })(),
+      availableHours: (() => {
+        const ah = l.available_hours as number[] | null
+        return Array.isArray(ah) && ah.length > 0 ? ah : undefined
+      })(),
       rituals: (l.rituals as string[]) || undefined,
       transportIncluded: (l.transport_included as boolean | null) ?? undefined,
       transportExtra: (l.transport_extra as number | null) ?? undefined,
@@ -412,7 +421,9 @@ export const useStore = create<AppState & LiveModeState & {
               name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
               photo: design.photo, style: design.style,
               area: parentVendor?.area || '', capacity: parentVendor?.capacity,
-              price: Math.round(design.price * scale), rating: design.rating,
+              // Photography rate-card listings price per hour — use the parent's
+              // hourly board figure instead of the fixed design price.
+              price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : Math.round(design.price * scale), rating: design.rating,
               packageTier: design.description, likes: [], booked: false, amountPaid: 0,
               // Inherit category-specific fields so the Compare table shows real detail for design listings
               categoryFields: parentVendor?.categoryFields,
@@ -420,6 +431,8 @@ export const useStore = create<AppState & LiveModeState & {
               bundledListings: parentVendor?.bundledListings,
               bundleMandatory: parentVendor?.bundleMandatory,
               hourlyPricing: parentVendor?.hourlyPricing,
+              rateCard: parentVendor?.rateCard,
+              availableHours: parentVendor?.availableHours,
               paidRooms: parentVendor?.paidRooms,
               includes: parentVendor?.includes,
               transportIncluded: parentVendor?.transportIncluded,
@@ -460,7 +473,9 @@ export const useStore = create<AppState & LiveModeState & {
           name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
           photo: design.photo, style: design.style,
           area: parentVendor?.area || '', capacity: parentVendor?.capacity,
-          price: Math.round(design.price * scale), rating: design.rating,
+          // Photography rate-card listings price per hour — use the parent's
+          // hourly board figure instead of the fixed design price.
+          price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : Math.round(design.price * scale), rating: design.rating,
           packageTier: design.description, likes: [], booked: false, amountPaid: 0,
           // Inherit category-specific fields so the Compare table shows real detail for design listings
           categoryFields: parentVendor?.categoryFields,
@@ -468,6 +483,8 @@ export const useStore = create<AppState & LiveModeState & {
           bundledListings: parentVendor?.bundledListings,
           bundleMandatory: parentVendor?.bundleMandatory,
           hourlyPricing: parentVendor?.hourlyPricing,
+          rateCard: parentVendor?.rateCard,
+          availableHours: parentVendor?.availableHours,
           paidRooms: parentVendor?.paidRooms,
           includes: parentVendor?.includes,
           transportIncluded: parentVendor?.transportIncluded,
@@ -526,6 +543,21 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       updateBoardCategory(categoryId, { selectedTierHours: tierHours })
+    }
+  },
+
+  selectPhotographyTeam: (ritualId, categoryId, counts, hours) => {
+    const { _liveMode } = get()
+    const photographyTeam = { counts, hours }
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyTeam } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { photographyTeam })
     }
   },
 

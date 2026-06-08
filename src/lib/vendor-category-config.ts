@@ -297,29 +297,28 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
     priceRange: { min: 30000, max: 500000, step: 10000 },
     steps: [
       {
-        title: 'Coverage details',
+        // Photographers/videographers/coverage-hours are no longer asked here — they're
+        // driven by the per-hour rate card (PHOTOGRAPHY_RATE_ROLES) and the couple's
+        // team + hours selection on the listing detail sheet.
+        title: 'Video & coverage',
         subtitle: 'What does this package cover?',
         fields: [
-          { key: 'coverageType', label: 'Coverage type', type: 'single', options: ['Photo only', 'Video only', 'Photo + Video'] },
-          { key: 'shootStyles', label: 'Shoot style', type: 'multi', options: ['Candid', 'Traditional', 'Cinematic', 'Documentary', 'Fine Art'] },
-          { key: 'coverageHours', label: 'Coverage hours', type: 'single', options: ['4h', '6h', '8h', '10h', '12h', 'Full day'] },
-          { key: 'photographers', label: 'Photographers', type: 'number', numberMin: 1, numberMax: 10, numberStep: 1 },
-          { key: 'videographers', label: 'Videographers', type: 'number', numberMin: 0, numberMax: 10, numberStep: 1 },
           { key: 'liveCoverage', label: 'Live coverage / streaming', type: 'single', options: ['Yes, included', 'Add-on', 'Not available'] },
+          { key: 'fullVideo', label: 'Full ceremony video', type: 'single', options: ['Yes', 'No'] },
+          { key: 'highlightReel', label: 'Highlight reel', type: 'single', options: ['Included', 'Not included'] },
+          { key: 'sameDayEdit', label: 'Same-day reel edit', type: 'single', options: ['Yes', 'No'] },
+          { key: 'cinematicTrailer', label: 'Cinematic trailer', type: 'single', options: ['Available', 'Not available'] },
         ],
       },
       {
-        title: 'Deliverables',
+        title: 'Photos & delivery',
         subtitle: 'What do couples get?',
         fields: [
-          { key: 'editedPhotos', label: 'Edited photos', type: 'single', options: ['200', '500', '800', '1000', 'All'] },
-          { key: 'highlightReel', label: 'Highlight reel', type: 'single', options: ['Not included', '3 min', '5 min', '10 min'] },
-          { key: 'fullVideo', label: 'Full ceremony video', type: 'single', options: ['Yes', 'No'] },
-          { key: 'droneShots', label: 'Drone shots', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
-          { key: 'sameDayEdit', label: 'Same-day edit', type: 'single', options: ['Yes', 'No'] },
+          { key: 'editedPhotos', label: 'Edited photos', type: 'number', numberMin: 0, numberMax: 5000, numberStep: 5, numberUnit: 'photos' },
+          { key: 'albums', label: 'Albums included', type: 'single', options: ['Not included', '1', '2', '3', '4'] },
+          { key: 'albumSheets', label: 'Sheets per album', type: 'number', numberMin: 1, numberMax: 200, numberStep: 1, numberUnit: 'sheets', visibleWhen: { key: 'albums', notEquals: 'Not included' } },
           { key: 'deliveryFormat', label: 'Delivery format', type: 'single', options: ['USB Drive', 'Google Drive', 'Both'] },
           { key: 'deliveryDays', label: 'Delivery timeline', type: 'single', options: ['15 days', '30 days', '45 days', '60 days'] },
-          { key: 'albums', label: 'Albums', type: 'single', options: ['Not included', '1 album', '2 albums', '3 albums'] },
         ],
       },
     ],
@@ -711,6 +710,36 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
     ],
   },
 }
+
+// ─── PHOTOGRAPHY RATE CARD ──────────────────
+
+/**
+ * Photography is priced as a per-hour rate card instead of a single package
+ * price. The vendor sets a ₹/hr rate for each role they offer (leaving a role
+ * at 0 / blank means "not offered"); the couple then picks how many people
+ * they want in each role plus one shared number of hours for the whole booking.
+ *
+ *   booking total = hours × Σ(role rate/hr × people in that role)
+ *
+ * The listing's stored `price` is the per-hour total assuming 1 person in every
+ * offered role — this is the "₹X/hr" figure shown on browse/board cards.
+ */
+export const PHOTOGRAPHY_RATE_ROLES = [
+  { key: 'candidPhotographer', label: 'Candid Photographer' },
+  { key: 'candidVideographer', label: 'Candid Videographer' },
+  { key: 'traditionalPhotographer', label: 'Traditional Photographer' },
+  { key: 'traditionalVideographer', label: 'Traditional Videographer' },
+  { key: 'drone', label: 'Drone' },
+] as const
+
+export type PhotographyRoleKey = typeof PHOTOGRAPHY_RATE_ROLES[number]['key']
+
+/** Per-hour rate (₹) keyed by role. A missing/0 entry means the role isn't offered. */
+export type PhotographyRateCard = Partial<Record<PhotographyRoleKey, number>>
+
+/** Hour blocks a Photography vendor can mark themselves willing to work. The couple
+ *  picks their coverage hours from whichever of these the vendor selects. */
+export const PHOTOGRAPHY_HOUR_OPTIONS = [2, 4, 6, 8, 10] as const
 
 // ─── RITUALS / EVENTS ───────────────────────
 

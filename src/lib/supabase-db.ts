@@ -108,6 +108,8 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       paid_rooms: listing.paidRooms || [],
       menu: listing.menu || [],
       sizes: listing.sizes || [],
+      rate_card: listing.rateCard || {},
+      available_hours: listing.availableHours || [],
       transport_included: listing.transportIncluded ?? null,
       transport_extra: listing.transportExtra ?? null,
     })
@@ -138,6 +140,8 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
       paid_rooms: listing.paidRooms || [],
       menu: listing.menu || [],
       sizes: listing.sizes || [],
+      rate_card: listing.rateCard || {},
+      available_hours: listing.availableHours || [],
       transport_included: listing.transportIncluded ?? null,
       transport_extra: listing.transportExtra ?? null,
       updated_at: new Date().toISOString(),
@@ -385,6 +389,7 @@ export async function fetchRitualBoards(coupleId: string) {
         removed: c.is_removed || false,
         decorBrief: c.decor_brief || null,
         selectedTierHours: c.selected_tier_hours ?? undefined,
+        photographyTeam: (c.photography_team as { counts: Record<string, number>; hours: number } | null) ?? undefined,
       })),
   })) as RitualBoard[]
 }
@@ -460,6 +465,7 @@ export async function updateBoardCategory(categoryId: string, updates: Partial<C
   if (updates.suggestedVendors !== undefined) mapped.suggested_vendors = updates.suggestedVendors
   if (updates.removed !== undefined) mapped.is_removed = updates.removed
   if (updates.selectedTierHours !== undefined) mapped.selected_tier_hours = updates.selectedTierHours ?? null
+  if (updates.photographyTeam !== undefined) mapped.photography_team = updates.photographyTeam ?? null
 
   await supabase.from('board_categories').update(mapped).eq('id', categoryId)
 }
