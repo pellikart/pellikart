@@ -1,5 +1,5 @@
 import { useStore } from '@/lib/store'
-import { formatINR } from '@/lib/helpers'
+import { formatINR, getPhotographySelectionTotal } from '@/lib/helpers'
 
 export default function GrandTotalBar() {
   const { ritualBoards, vendors, onboardingData } = useStore()
@@ -13,7 +13,9 @@ export default function GrandTotalBar() {
     let hasSelected = false
     for (const cat of activeCats) {
       if (cat.selectedVendorId && vendors[cat.selectedVendorId]) {
-        grandTotal += vendors[cat.selectedVendorId].price
+        const v = vendors[cat.selectedVendorId]
+        const photoSel = getPhotographySelectionTotal(v, cat.photographyTeam)
+        grandTotal += photoSel != null ? photoSel : v.price
         vendorCount++
         hasSelected = true
       }

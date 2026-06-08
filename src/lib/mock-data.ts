@@ -249,21 +249,27 @@ export const mockVendors: Record<string, Vendor> = {
   // === PHOTOGRAPHY ===
   "v-photo-1": {
     id: "v-photo-1", code: "Photo 001", name: "Lens & Light Studio", photo: img("photo", 1),
-    style: "Candid + Cinematic", area: "Hauz Khas, Delhi", price: 180000,
+    style: "Candid + Cinematic", area: "Hauz Khas, Delhi", price: 19000,
     rating: 4.8, packageTier: "Premium (2 days)", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
-    categoryFields: { coverageType: "Photo + Video", shootStyles: ["Candid", "Cinematic"], coverageHours: "10h", photographers: "2", videographers: "1", liveCoverage: "Add-on", equipment: ["Mirrorless", "Drone", "Gimbal"], editedPhotos: "800", highlightReel: "5 min", fullVideo: "Yes", preWedding: "Included", droneShots: "Included", sameDayEdit: "Yes", deliveryFormat: "Both", deliveryDays: "30 days", albums: "1 album" },
+    rateCard: { candidPhotographer: 3500, candidVideographer: 4000, traditionalPhotographer: 3000, traditionalVideographer: 3500, drone: 5000 },
+    availableHours: [4, 6, 8, 10],
+    categoryFields: { liveCoverage: "Add-on", editedPhotos: "800", highlightReel: "Included", cinematicTrailer: "Available", fullVideo: "Yes", sameDayEdit: "Yes", deliveryFormat: "Both", deliveryDays: "30 days", albums: "2", albumSheets: "25" },
   },
   "v-photo-2": {
     id: "v-photo-2", code: "Photo 002", name: "Click & Capture", photo: img("photo", 2),
-    style: "Traditional + Posed", area: "Pitampura, Delhi", price: 120000,
+    style: "Traditional + Posed", area: "Pitampura, Delhi", price: 5300,
     rating: 4.2, packageTier: "Standard (2 days)", likes: [], booked: false, amountPaid: 0,
-    categoryFields: { coverageType: "Photo only", shootStyles: ["Traditional"], coverageHours: "8h", photographers: "2", videographers: "0", liveCoverage: "Not available", equipment: ["DSLR"], editedPhotos: "500", highlightReel: "Not included", fullVideo: "No", preWedding: "Add-on", droneShots: "Not available", sameDayEdit: "No", deliveryFormat: "USB Drive", deliveryDays: "45 days", albums: "1 album" },
+    rateCard: { candidPhotographer: 2800, traditionalPhotographer: 2500 },
+    availableHours: [4, 6, 8],
+    categoryFields: { liveCoverage: "Not available", editedPhotos: "500", highlightReel: "Not included", cinematicTrailer: "Not available", fullVideo: "No", sameDayEdit: "No", deliveryFormat: "USB Drive", deliveryDays: "45 days", albums: "1", albumSheets: "20" },
   },
   "v-photo-3": {
     id: "v-photo-3", code: "Photo 003", name: "FrameWorks Photography", photo: img("photo", 3),
-    style: "Documentary Style", area: "Vasant Kunj, Delhi", price: 150000,
+    style: "Documentary Style", area: "Vasant Kunj, Delhi", price: 17000,
     rating: 4.6, packageTier: "Premium (1 day)", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
-    categoryFields: { coverageType: "Photo + Video", shootStyles: ["Documentary", "Cinematic"], coverageHours: "12h", photographers: "1", videographers: "1", liveCoverage: "Yes, included", equipment: ["Mirrorless", "Drone", "Studio Lights"], editedPhotos: "1000", highlightReel: "10 min", fullVideo: "Yes", preWedding: "Included", droneShots: "Included", sameDayEdit: "No", deliveryFormat: "Google Drive", deliveryDays: "30 days", albums: "2 albums" },
+    rateCard: { candidPhotographer: 3000, candidVideographer: 3500, traditionalPhotographer: 2800, traditionalVideographer: 3200, drone: 4500 },
+    availableHours: [6, 8, 10],
+    categoryFields: { liveCoverage: "Yes, included", editedPhotos: "1000", highlightReel: "Included", cinematicTrailer: "Available", fullVideo: "Yes", sameDayEdit: "No", deliveryFormat: "Google Drive", deliveryDays: "30 days", albums: "2", albumSheets: "30" },
   },
 
   // === MEHENDI ===

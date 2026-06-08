@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
-import { formatINR } from '@/lib/helpers'
-import { getListingConfig, RITUALS, type SelectField } from '@/lib/vendor-category-config'
+import { formatINR, getRateCardBaseHourly } from '@/lib/helpers'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, type SelectField, type PhotographyRateCard } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuBuilder from '@/components/MenuBuilder'
@@ -29,6 +29,10 @@ export default function VendorAddListing() {
   const [videoFiles, setVideoFiles] = useState<File[]>([])
   const [videoPreviews, setVideoPreviews] = useState<string[]>([])
   const [price, setPrice] = useState(config.priceRange.min + Math.floor((config.priceRange.max - config.priceRange.min) / 3))
+  // Photography-only: per-hour rate card keyed by role (₹/hr). Blank/0 = not offered.
+  const [rateCard, setRateCard] = useState<PhotographyRateCard>({})
+  // Photography-only: hour blocks the vendor is willing to work (couples pick from these).
+  const [availableHours, setAvailableHours] = useState<number[]>([])
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
@@ -62,6 +66,8 @@ export default function VendorAddListing() {
     setCategory(next)
     const nextConfig = getListingConfig(next)
     setPrice(nextConfig.priceRange.min + Math.floor((nextConfig.priceRange.max - nextConfig.priceRange.min) / 3))
+    setRateCard({})
+    setAvailableHours([])
     setIncludes([])
     setCategoryFields({})
     setBundledListings([])
@@ -219,7 +225,10 @@ export default function VendorAddListing() {
     // (couples use the Customize/bid flow). Other categories use the slider.
     const effectivePrice = category === 'Venue' && hourlyPricing.length > 0
       ? (hourlyPricing.find(t => t.hours === 24)?.price || hourlyPricing[0].price || price)
-      : category === 'Decor' ? 0 : price
+      : category === 'Decor' ? 0
+      // Photography: the board price is the per-hour total for 1 of each offered role.
+      : category === 'Photography' ? getRateCardBaseHourly(rateCard)
+      : price
 
     // Upload paid-room photos in live mode and replace blob URLs with public URLs.
     let paidRoomsForPayload: PaidRoom[] = paidRooms
@@ -322,6 +331,8 @@ export default function VendorAddListing() {
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
       hourlyPricing: category === 'Venue' && hourlyPricing.length > 0 ? hourlyPricing : undefined,
+      rateCard: category === 'Photography' ? rateCard : undefined,
+      availableHours: category === 'Photography' && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
       ...transportFields,
@@ -646,7 +657,77 @@ export default function VendorAddListing() {
         )}
 
         {/* Pricing step (non-Venue categories only) */}
-        {step === stylePriceStep && (
+        {step === stylePriceStep && category === 'Photography' && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">Hourly rates</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Set a price per hour for each role you offer. Leave a role blank if you don't provide it — couples pick how many people they want in each role plus how many hours.</p>
+
+            <div className="space-y-2.5">
+              {PHOTOGRAPHY_RATE_ROLES.map(role => {
+                const val = rateCard[role.key] ?? 0
+                return (
+                  <div key={role.key} className="flex items-center justify-between gap-3">
+                    <span className="text-[12px] font-medium text-dark">{role.label}</span>
+                    <div className="relative w-[140px] shrink-0">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                      <input
+                        type="number" min={0} step={500}
+                        value={val || ''}
+                        onChange={(e) => {
+                          const n = Math.max(0, parseInt(e.target.value) || 0)
+                          setRateCard(prev => ({ ...prev, [role.key]: n }))
+                        }}
+                        placeholder="0"
+                        className="w-full pl-6 pr-9 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">/hr</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Willing hours — couples pick their coverage hours from these */}
+            <div className="mt-6">
+              <label className="text-[12px] font-medium text-dark block mb-1">How many hours are you willing to work?</label>
+              <p className="text-[10px] text-gray-400 mb-2">Select every block you'll take on — couples choose their coverage from these.</p>
+              <div className="flex flex-wrap gap-1.5">
+                {PHOTOGRAPHY_HOUR_OPTIONS.map(h => {
+                  const selected = availableHours.includes(h)
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => setAvailableHours(prev => prev.includes(h) ? prev.filter(x => x !== h) : [...prev, h])}
+                      className={`py-1.5 px-3.5 rounded-full text-[11px] font-medium transition-all ${selected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
+                    >
+                      {selected && <span className="mr-0.5">✓ </span>}{h} hrs
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {getRateCardBaseHourly(rateCard) > 0 && (
+              <div className="mt-4 p-3 rounded-xl bg-mustard-light/40 border border-mustard/30">
+                <p className="text-[11px] text-gray-600">Shown on your board card (1 of each offered role):</p>
+                <p className="text-[18px] font-bold text-mustard mt-0.5">{formatINR(getRateCardBaseHourly(rateCard))} <span className="text-[11px] font-normal text-gray-500">/hr</span></p>
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setStep(stylePriceStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              <button
+                onClick={() => setStep(stylePriceStep + 1)}
+                disabled={getRateCardBaseHourly(rateCard) <= 0}
+                className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-40"
+              >Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* Pricing step — single-price slider (non-Venue, non-Photography categories) */}
+        {step === stylePriceStep && category !== 'Photography' && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">Pricing</h1>
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Set your price.</p>
@@ -753,6 +834,12 @@ export default function VendorAddListing() {
                   }
                   if (category === 'Decor') {
                     return <p className="text-[12px] text-gray-400 italic mt-1">Couples request a quote via Customize</p>
+                  }
+                  if (category === 'Photography') {
+                    const base = getRateCardBaseHourly(rateCard)
+                    return base > 0
+                      ? <p className="text-[16px] font-bold text-mustard mt-1">{formatINR(base)} <span className="text-[10px] font-normal text-gray-400">/hr · 1 of each role</span></p>
+                      : <p className="text-[12px] text-gray-400 italic mt-1">Set at least one hourly rate</p>
                   }
                   return <p className="text-[16px] font-bold text-mustard mt-1">{formatINR(price)}{category === 'Catering' ? ' /plate' : category === 'Invitations' ? ' /invite' : ''}</p>
                 })()}

@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { formatINR, bgStyle } from '@/lib/helpers'
+import { formatINR, bgStyle, getPhotographySelectionTotal } from '@/lib/helpers'
 import MilestoneTracker from '@/components/MilestoneTracker'
 
 export default function BookingPage() {
@@ -24,14 +24,16 @@ export default function BookingPage() {
   }
 
   const activeCategories = board.categories.filter((c) => !c.removed && c.selectedVendorId)
-  const vendorList = activeCategories.map((cat) => ({
-    category: cat,
-    vendor: vendors[cat.selectedVendorId!],
-  })).filter((item) => item.vendor)
+  const vendorList = activeCategories.map((cat) => {
+    const vendor = vendors[cat.selectedVendorId!]
+    // For Photography rate-card listings, the couple's team selection sets the price.
+    const effectivePrice = getPhotographySelectionTotal(vendor, cat.photographyTeam) ?? vendor?.price ?? 0
+    return { category: cat, vendor, effectivePrice }
+  }).filter((item) => item.vendor)
 
   const unbookedVendors = vendorList.filter((item) => !item.vendor.booked)
   const bookedVendors = vendorList.filter((item) => item.vendor.booked)
-  const unbookedTotal = unbookedVendors.reduce((sum, item) => sum + item.vendor.price, 0)
+  const unbookedTotal = unbookedVendors.reduce((sum, item) => sum + item.effectivePrice, 0)
 
   const bookAllAmount = Math.round(unbookedTotal * 0.04)
   const separateTotal = Math.round(unbookedTotal * 0.05)
@@ -51,8 +53,8 @@ export default function BookingPage() {
 
       {/* Vendor List */}
       <div className="px-4 py-3">
-        {vendorList.map(({ category, vendor }) => {
-          const individualAmount = Math.round(vendor.price * 0.05)
+        {vendorList.map(({ category, vendor, effectivePrice }) => {
+          const individualAmount = Math.round(effectivePrice * 0.05)
           const trialKey = `${ritualId}-${category.id}-${vendor.id}`
           const trialDone = trialSessions[trialKey]?.status === 'done'
           return (
@@ -71,7 +73,7 @@ export default function BookingPage() {
                     )}
                   </div>
                   <p className="text-[10px] text-gray-500">{vendor.packageTier}</p>
-                  <p className="text-xs font-semibold text-dark">{formatINR(vendor.price)}</p>
+                  <p className="text-xs font-semibold text-dark">{formatINR(effectivePrice)}</p>
                   {vendor.booked && <p className="text-[10px] text-green-600">{formatINR(vendor.amountPaid)} paid</p>}
                 </div>
                 {!vendor.booked ? (

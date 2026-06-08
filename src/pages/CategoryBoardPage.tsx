@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { formatINR, bgStyle, getEffectivePrice, getListingTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getPhotographySelectionTotal } from '@/lib/helpers'
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
@@ -155,7 +155,9 @@ export default function CategoryBoardPage() {
   let ritualTotal = 0
   for (const cat of board.categories) {
     if (!cat.removed && cat.selectedVendorId && vendors[cat.selectedVendorId]) {
-      ritualTotal += getListingTotal(vendors[cat.selectedVendorId], cat.selectedTierHours)
+      const selVendor = vendors[cat.selectedVendorId]
+      const photoSel = getPhotographySelectionTotal(selVendor, cat.photographyTeam)
+      ritualTotal += photoSel != null ? photoSel : getListingTotal(selVendor, cat.selectedTierHours)
     }
   }
   const bookingAmount = Math.round(ritualTotal * 0.04)
@@ -269,6 +271,7 @@ export default function CategoryBoardPage() {
                 trialSessions={trialSessions}
                 ritualId={ritualId!}
                 categoryId={categoryId!}
+                photographyTeam={category.photographyTeam}
               />
             ) : (
               <CompareTable
@@ -437,7 +440,7 @@ export default function CategoryBoardPage() {
                           <span className="bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full self-end">★ {vendor.rating}</span>
                           <div>
                             <p className="text-white/80 text-[9px]">{unlocked ? vendor.name : vendor.code}</p>
-                            <p className="text-white font-bold text-xs">{formatINR(vendor.price)}</p>
+                            <p className="text-white font-bold text-xs">{formatINR(vendor.price)}{vendor.rateCard ? <span className="font-normal text-[10px]">/hr</span> : ''}</p>
                             <button onClick={(e) => { e.stopPropagation(); addToShortlist(ritualId!, categoryId!, v.id) }} className="mt-1.5 w-full bg-white text-magenta text-[10px] font-semibold py-1.5 rounded-lg active:scale-[0.97] transition-transform">+ Add</button>
                           </div>
                         </div>
@@ -704,11 +707,12 @@ export default function CategoryBoardPage() {
 // --- Sub-components ---
 
 function VisualGridCard({
-  v, isSelected, unlocked, onSelect, onLike, onRemove, onTap, trialStatus,
+  v, isSelected, unlocked, onSelect, onLike, onRemove, onTap, trialStatus, selectionTotal,
 }: {
   v: Vendor; isSelected: boolean; unlocked: boolean;
   onSelect: () => void; onLike: () => void; onRemove: () => void; onTap: () => void;
   trialStatus: 'none' | 'requested' | 'done';
+  selectionTotal?: number | null;
 }) {
   const likeNames = v.likes.map((l) => l.name)
   const userLiked = v.likes.some((l) => l.userId === 'u-user')
@@ -730,7 +734,11 @@ function VisualGridCard({
             {unlocked ? v.name : v.code} · {v.style}
             {v.category && <> · {v.category}</>}
           </p>
-          <p className="text-white font-bold text-xs">{formatINR(v.price)}</p>
+          {selectionTotal != null ? (
+            <p className="text-white font-bold text-xs">{formatINR(selectionTotal)}</p>
+          ) : (
+            <p className="text-white font-bold text-xs">{formatINR(v.price)}{v.rateCard ? <span className="font-normal text-[10px]">/hr</span> : ''}</p>
+          )}
           {v.includes && v.includes.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {v.includes.slice(0, 3).map((inc, i) => (
@@ -756,11 +764,12 @@ function VisualGridCard({
 
 function VisualGrid({
   vendors, selectedId, unlocked, onSelect, onLike, onRemove, onTap,
-  trialSessions, ritualId, categoryId,
+  trialSessions, ritualId, categoryId, photographyTeam,
 }: {
   vendors: Vendor[]; selectedId: string | null; unlocked: boolean;
   onSelect: (id: string) => void; onLike: (id: string) => void; onRemove: (id: string) => void; onTap: (id: string) => void;
   trialSessions: Record<string, { status: string }>; ritualId: string; categoryId: string;
+  photographyTeam?: { counts: Record<string, number>; hours: number };
 }) {
   return (
     <div className="masonry-grid">
@@ -774,6 +783,7 @@ function VisualGrid({
               v={v} isSelected={v.id === selectedId} unlocked={unlocked}
               onSelect={() => onSelect(v.id)} onLike={() => onLike(v.id)} onRemove={() => onRemove(v.id)} onTap={() => onTap(v.id)}
               trialStatus={trialStatus}
+              selectionTotal={v.id === selectedId ? getPhotographySelectionTotal(v, photographyTeam) : null}
             />
           </div>
         )

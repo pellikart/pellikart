@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice } from '@/lib/helpers'
-import { getListingConfig } from '@/lib/vendor-category-config'
+import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal } from '@/lib/helpers'
+import { getListingConfig, PHOTOGRAPHY_RATE_ROLES } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
@@ -21,11 +21,49 @@ interface Props {
 
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectVendor, ritualBoards } = useStore()
+  // The board category this sheet was opened from (reactive — re-reads on each render).
+  const currentCategory = (ritualId && categoryId)
+    ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
+    : undefined
+  // Existing saved team selection (persists across opens, drives the board card price).
+  const savedTeam = currentCategory?.photographyTeam
+  // Whether this exact vendor is the one currently added to the board for this category.
+  const isAddedToBoard = !!currentCategory && currentCategory.selectedVendorId === vendor.id
   // Local mock-up state: how many of each paid room the couple is interested in.
   // Not persisted — only here to visualize the inventory cap + a separate subtotal.
   const [roomSelections, setRoomSelections] = useState<Record<string, number>>({})
   const [roomsExpanded, setRoomsExpanded] = useState(false)
+  // Photography rate card: how many people the couple wants per role + shared hours.
+  // Not persisted — drives the live subtotal preview only.
+  const [teamCounts, setTeamCounts] = useState<Record<string, number>>(() => savedTeam?.counts ?? {})
+  const [teamHours, setTeamHours] = useState<number>(() => {
+    if (savedTeam) return savedTeam.hours
+    const hrs = vendor.availableHours
+    if (hrs && hrs.length > 0) return hrs.includes(8) ? 8 : Math.max(...hrs)
+    return 8
+  })
+
+  // Persist the team selection onto the board category so the card price + ritual
+  // total react to it. No-op when opened outside a board (e.g. portfolio browsing).
+  function persistTeam(counts: Record<string, number>, hours: number) {
+    if (ritualId && categoryId) selectPhotographyTeam(ritualId, categoryId, counts, hours)
+  }
+  function changeCount(key: string, value: number) {
+    const next = { ...teamCounts, [key]: Math.max(0, value) }
+    setTeamCounts(next)
+    persistTeam(next, teamHours)
+  }
+  function changeHours(h: number) {
+    setTeamHours(h)
+    persistTeam(teamCounts, h)
+  }
+  // Add (select) this photographer for the board category, locking in the current team.
+  function addPhotographer() {
+    if (!ritualId || !categoryId) return
+    persistTeam(teamCounts, teamHours)
+    selectVendor(ritualId, categoryId, vendor.id)
+  }
 
   // In live mode, the vendor object has all the data. In demo mode, look up parent vendor.
   const parentVendor = _liveMode ? null : (() => {
@@ -120,9 +158,129 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )}
             </div>
 
-            {/* Price */}
+            {/* Photography rate card — per-role team picker + shared hours + live total */}
+            {vendor.rateCard && (() => {
+              const offered = PHOTOGRAPHY_RATE_ROLES.filter(r => (vendor.rateCard![r.key] ?? 0) > 0)
+              const baseHourly = offered.reduce((s, r) => s + (vendor.rateCard![r.key] ?? 0), 0)
+              const perHourSelected = offered.reduce((s, r) => s + (vendor.rateCard![r.key] ?? 0) * (teamCounts[r.key] || 0), 0)
+              const transport = vendor.transportIncluded === false ? (vendor.transportExtra || 0) : 0
+              const total = getRateCardTotal(vendor.rateCard, teamCounts, teamHours) + transport
+              const anyPicked = perHourSelected > 0
+              return (
+                <div className="mb-4">
+                  <p className="text-[20px] font-bold text-magenta">{formatINR(baseHourly)} <span className="text-[12px] font-normal text-gray-400">/hr</span></p>
+                  <p className="text-[10px] text-gray-400 mb-3">Per-hour rate for 1 of each role · build your team below</p>
+
+                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                    <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Build your team</p>
+                    <div className="space-y-2">
+                      {offered.map(role => {
+                        const rate = vendor.rateCard![role.key] ?? 0
+                        const count = teamCounts[role.key] || 0
+                        return (
+                          <div key={role.key} className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[12px] font-medium text-dark truncate">{role.label}</p>
+                              <p className="text-[10px] text-gray-500">{formatINR(rate)}/hr each</p>
+                            </div>
+                            <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => changeCount(role.key, count - 1)}
+                                disabled={count <= 0}
+                                className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+                              >−</button>
+                              <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{count}</span>
+                              <button
+                                type="button"
+                                onClick={() => changeCount(role.key, count + 1)}
+                                className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40"
+                              >+</button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Shared hours for the whole booking */}
+                    <div className="mt-3 pt-3 border-t border-mustard/20">
+                      <p className="text-[12px] font-medium text-dark mb-2">Hours of coverage</p>
+                      {vendor.availableHours && vendor.availableHours.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {[...vendor.availableHours].sort((a, b) => a - b).map(h => (
+                            <button
+                              key={h}
+                              type="button"
+                              onClick={() => changeHours(h)}
+                              className={`py-1.5 px-3.5 rounded-full text-[11px] font-medium transition-all ${teamHours === h ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600 active:bg-mustard-light/40'}`}
+                            >
+                              {h} hrs
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => changeHours(Math.max(1, teamHours - 1))}
+                            disabled={teamHours <= 1}
+                            className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+                          >−</button>
+                          <span className="w-10 flex items-center justify-center text-[12px] font-semibold text-dark">{teamHours} hr</span>
+                          <button
+                            type="button"
+                            onClick={() => changeHours(teamHours + 1)}
+                            className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40"
+                          >+</button>
+                        </div>
+                      )}
+                    </div>
+
+                    {anyPicked && (
+                      <div className="mt-3 pt-3 border-t border-mustard/20 space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-gray-600">
+                          <span>{formatINR(perHourSelected)}/hr × {teamHours} hr</span>
+                          <span className="font-medium text-dark">{formatINR(perHourSelected * teamHours)}</span>
+                        </div>
+                        {transport > 0 && (
+                          <div className="flex items-center justify-between text-[11px] text-gray-600">
+                            <span>Transport &amp; logistics</span>
+                            <span className="font-medium text-dark">+{formatINR(transport)}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                          <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Add to board — lock in this photographer + team for the category */}
+                    {ritualId && categoryId && (
+                      <button
+                        type="button"
+                        onClick={addPhotographer}
+                        className={`mt-3 w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                          isAddedToBoard
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-magenta text-white active:scale-[0.98]'
+                        }`}
+                      >
+                        {isAddedToBoard
+                          ? '✓ Added to your board'
+                          : anyPicked ? `Add to my board · ${formatINR(total)}` : 'Add to my board'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Price (non rate-card listings) */}
+            {!vendor.rateCard && (
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
-            {vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
+            )}
+            {!vendor.rateCard && vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
               <p className="text-[10px] text-gray-400">
                 {selectedTierHours ? `For ${selectedTierHours} hr rental` : `Default rate`}
               </p>
@@ -130,8 +288,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {vendor.sizes && vendor.sizes.length > 0 && (
               <p className="text-[10px] text-gray-400">Starting price · varies by size below</p>
             )}
-            {/* Transport & logistics sub-line */}
-            {vendor.transportIncluded === false && vendor.transportExtra && vendor.transportExtra > 0 ? (
+            {/* Transport & logistics sub-line (rate-card listings fold this into their own total) */}
+            {!vendor.rateCard && (vendor.transportIncluded === false && vendor.transportExtra && vendor.transportExtra > 0 ? (
               <>
                 <p className="text-[11px] text-gray-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-gray-400">
                   Transport &amp; logistics: <span className="font-semibold text-dark">+{formatINR(vendor.transportExtra)}</span>
@@ -150,7 +308,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </>
             ) : (
               <div className="mb-3" />
-            )}
+            ))}
 
             {/* Size & pricing options — decor designs with size variants */}
             {vendor.sizes && vendor.sizes.length > 0 && (

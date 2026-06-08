@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
-import { formatINR } from '@/lib/helpers'
-import { getListingConfig, RITUALS, type SelectField } from '@/lib/vendor-category-config'
+import { formatINR, getRateCardBaseHourly } from '@/lib/helpers'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, type SelectField, type PhotographyRateCard } from '@/lib/vendor-category-config'
 
 export default function VendorEditListing() {
   const { listingId } = useParams<{ listingId: string }>()
@@ -18,6 +18,8 @@ export default function VendorEditListing() {
   const [photos, setPhotos] = useState<string[]>([])
   const [style, setStyle] = useState('')
   const [price, setPrice] = useState(pr.min)
+  const [rateCard, setRateCard] = useState<PhotographyRateCard>({})
+  const [availableHours, setAvailableHours] = useState<number[]>([])
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [coverIndex, setCoverIndex] = useState(0)
@@ -32,6 +34,8 @@ export default function VendorEditListing() {
       setCoverIndex(listing.coverPhotoIndex ?? 0)
       setStyle(listing.style)
       setPrice(listing.price)
+      setRateCard(listing.rateCard || {})
+      setAvailableHours(listing.availableHours || [])
       setIncludes(listing.includes)
       setRituals(listing.rituals || [])
       setCategoryFields(listing.categoryFields || {})
@@ -56,8 +60,38 @@ export default function VendorEditListing() {
     }
   }
 
+  function isFieldVisible(field: SelectField, values: Record<string, string | string[]>): boolean {
+    if (!field.visibleWhen) return true
+    const dep = values[field.visibleWhen.key]
+    const { notEquals, equals } = field.visibleWhen
+    if (equals !== undefined) {
+      const list = Array.isArray(equals) ? equals : [equals]
+      return typeof dep === 'string' && list.includes(dep)
+    }
+    if (notEquals !== undefined) {
+      const list = Array.isArray(notEquals) ? notEquals : [notEquals]
+      return typeof dep === 'string' ? !list.includes(dep) : true
+    }
+    return true
+  }
+
   function setCategoryField(key: string, value: string | string[]) {
-    setCategoryFields(prev => ({ ...prev, [key]: value }))
+    setCategoryFields(prev => {
+      const next = { ...prev, [key]: value }
+      // Drop values for fields that are no longer visible, and seed newly-visible
+      // number fields with their min so the displayed value is the stored value.
+      for (const stepCfg of config.steps) {
+        for (const f of stepCfg.fields) {
+          if (!f.visibleWhen) continue
+          if (!isFieldVisible(f, next)) {
+            delete next[f.key]
+          } else if (f.type === 'number' && next[f.key] === undefined) {
+            next[f.key] = String(f.numberMin ?? 0)
+          }
+        }
+      }
+      return next
+    })
   }
 
   function toggleMultiField(key: string, value: string) {
@@ -76,9 +110,14 @@ export default function VendorEditListing() {
 
   function handleSave() {
     if (!listing) return
+    // Photography prices off the rate card — its board price is the per-hour total
+    // for 1 of each offered role.
+    const effectivePrice = category === 'Photography' ? getRateCardBaseHourly(rateCard) : price
     updateListing({
       ...listing,
-      name, photos, coverPhotoIndex: coverIndex, style, price, rituals, includes, categoryFields,
+      name, photos, coverPhotoIndex: coverIndex, style, price: effectivePrice, rituals, includes, categoryFields,
+      rateCard: category === 'Photography' ? rateCard : undefined,
+      availableHours: category === 'Photography' && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
     })
@@ -183,19 +222,72 @@ export default function VendorEditListing() {
           </div>
         </div>
 
-        {/* Price */}
-        <div>
-          <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
-          <p className="text-[20px] font-bold text-mustard mb-1">{formatINR(price)}{category === 'Catering' ? ' /plate' : category === 'Invitations' ? ' /invite' : ''}</p>
-          <input type="range" min={pr.min} max={pr.max} step={pr.step} value={price} onChange={(e) => setPrice(Number(e.target.value))}
-            className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
-            style={{ background: `linear-gradient(to right, #D4A017 ${((price - pr.min) / (pr.max - pr.min)) * 100}%, #eee ${((price - pr.min) / (pr.max - pr.min)) * 100}%)` }}
-          />
-        </div>
+        {/* Pricing — Photography uses a per-hour rate card; everything else a single price */}
+        {category === 'Photography' ? (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-1">Hourly rates</label>
+            <p className="text-[10px] text-gray-400 mb-2">Price per hour for each role you offer. Leave a role blank if you don't provide it.</p>
+            <div className="space-y-2.5">
+              {PHOTOGRAPHY_RATE_ROLES.map(role => {
+                const val = rateCard[role.key] ?? 0
+                return (
+                  <div key={role.key} className="flex items-center justify-between gap-3">
+                    <span className="text-[12px] font-medium text-dark">{role.label}</span>
+                    <div className="relative w-[140px] shrink-0">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                      <input
+                        type="number" min={0} step={500}
+                        value={val || ''}
+                        onChange={(e) => {
+                          const n = Math.max(0, parseInt(e.target.value) || 0)
+                          setRateCard(prev => ({ ...prev, [role.key]: n }))
+                        }}
+                        placeholder="0"
+                        className="w-full pl-6 pr-9 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">/hr</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mt-4">
+              <label className="text-[12px] font-medium text-dark block mb-1">Hours you're willing to work</label>
+              <p className="text-[10px] text-gray-400 mb-2">Couples choose their coverage from these blocks.</p>
+              <div className="flex flex-wrap gap-1.5">
+                {PHOTOGRAPHY_HOUR_OPTIONS.map(h => {
+                  const selected = availableHours.includes(h)
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => setAvailableHours(prev => prev.includes(h) ? prev.filter(x => x !== h) : [...prev, h])}
+                      className={`py-1.5 px-3.5 rounded-full text-[11px] font-medium transition-all ${selected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
+                    >
+                      {selected && <span className="mr-0.5">✓ </span>}{h} hrs
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            {getRateCardBaseHourly(rateCard) > 0 && (
+              <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">{formatINR(getRateCardBaseHourly(rateCard))}/hr</span> (1 of each offered role).</p>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
+            <p className="text-[20px] font-bold text-mustard mb-1">{formatINR(price)}{category === 'Catering' ? ' /plate' : category === 'Invitations' ? ' /invite' : ''}</p>
+            <input type="range" min={pr.min} max={pr.max} step={pr.step} value={price} onChange={(e) => setPrice(Number(e.target.value))}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
+              style={{ background: `linear-gradient(to right, #D4A017 ${((price - pr.min) / (pr.max - pr.min)) * 100}%, #eee ${((price - pr.min) / (pr.max - pr.min)) * 100}%)` }}
+            />
+          </div>
+        )}
 
         {/* Category-specific fields */}
         {config.steps.map((stepConfig) =>
-          stepConfig.fields.map(field => (
+          stepConfig.fields.filter(field => isFieldVisible(field, categoryFields)).map(field => (
             <FieldRenderer
               key={field.key}
               field={field}
