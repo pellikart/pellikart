@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
-import { formatINR, getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, type SelectField, type PhotographyRateCard, type MehendiPricing, type MakeupPricing } from '@/lib/vendor-category-config'
+import { formatINR, getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, isSingleListingCategory, type SelectField, type PhotographyRateCard, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing } from '@/lib/vendor-category-config'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
+import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
 
 export default function VendorEditListing() {
   const { listingId } = useParams<{ listingId: string }>()
@@ -24,6 +25,9 @@ export default function VendorEditListing() {
   const [availableHours, setAvailableHours] = useState<number[]>([])
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
+  const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
+  // Makeup-only: whether this makeup artist also offers saree draping as an add-on.
+  const [sareeAddon, setSareeAddon] = useState(false)
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [coverIndex, setCoverIndex] = useState(0)
@@ -42,6 +46,8 @@ export default function VendorEditListing() {
       setAvailableHours(listing.availableHours || [])
       setMehendiPricing(listing.mehendiPricing || emptyMehendiPricing())
       setMakeupPricing(listing.makeupPricing || emptyMakeupPricing())
+      setSareePricing(listing.sareeDrapingPricing || emptySareeDrapingPricing())
+      setSareeAddon(listing.category === 'Makeup' && !!listing.sareeDrapingPricing)
       setIncludes(listing.includes)
       setRituals(listing.rituals || [])
       setCategoryFields(listing.categoryFields || {})
@@ -121,6 +127,7 @@ export default function VendorEditListing() {
     const effectivePrice = category === 'Photography' ? getRateCardBaseHourly(rateCard)
       : category === 'Mehendi' ? getMehendiFromPrice(mehendiPricing)
       : category === 'Makeup' ? getMakeupFromPrice(makeupPricing)
+      : category === 'Saree Draping' ? getSareeDrapingFromPrice(sareePricing)
       : price
     updateListing({
       ...listing,
@@ -129,6 +136,9 @@ export default function VendorEditListing() {
       availableHours: category === 'Photography' && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
       mehendiPricing: category === 'Mehendi' ? mehendiPricing : undefined,
       makeupPricing: category === 'Makeup' ? makeupPricing : undefined,
+      sareeDrapingPricing: category === 'Saree Draping' ? sareePricing
+        : category === 'Makeup' && sareeAddon ? sareePricing
+        : undefined,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
     })
@@ -224,7 +234,7 @@ export default function VendorEditListing() {
         </div>
 
         {/* Style (not used for single-listing pricing-only categories) */}
-        {category !== 'Mehendi' && category !== 'Makeup' && (
+        {!isSingleListingCategory(category) && (
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1.5">Style</label>
           <div className="flex flex-wrap gap-1.5">
@@ -293,9 +303,24 @@ export default function VendorEditListing() {
             <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />
           </div>
         ) : category === 'Makeup' ? (
+          <div className="space-y-5">
+            <div>
+              <label className="text-[11px] font-medium text-dark block mb-2">Makeup pricing</label>
+              <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
+            </div>
+            <div className="pt-2 border-t border-card-border">
+              <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Saree Draping?</label>
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => setSareeAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${sareeAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
+                <button type="button" onClick={() => setSareeAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!sareeAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
+              </div>
+              {sareeAddon && <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />}
+            </div>
+          </div>
+        ) : category === 'Saree Draping' ? (
           <div>
-            <label className="text-[11px] font-medium text-dark block mb-2">Makeup pricing</label>
-            <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
+            <label className="text-[11px] font-medium text-dark block mb-2">Saree draping pricing</label>
+            <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />
           </div>
         ) : (
           <div>
@@ -309,7 +334,7 @@ export default function VendorEditListing() {
         )}
 
         {/* Category-specific fields (Mehendi/Makeup pricing fully replaces these) */}
-        {category !== 'Mehendi' && category !== 'Makeup' && config.steps.map((stepConfig) =>
+        {!isSingleListingCategory(category) && config.steps.map((stepConfig) =>
           stepConfig.fields.filter(field => isFieldVisible(field, categoryFields)).map(field => (
             <FieldRenderer
               key={field.key}
@@ -322,7 +347,7 @@ export default function VendorEditListing() {
         )}
 
         {/* Includes */}
-        {category !== 'Mehendi' && category !== 'Makeup' && (
+        {!isSingleListingCategory(category) && (
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1.5">What's included ({includes.length})</label>
           <div className="flex flex-wrap gap-2">

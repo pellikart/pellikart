@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
 import { formatINR, getRateCardBaseHourly } from '@/lib/helpers'
-import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, type SelectField, type PhotographyRateCard } from '@/lib/vendor-category-config'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, isSingleListingCategory, type SelectField, type PhotographyRateCard } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuBuilder from '@/components/MenuBuilder'
@@ -14,9 +14,9 @@ export default function VendorAddListing() {
   const navigate = useNavigate()
   const { vendorProfile, vendorListings, addListing, updateListing, _vendorDbId, _liveMode } = useVendorStore()
   const profileCategory = vendorProfile?.category || 'Photography'
-  // Mehendi/Makeup are single-listing categories authored in onboarding — no manual add flow.
+  // Single-listing categories (Mehendi/Makeup/Saree Draping) are authored in onboarding — no manual add flow.
   useEffect(() => {
-    if (profileCategory === 'Mehendi' || profileCategory === 'Makeup') navigate('/vendor/listings', { replace: true })
+    if (isSingleListingCategory(profileCategory)) navigate('/vendor/listings', { replace: true })
   }, [profileCategory, navigate])
   // Venue vendors can also create in-house Catering / Decor listings.
   const allowedCategories = useMemo(() =>

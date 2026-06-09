@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { formatINR, formatDate } from '@/lib/helpers'
 import { getMilestones } from '@/lib/milestones'
+import { isSingleListingCategory } from '@/lib/vendor-category-config'
 import { VendorBooking } from '@/lib/vendor-types'
 
 export default function VendorDashboard() {
   const navigate = useNavigate()
   const { vendorProfile, vendorListings, vendorBookings, vendorTrials, vendorBidRequests, vendorEarnings, vendorNotifications, vendorAnalytics } = useVendorStore()
-  // Single-listing categories (Mehendi, Makeup) edit their pricing rather than manage listings.
-  const singleCategory = vendorProfile?.category === 'Mehendi' || vendorProfile?.category === 'Makeup'
+  // Single-listing categories (Mehendi, Makeup, Saree Draping) edit their pricing rather than manage listings.
+  const singleCategory = isSingleListingCategory(vendorProfile?.category)
     ? vendorProfile?.category
     : undefined
   const pricingListing = singleCategory

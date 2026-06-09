@@ -796,6 +796,36 @@ export function emptyMakeupPricing(): MakeupPricing {
   return { bridalByEvent: {} }
 }
 
+// ─── SAREE DRAPING PRICING ──────────────────
+
+/**
+ * Saree Draping is a single-listing category (like Mehendi/Makeup): pricing is
+ * authored in onboarding. Bridal saree draping and groom panche draping are
+ * priced per look; guest saree draping is per guest.
+ */
+export interface SareeDrapingPricing {
+  /** Bridal saree draping price per look (₹). Omitted/0 = not offered. */
+  bridalPricePerLook?: number
+  /** Groom panche draping price per look (₹). Omitted/0 = not offered. */
+  groomPricePerLook?: number
+  /** Guest saree draping price per guest (₹). Omitted/0 = not offered. */
+  guestPricePerPerson?: number
+}
+
+/** A fresh, empty Saree Draping pricing object. */
+export function emptySareeDrapingPricing(): SareeDrapingPricing {
+  return {}
+}
+
+// ─── SINGLE-LISTING CATEGORIES ──────────────
+
+/** Categories whose one listing is authored in onboarding (no separate listing flow). */
+export const SINGLE_LISTING_CATEGORIES = ['Mehendi', 'Makeup', 'Saree Draping'] as const
+
+export function isSingleListingCategory(category?: string | null): boolean {
+  return !!category && (SINGLE_LISTING_CATEGORIES as readonly string[]).includes(category)
+}
+
 // ─── RITUALS / EVENTS ───────────────────────
 
 /** All rituals/events a listing can be tagged for (used for couple-vendor matching) */

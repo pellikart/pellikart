@@ -2,11 +2,44 @@ import { useState } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal } from '@/lib/helpers'
 import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS, MAKEUP_EVENTS } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
+
+/** The saree-draping stepper rows (bridal/groom/guest), shared by the standalone
+ *  Saree Draping listing and the Makeup add-on section. */
+function SareeRows({ p, sel, onUpdate }: {
+  p: import('@/lib/vendor-category-config').SareeDrapingPricing
+  sel: { bridalLooks?: number; groomLooks?: number; guests?: number }
+  onUpdate: (patch: { bridalLooks?: number; groomLooks?: number; guests?: number }) => void
+}) {
+  const rows: { key: 'bridalLooks' | 'groomLooks' | 'guests'; label: string; price: number; unit: string }[] = []
+  if ((p.bridalPricePerLook ?? 0) > 0) rows.push({ key: 'bridalLooks', label: 'Bridal saree draping', price: p.bridalPricePerLook!, unit: '/ look' })
+  if ((p.groomPricePerLook ?? 0) > 0) rows.push({ key: 'groomLooks', label: 'Groom panche draping', price: p.groomPricePerLook!, unit: '/ look' })
+  if ((p.guestPricePerPerson ?? 0) > 0) rows.push({ key: 'guests', label: 'Guest saree draping', price: p.guestPricePerPerson!, unit: '/ guest' })
+  return (
+    <div className="space-y-1.5">
+      {rows.map(r => {
+        const value = sel[r.key] || 0
+        return (
+          <div key={r.key} className={`flex items-center justify-between gap-2 py-2 px-3 rounded-lg transition-all ${value > 0 ? 'border-2 border-magenta bg-magenta-light' : 'border border-card-border bg-white'}`}>
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium text-dark truncate">{r.label}</p>
+              <p className="text-[10px] text-gray-500">{formatINR(r.price)} {r.unit}</p>
+            </div>
+            <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
+              <button type="button" onClick={() => onUpdate({ [r.key]: Math.max(0, value - 1) })} disabled={value <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
+              <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{value}</span>
+              <button type="button" onClick={() => onUpdate({ [r.key]: value + 1 })} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 interface Props {
   vendor: Vendor
@@ -21,7 +54,7 @@ interface Props {
 
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectMehendiOptions, selectMakeupOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -97,6 +130,24 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   function addMakeup() {
     if (!ritualId || !categoryId) return
     selectMakeupOptions(ritualId, categoryId, makeupSel)
+    // Makeup artists can also offer saree draping — persist that selection too.
+    if (vendor.sareeDrapingPricing) selectSareeOptions(ritualId, categoryId, sareeSel)
+    selectVendor(ritualId, categoryId, vendor.id)
+  }
+
+  // ── Saree Draping selection (bridal looks, groom looks, guests) ──
+  const savedSaree = currentCategory?.sareeSelection
+  const [sareeSel, setSareeSel] = useState<{ bridalLooks?: number; groomLooks?: number; guests?: number }>(
+    () => savedSaree ?? {},
+  )
+  function updateSaree(patch: Partial<typeof sareeSel>) {
+    const next = { ...sareeSel, ...patch }
+    setSareeSel(next)
+    if (ritualId && categoryId) selectSareeOptions(ritualId, categoryId, next)
+  }
+  function addSaree() {
+    if (!ritualId || !categoryId) return
+    selectSareeOptions(ritualId, categoryId, sareeSel)
     selectVendor(ritualId, categoryId, vendor.id)
   }
 
@@ -432,8 +483,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const offeredEvents = MAKEUP_EVENTS.filter(e => (p.bridalByEvent?.[e] ?? 0) > 0)
               const groomOK = (p.groomPrice ?? 0) > 0
               const guestOK = (p.guestPricePerPerson ?? 0) > 0
-              const total = getMakeupSelectionTotal(vendor, makeupSel)
+              const makeupTotal = getMakeupSelectionTotal(vendor, makeupSel)
               const guests = makeupSel.guests || 0
+              // Optional saree-draping add-on (some makeup artists offer it too).
+              const sp = vendor.sareeDrapingPricing
+              const sareeTotal = sp ? getSareeSelectionTotal(vendor, sareeSel) : null
+              const total = makeupTotal != null || sareeTotal != null ? (makeupTotal ?? 0) + (sareeTotal ?? 0) : null
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
@@ -492,6 +547,14 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                       </div>
                     )}
 
+                    {/* Saree draping add-on (this makeup artist also offers it) */}
+                    {sp && (
+                      <div className="pt-3 border-t border-mustard/20">
+                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Saree draping <span className="text-gray-400 font-normal normal-case">· add-on</span></p>
+                        <SareeRows p={sp} sel={sareeSel} onUpdate={updateSaree} />
+                      </div>
+                    )}
+
                     {total != null && (
                       <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
                         <span className="text-[12px] font-semibold text-dark">Estimated total</span>
@@ -519,8 +582,47 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )
             })()}
 
-            {/* Price (non rate-card / non-mehendi / non-makeup listings) */}
-            {!vendor.rateCard && !vendor.mehendiPricing && !vendor.makeupPricing && (
+            {/* Saree Draping — standalone listing (a Makeup listing folds saree into its block above) */}
+            {vendor.sareeDrapingPricing && !vendor.makeupPricing && (() => {
+              const p = vendor.sareeDrapingPricing
+              const fromPrice = getSareeDrapingFromPrice(p)
+              const total = getSareeSelectionTotal(vendor, sareeSel)
+              return (
+                <div className="mb-4">
+                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
+                  <p className="text-[10px] text-gray-400 mb-3">Choose how many you need — your price updates live</p>
+                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-2">
+                    <SareeRows p={p} sel={sareeSel} onUpdate={updateSaree} />
+
+                    {total != null && (
+                      <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
+                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                      </div>
+                    )}
+
+                    {ritualId && categoryId && (
+                      <button
+                        type="button"
+                        onClick={addSaree}
+                        className={`w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                          isAddedToBoard
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-magenta text-white active:scale-[0.98]'
+                        }`}
+                      >
+                        {isAddedToBoard
+                          ? '✓ Added to your board'
+                          : total != null ? `Add to my board · ${formatINR(total)}` : 'Add to my board'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Price (non rate-card / non-mehendi / non-makeup / non-saree listings) */}
+            {!vendor.rateCard && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && (
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
             )}
             {!vendor.rateCard && vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (

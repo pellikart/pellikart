@@ -112,6 +112,7 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       available_hours: listing.availableHours || [],
       mehendi_pricing: listing.mehendiPricing || {},
       makeup_pricing: listing.makeupPricing || {},
+      saree_draping_pricing: listing.sareeDrapingPricing || {},
       transport_included: listing.transportIncluded ?? null,
       transport_extra: listing.transportExtra ?? null,
     })
@@ -146,6 +147,7 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
       available_hours: listing.availableHours || [],
       mehendi_pricing: listing.mehendiPricing || {},
       makeup_pricing: listing.makeupPricing || {},
+      saree_draping_pricing: listing.sareeDrapingPricing || {},
       transport_included: listing.transportIncluded ?? null,
       transport_extra: listing.transportExtra ?? null,
       updated_at: new Date().toISOString(),
@@ -396,6 +398,7 @@ export async function fetchRitualBoards(coupleId: string) {
         photographyTeam: (c.photography_team as { counts: Record<string, number>; hours: number } | null) ?? undefined,
         mehendiSelection: (c.mehendi_selection as { coverage?: string; design?: string; groom?: boolean; guests?: number } | null) ?? undefined,
         makeupSelection: (c.makeup_selection as { eventLooks?: Record<string, number>; groom?: boolean; guests?: number } | null) ?? undefined,
+        sareeSelection: (c.saree_selection as { bridalLooks?: number; groomLooks?: number; guests?: number } | null) ?? undefined,
       })),
   })) as RitualBoard[]
 }
@@ -474,6 +477,7 @@ export async function updateBoardCategory(categoryId: string, updates: Partial<C
   if (updates.photographyTeam !== undefined) mapped.photography_team = updates.photographyTeam ?? null
   if (updates.mehendiSelection !== undefined) mapped.mehendi_selection = updates.mehendiSelection ?? null
   if (updates.makeupSelection !== undefined) mapped.makeup_selection = updates.makeupSelection ?? null
+  if (updates.sareeSelection !== undefined) mapped.saree_selection = updates.sareeSelection ?? null
 
   await supabase.from('board_categories').update(mapped).eq('id', categoryId)
 }

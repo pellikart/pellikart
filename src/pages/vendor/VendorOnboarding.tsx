@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
 import { uploadPhotos, updateVendorFields } from '@/lib/supabase-db'
-import { emptyMehendiPricing, emptyMakeupPricing, type MehendiPricing, type MakeupPricing } from '@/lib/vendor-category-config'
-import { getMehendiFromPrice, getMakeupFromPrice } from '@/lib/helpers'
+import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, isSingleListingCategory, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing } from '@/lib/vendor-category-config'
+import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
+import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
@@ -40,15 +41,20 @@ export default function VendorOnboarding() {
   // onboarding and auto-create one listing on go-live.
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
+  const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
+  // Makeup-only: some makeup artists also offer saree draping as an add-on.
+  const [sareeAvailable, setSareeAvailable] = useState<boolean | null>(null)
 
-  // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, 5=Portfolio Photos, [6=Pricing], last=Ready
-  // Most categories capture specialty details per-listing. Mehendi/Makeup capture
-  // their pricing here and insert an extra screen before the Ready screen.
+  // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, 5=Portfolio Photos, [6=Pricing], [7=Saree add-on (Makeup)], last=Ready
+  // Single-listing categories (Mehendi/Makeup/Saree Draping) capture pricing here.
+  // Makeup gets an extra "also offer saree draping?" screen.
   const isMehendi = category === 'Mehendi'
   const isMakeup = category === 'Makeup'
-  const isSingleListing = isMehendi || isMakeup
-  const totalSteps = isSingleListing ? 7 : 6
+  const isSaree = category === 'Saree Draping'
+  const isSingleListing = isSingleListingCategory(category)
   const pricingStep = 6 // only meaningful for single-listing categories
+  const sareeAddonStep = 7 // Makeup only
+  const totalSteps = isMakeup ? 8 : isSingleListing ? 7 : 6
 
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
   function back() { setStep((s) => Math.max(s - 1, 1)) }
@@ -154,7 +160,7 @@ export default function VendorOnboarding() {
 
     // Single-listing categories: auto-create the one listing from the onboarding
     // pricing so it shows on the couple side without a separate creation flow.
-    if (isMehendi || isMakeup) {
+    if (isSingleListing) {
       const base = {
         id: `vl-${Date.now()}`,
         photos: listingPhotos,
@@ -165,7 +171,9 @@ export default function VendorOnboarding() {
       }
       const listing: VendorListing = isMehendi
         ? { ...base, name: `${profile.businessName} — Mehendi`, category: 'Mehendi', price: getMehendiFromPrice(mehendiPricing), mehendiPricing, rituals: ['Mehendi'] }
-        : { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricing), makeupPricing, rituals: [] }
+        : isMakeup
+        ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricing), makeupPricing, sareeDrapingPricing: sareeAvailable ? sareePricing : undefined, rituals: [] }
+        : { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
       useVendorStore.getState().addListing(listing)
     }
 
@@ -374,7 +382,33 @@ export default function VendorOnboarding() {
             <p className="text-[12px] text-gray-400 mt-1 mb-5">This becomes your listing — couples pick what they want and see the price. You can edit it anytime from your dashboard.</p>
             {isMehendi
               ? <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />
-              : <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />}
+              : isMakeup
+              ? <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
+              : <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />}
+            <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
+          </div>
+        )}
+
+        {/* Screen 7 (Makeup only): saree draping add-on */}
+        {isMakeup && step === sareeAddonStep && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[22px] font-bold text-dark">Do you also offer Saree Draping?</h1>
+            <p className="text-[12px] text-gray-400 mt-1 mb-5">Many makeup artists offer saree draping too. Add it and couples can book both together.</p>
+            <div className="flex gap-2 mb-5">
+              <button
+                type="button"
+                onClick={() => setSareeAvailable(true)}
+                className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium transition-all ${sareeAvailable === true ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+              >Yes</button>
+              <button
+                type="button"
+                onClick={() => setSareeAvailable(false)}
+                className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium transition-all ${sareeAvailable === false ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+              >No</button>
+            </div>
+            {sareeAvailable === true && (
+              <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />
+            )}
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
           </div>
         )}

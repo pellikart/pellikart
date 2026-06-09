@@ -15,6 +15,7 @@ const categoryVendorPrefix: Record<string, string> = {
   "Mehendi": "v-mehendi",
   "Pandit": "v-pandit",
   "Invitations": "v-invite",
+  "Saree Draping": "v-saree",
 };
 
 export function getCategoriesForEvent(eventName: string): string[] {
@@ -23,8 +24,8 @@ export function getCategoriesForEvent(eventName: string): string[] {
   if (lower === 'sangeeth') return ["Venue", "Catering", "DJ / Music", "Photography", "Decor"];
   if (lower === 'haldi') return ["Venue", "Catering", "Decor", "Photography"];
   if (lower === 'bottu') return ["Venue", "Catering", "Decor", "Photography"];
-  if (lower === 'reception') return ["Venue", "Catering", "Decor", "Photography", "DJ / Music"];
-  if (lower === 'pelli (wedding)') return ["Venue", "Catering", "Decor", "Photography", "Makeup", "Pandit", "Invitations"];
+  if (lower === 'reception') return ["Venue", "Catering", "Decor", "Photography", "DJ / Music", "Saree Draping"];
+  if (lower === 'pelli (wedding)') return ["Venue", "Catering", "Decor", "Photography", "Makeup", "Pandit", "Invitations", "Saree Draping"];
   if (lower === 'engagement' || lower === 'pelli choopulu') return ["Venue", "Catering", "Decor", "Photography", "Makeup"];
   return [...defaultCategories];
 }
@@ -314,6 +315,8 @@ export const mockVendors: Record<string, Vendor> = {
       groomPrice: 5000,
       guestPricePerPerson: 2500,
     },
+    // This makeup artist also offers saree draping as an add-on.
+    sareeDrapingPricing: { bridalPricePerLook: 3500, groomPricePerLook: 2500, guestPricePerPerson: 1000 },
   },
   "v-makeup-2": {
     id: "v-makeup-2", code: "Makeup 002", name: "Beauty Bliss Studio", photo: img("makeup", 2),
@@ -324,6 +327,21 @@ export const mockVendors: Record<string, Vendor> = {
       groomPrice: 4000,
       guestPricePerPerson: 1800,
     },
+    sareeDrapingPricing: { bridalPricePerLook: 2800, guestPricePerPerson: 900 },
+  },
+
+  // === SAREE DRAPING ===
+  "v-saree-1": {
+    id: "v-saree-1", code: "Saree 001", name: "Drape Diva", photo: img("makeup", 5),
+    style: "Bridal Draping", area: "Jubilee Hills, Hyderabad", price: 1500,
+    rating: 4.8, packageTier: "Bridal + guests", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
+    sareeDrapingPricing: { bridalPricePerLook: 3000, groomPricePerLook: 2000, guestPricePerPerson: 800 },
+  },
+  "v-saree-2": {
+    id: "v-saree-2", code: "Saree 002", name: "Pleats & Perfection", photo: img("makeup", 6),
+    style: "Modern Draping", area: "Madhapur, Hyderabad", price: 1200,
+    rating: 4.5, packageTier: "Bridal + guests", likes: [], booked: false, amountPaid: 0,
+    sareeDrapingPricing: { bridalPricePerLook: 2500, guestPricePerPerson: 1200 },
   },
 
   // === DJ/MUSIC ===
@@ -421,6 +439,11 @@ export const mockDesigns: Design[] = [
   { id: "d-makeup-2a", vendorId: "v-makeup-2", name: "Natural Bridal Glow", photo: img("makeup", 3), style: "Natural Glam", price: 55000, rating: 4.5, description: "2 looks — soft dewy skin, natural tones, minimal yet stunning" },
   { id: "d-makeup-2b", vendorId: "v-makeup-2", name: "Family Makeup Package", photo: img("makeup", 4), style: "Family", price: 45000, rating: 4.3, description: "Bride + 5 family members, natural makeup for all, bridal HD for bride" },
 
+  // === SAREE DRAPING LISTINGS ===
+  { id: "d-saree-1a", vendorId: "v-saree-1", name: "Bridal Draping Signature", photo: img("makeup", 5), style: "Bridal Draping", price: 8000, rating: 4.8, description: "Flawless bridal saree draping with pleat perfection, pins & on-site touch-up" },
+  { id: "d-saree-1b", vendorId: "v-saree-1", name: "Bride + Family Package", photo: img("makeup", 6), style: "Bridal + Guests", price: 15000, rating: 4.7, description: "Bridal draping + groom panche + family drapes, full event coverage" },
+  { id: "d-saree-2a", vendorId: "v-saree-2", name: "Modern Drape Look", photo: img("makeup", 3), style: "Modern Draping", price: 6000, rating: 4.5, description: "Contemporary draping styles — lehenga saree, mermaid, butterfly pleats" },
+
   // === DJ / MUSIC LISTINGS ===
   { id: "d-dj-1a", vendorId: "v-dj-1", name: "Bollywood + EDM Night", photo: img("dj", 1), style: "Bollywood + EDM", price: 95000, rating: 4.7, description: "Full night DJ, 10K watts sound, LED dance floor, fog machine, live dhol entry" },
   { id: "d-dj-1b", vendorId: "v-dj-1", name: "Sangeeth Special Setup", photo: img("dj", 2), style: "Sangeeth", price: 65000, rating: 4.5, description: "6-hour sangeeth package — wireless mics for performances, curated Bollywood + Telugu playlist" },
@@ -445,6 +468,7 @@ const designPrefixMap: Record<string, string> = {
   "Venue": "d-venue", "Decor": "d-decor", "Catering": "d-catering",
   "Photography": "d-photo", "Mehendi": "d-mehendi", "Makeup": "d-makeup",
   "DJ / Music": "d-dj", "Pandit": "d-pandit", "Invitations": "d-invite",
+  "Saree Draping": "d-saree",
 };
 
 export function getDesignsForCategory(categoryLabel: string): Design[] {

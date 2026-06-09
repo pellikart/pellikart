@@ -46,6 +46,8 @@ export interface Vendor {
   mehendiPricing?: import('./vendor-category-config').MehendiPricing;
   /** Makeup-only: bridal per-event per-look pricing + groom/guest. */
   makeupPricing?: import('./vendor-category-config').MakeupPricing;
+  /** Saree Draping-only: bridal/groom per-look + guest pricing. */
+  sareeDrapingPricing?: import('./vendor-category-config').SareeDrapingPricing;
   rituals?: string[];
   transportIncluded?: boolean;
   transportExtra?: number;
@@ -115,6 +117,8 @@ export interface Category {
   mehendiSelection?: { coverage?: string; design?: string; groom?: boolean; guests?: number };
   /** Makeup-only: the couple's selection — number of bridal looks per event, groom, guests. */
   makeupSelection?: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number };
+  /** Saree Draping-only: the couple's selection — bridal looks, groom looks, guests. */
+  sareeSelection?: { bridalLooks?: number; groomLooks?: number; guests?: number };
 }
 
 export interface SuggestedVendor {
@@ -167,6 +171,7 @@ export interface AppState {
   selectPhotographyTeam: (ritualId: string, categoryId: string, counts: Record<string, number>, hours: number) => void;
   selectMehendiOptions: (ritualId: string, categoryId: string, selection: { coverage?: string; design?: string; groom?: boolean; guests?: number }) => void;
   selectMakeupOptions: (ritualId: string, categoryId: string, selection: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number }) => void;
+  selectSareeOptions: (ritualId: string, categoryId: string, selection: { bridalLooks?: number; groomLooks?: number; guests?: number }) => void;
   addToShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   removeFromShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   toggleLike: (vendorId: string, userName: string, userId: string) => void;
