@@ -8,9 +8,12 @@ import { VendorBooking } from '@/lib/vendor-types'
 export default function VendorDashboard() {
   const navigate = useNavigate()
   const { vendorProfile, vendorListings, vendorBookings, vendorTrials, vendorBidRequests, vendorEarnings, vendorNotifications, vendorAnalytics } = useVendorStore()
-  // Single-listing categories (Mehendi) edit their pricing rather than manage listings.
-  const mehendiListing = vendorProfile?.category === 'Mehendi'
-    ? vendorListings.find((l) => l.category === 'Mehendi')
+  // Single-listing categories (Mehendi, Makeup) edit their pricing rather than manage listings.
+  const singleCategory = vendorProfile?.category === 'Mehendi' || vendorProfile?.category === 'Makeup'
+    ? vendorProfile?.category
+    : undefined
+  const pricingListing = singleCategory
+    ? vendorListings.find((l) => l.category === singleCategory)
     : undefined
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [bookingTab, setBookingTab] = useState<'active' | 'completed' | 'cancelled'>('active')
@@ -44,14 +47,14 @@ export default function VendorDashboard() {
       </div>
 
       <div className="px-4 mt-3">
-        {/* Mehendi: edit pricing shortcut (single-listing category) */}
-        {mehendiListing && (
+        {/* Single-listing categories: edit pricing shortcut */}
+        {pricingListing && (
           <button
-            onClick={() => navigate(`/vendor/listings/edit/${mehendiListing.id}`)}
+            onClick={() => navigate(`/vendor/listings/edit/${pricingListing.id}`)}
             className="w-full mb-4 p-3 rounded-xl bg-mustard-light border border-mustard/20 flex items-center justify-between text-left active:scale-[0.99] transition-transform"
           >
             <div>
-              <p className="text-[12px] font-semibold text-dark">Edit your Mehendi pricing</p>
+              <p className="text-[12px] font-semibold text-dark">Edit your {singleCategory} pricing</p>
               <p className="text-[10px] text-gray-500 mt-0.5">Update bridal, groom &amp; guest prices couples see.</p>
             </div>
             <span className="text-mustard text-[18px]">›</span>

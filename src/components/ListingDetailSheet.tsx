@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal } from '@/lib/helpers'
-import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS } from '@/lib/vendor-category-config'
+import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal } from '@/lib/helpers'
+import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS, MAKEUP_EVENTS } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
@@ -21,7 +21,7 @@ interface Props {
 
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectMehendiOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectMehendiOptions, selectMakeupOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -78,6 +78,25 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   function addMehendi() {
     if (!ritualId || !categoryId) return
     selectMehendiOptions(ritualId, categoryId, mehendiSel)
+    selectVendor(ritualId, categoryId, vendor.id)
+  }
+
+  // ── Makeup selection (looks per bridal event, groom, guests) ──
+  const savedMakeup = currentCategory?.makeupSelection
+  const [makeupSel, setMakeupSel] = useState<{ eventLooks?: Record<string, number>; groom?: boolean; guests?: number }>(
+    () => savedMakeup ?? {},
+  )
+  function updateMakeup(patch: Partial<typeof makeupSel>) {
+    const next = { ...makeupSel, ...patch }
+    setMakeupSel(next)
+    if (ritualId && categoryId) selectMakeupOptions(ritualId, categoryId, next)
+  }
+  function setEventLooks(event: string, looks: number) {
+    updateMakeup({ eventLooks: { ...makeupSel.eventLooks, [event]: Math.max(0, looks) } })
+  }
+  function addMakeup() {
+    if (!ritualId || !categoryId) return
+    selectMakeupOptions(ritualId, categoryId, makeupSel)
     selectVendor(ritualId, categoryId, vendor.id)
   }
 
@@ -406,8 +425,102 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )
             })()}
 
-            {/* Price (non rate-card / non-mehendi listings) */}
-            {!vendor.rateCard && !vendor.mehendiPricing && (
+            {/* Makeup — interactive pricing picker (bridal events, groom, guests) */}
+            {vendor.makeupPricing && (() => {
+              const p = vendor.makeupPricing
+              const fromPrice = getMakeupFromPrice(p)
+              const offeredEvents = MAKEUP_EVENTS.filter(e => (p.bridalByEvent?.[e] ?? 0) > 0)
+              const groomOK = (p.groomPrice ?? 0) > 0
+              const guestOK = (p.guestPricePerPerson ?? 0) > 0
+              const total = getMakeupSelectionTotal(vendor, makeupSel)
+              const guests = makeupSel.guests || 0
+              return (
+                <div className="mb-4">
+                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
+                  <p className="text-[10px] text-gray-400 mb-3">Choose how many looks per event — your price updates live</p>
+
+                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-3">
+                    {/* Bridal looks per event */}
+                    {offeredEvents.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Bridal makeup · looks per event</p>
+                        <div className="space-y-1.5">
+                          {offeredEvents.map(e => {
+                            const looks = makeupSel.eventLooks?.[e] || 0
+                            return (
+                              <div key={e} className={`flex items-center justify-between gap-2 py-2 px-3 rounded-lg transition-all ${looks > 0 ? 'border-2 border-magenta bg-magenta-light' : 'border border-card-border bg-white'}`}>
+                                <div className="min-w-0">
+                                  <p className="text-[12px] font-medium text-dark truncate">{e}</p>
+                                  <p className="text-[10px] text-gray-500">{formatINR(p.bridalByEvent[e])} / look</p>
+                                </div>
+                                <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
+                                  <button type="button" onClick={() => setEventLooks(e, looks - 1)} disabled={looks <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
+                                  <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{looks}</span>
+                                  <button type="button" onClick={() => setEventLooks(e, looks + 1)} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Groom */}
+                    {groomOK && (
+                      <button
+                        type="button"
+                        onClick={() => updateMakeup({ groom: !makeupSel.groom })}
+                        className={`w-full flex items-center justify-between py-2 px-3 rounded-lg text-left transition-all ${makeupSel.groom ? 'border-2 border-magenta bg-magenta-light' : 'border border-card-border bg-white'}`}
+                      >
+                        <span className="text-[12px] font-medium text-dark">{makeupSel.groom ? '✓ ' : ''}Groom makeup</span>
+                        <span className="text-[12px] font-semibold text-magenta">{formatINR(p.groomPrice!)}</span>
+                      </button>
+                    )}
+
+                    {/* Guests */}
+                    {guestOK && (
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[12px] font-medium text-dark">Guest makeup</p>
+                          <p className="text-[10px] text-gray-500">{formatINR(p.guestPricePerPerson!)} / guest</p>
+                        </div>
+                        <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
+                          <button type="button" onClick={() => updateMakeup({ guests: Math.max(0, guests - 1) })} disabled={guests <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
+                          <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{guests}</span>
+                          <button type="button" onClick={() => updateMakeup({ guests: guests + 1 })} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {total != null && (
+                      <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
+                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                      </div>
+                    )}
+
+                    {ritualId && categoryId && (
+                      <button
+                        type="button"
+                        onClick={addMakeup}
+                        className={`w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                          isAddedToBoard
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-magenta text-white active:scale-[0.98]'
+                        }`}
+                      >
+                        {isAddedToBoard
+                          ? '✓ Added to your board'
+                          : total != null ? `Add to my board · ${formatINR(total)}` : 'Add to my board'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Price (non rate-card / non-mehendi / non-makeup listings) */}
+            {!vendor.rateCard && !vendor.mehendiPricing && !vendor.makeupPricing && (
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
             )}
             {!vendor.rateCard && vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (

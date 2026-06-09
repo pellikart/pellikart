@@ -116,6 +116,9 @@ export interface VendorListing {
   /** Mehendi-only: bridal coverage×design matrix + groom/guest pricing.
    *  Authored in onboarding; `price` holds the cheapest bridal "from" price. */
   mehendiPricing?: import('./vendor-category-config').MehendiPricing
+  /** Makeup-only: bridal per-event per-look pricing + groom/guest. Authored in
+   *  onboarding; `price` holds the cheapest "from" price. */
+  makeupPricing?: import('./vendor-category-config').MakeupPricing
   /** Whether transport & logistics is bundled into the listing price. */
   transportIncluded?: boolean
   /** Extra transport & logistics charge in ₹ (only meaningful when transportIncluded === false). */

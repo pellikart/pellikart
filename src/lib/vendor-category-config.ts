@@ -774,10 +774,35 @@ export function emptyMehendiPricing(): MehendiPricing {
   return { bridalOffered: true, bridal: {}, conesIncluded: true }
 }
 
+// ─── MAKEUP PRICING ─────────────────────────
+
+/**
+ * Makeup is a single-listing category (like Mehendi): pricing is authored in
+ * onboarding. Bridal makeup is priced per look, per event; groom makeup is a
+ * flat per-look price; guest makeup is per guest. Couples pick the events they
+ * want, optionally groom, and a guest count, and see a live total.
+ */
+export interface MakeupPricing {
+  /** event name → bridal makeup price per look (₹). Missing/0 = not offered. */
+  bridalByEvent: Record<string, number>
+  /** Flat price for groom makeup per look (₹). Omitted/0 = not offered. */
+  groomPrice?: number
+  /** Price per guest for guest makeup (₹). Omitted/0 = not offered. */
+  guestPricePerPerson?: number
+}
+
+/** A fresh, empty Makeup pricing object. */
+export function emptyMakeupPricing(): MakeupPricing {
+  return { bridalByEvent: {} }
+}
+
 // ─── RITUALS / EVENTS ───────────────────────
 
 /** All rituals/events a listing can be tagged for (used for couple-vendor matching) */
 export const RITUALS = ['Pre-Wedding Shoot', 'Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
+
+/** Events a bridal makeup artist prices per look. Mirrors the ritual/event list. */
+export const MAKEUP_EVENTS = RITUALS
 
 /** Get the listing config for a category, with a safe fallback */
 export function getListingConfig(category: string): CategoryListingConfig {

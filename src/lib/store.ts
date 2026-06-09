@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
-import { getRateCardBaseHourly, getMehendiFromPrice } from "./helpers";
+import { getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice } from "./helpers";
 import {
   fetchCouple, upsertCouple,
   fetchRitualBoards, insertRitualBoard,
@@ -121,6 +121,10 @@ export function buildLiveVendorMap(
       mehendiPricing: (() => {
         const mp = l.mehendi_pricing as import('./vendor-category-config').MehendiPricing | null
         return mp && (mp.bridalOffered !== undefined || Object.keys(mp.bridal || {}).length > 0) ? mp : undefined
+      })(),
+      makeupPricing: (() => {
+        const mk = l.makeup_pricing as import('./vendor-category-config').MakeupPricing | null
+        return mk && Object.keys(mk.bridalByEvent || {}).length >= 0 && (Object.keys(mk.bridalByEvent || {}).length > 0 || mk.groomPrice || mk.guestPricePerPerson) ? mk : undefined
       })(),
       rituals: (l.rituals as string[]) || undefined,
       transportIncluded: (l.transport_included as boolean | null) ?? undefined,
@@ -425,9 +429,9 @@ export const useStore = create<AppState & LiveModeState & {
               name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
               photo: design.photo, style: design.style,
               area: parentVendor?.area || '', capacity: parentVendor?.capacity,
-              // Photography/Mehendi price from their own pricing model — use the
-              // parent's board figure instead of the fixed design price.
-              price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : Math.round(design.price * scale), rating: design.rating,
+              // Photography/Mehendi/Makeup price from their own pricing model — use
+              // the parent's board figure instead of the fixed design price.
+              price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : Math.round(design.price * scale), rating: design.rating,
               packageTier: design.description, likes: [], booked: false, amountPaid: 0,
               // Inherit category-specific fields so the Compare table shows real detail for design listings
               categoryFields: parentVendor?.categoryFields,
@@ -438,6 +442,7 @@ export const useStore = create<AppState & LiveModeState & {
               rateCard: parentVendor?.rateCard,
               availableHours: parentVendor?.availableHours,
               mehendiPricing: parentVendor?.mehendiPricing,
+              makeupPricing: parentVendor?.makeupPricing,
               paidRooms: parentVendor?.paidRooms,
               includes: parentVendor?.includes,
               transportIncluded: parentVendor?.transportIncluded,
@@ -478,9 +483,9 @@ export const useStore = create<AppState & LiveModeState & {
           name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
           photo: design.photo, style: design.style,
           area: parentVendor?.area || '', capacity: parentVendor?.capacity,
-          // Photography/Mehendi price from their own pricing model — use the
-          // parent's board figure instead of the fixed design price.
-          price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : Math.round(design.price * scale), rating: design.rating,
+          // Photography/Mehendi/Makeup price from their own pricing model — use
+          // the parent's board figure instead of the fixed design price.
+          price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : Math.round(design.price * scale), rating: design.rating,
           packageTier: design.description, likes: [], booked: false, amountPaid: 0,
           // Inherit category-specific fields so the Compare table shows real detail for design listings
           categoryFields: parentVendor?.categoryFields,
@@ -491,6 +496,7 @@ export const useStore = create<AppState & LiveModeState & {
           rateCard: parentVendor?.rateCard,
           availableHours: parentVendor?.availableHours,
           mehendiPricing: parentVendor?.mehendiPricing,
+          makeupPricing: parentVendor?.makeupPricing,
           paidRooms: parentVendor?.paidRooms,
           includes: parentVendor?.includes,
           transportIncluded: parentVendor?.transportIncluded,
@@ -578,6 +584,20 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       updateBoardCategory(categoryId, { mehendiSelection: selection })
+    }
+  },
+
+  selectMakeupOptions: (ritualId, categoryId, selection) => {
+    const { _liveMode } = get()
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, makeupSelection: selection } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { makeupSelection: selection })
     }
   },
 

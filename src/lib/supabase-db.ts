@@ -111,6 +111,7 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       rate_card: listing.rateCard || {},
       available_hours: listing.availableHours || [],
       mehendi_pricing: listing.mehendiPricing || {},
+      makeup_pricing: listing.makeupPricing || {},
       transport_included: listing.transportIncluded ?? null,
       transport_extra: listing.transportExtra ?? null,
     })
@@ -144,6 +145,7 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
       rate_card: listing.rateCard || {},
       available_hours: listing.availableHours || [],
       mehendi_pricing: listing.mehendiPricing || {},
+      makeup_pricing: listing.makeupPricing || {},
       transport_included: listing.transportIncluded ?? null,
       transport_extra: listing.transportExtra ?? null,
       updated_at: new Date().toISOString(),
@@ -393,6 +395,7 @@ export async function fetchRitualBoards(coupleId: string) {
         selectedTierHours: c.selected_tier_hours ?? undefined,
         photographyTeam: (c.photography_team as { counts: Record<string, number>; hours: number } | null) ?? undefined,
         mehendiSelection: (c.mehendi_selection as { coverage?: string; design?: string; groom?: boolean; guests?: number } | null) ?? undefined,
+        makeupSelection: (c.makeup_selection as { eventLooks?: Record<string, number>; groom?: boolean; guests?: number } | null) ?? undefined,
       })),
   })) as RitualBoard[]
 }
@@ -470,6 +473,7 @@ export async function updateBoardCategory(categoryId: string, updates: Partial<C
   if (updates.selectedTierHours !== undefined) mapped.selected_tier_hours = updates.selectedTierHours ?? null
   if (updates.photographyTeam !== undefined) mapped.photography_team = updates.photographyTeam ?? null
   if (updates.mehendiSelection !== undefined) mapped.mehendi_selection = updates.mehendiSelection ?? null
+  if (updates.makeupSelection !== undefined) mapped.makeup_selection = updates.makeupSelection ?? null
 
   await supabase.from('board_categories').update(mapped).eq('id', categoryId)
 }

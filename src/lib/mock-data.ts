@@ -307,15 +307,23 @@ export const mockVendors: Record<string, Vendor> = {
   // === MAKEUP ===
   "v-makeup-1": {
     id: "v-makeup-1", code: "Makeup 001", name: "Glow by Neha", photo: img("makeup", 1),
-    style: "HD Airbrush", area: "Green Park, Delhi", price: 75000,
-    rating: 4.8, packageTier: "Bridal (3 looks)", likes: [{ userId: "u-priya", name: "Priya" }, { userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
-    categoryFields: { looksIncluded: "3 looks", makeupType: "HD", teamSize: "2 artists", hairStyling: "Included", draping: "Included", products: ["MAC", "Charlotte Tilbury", "Huda Beauty"], trialSession: "Included", falseLashes: "Included", travelToVenue: "Included", familyMakeup: "Available" },
+    style: "HD Airbrush", area: "Green Park, Delhi", price: 8000,
+    rating: 4.8, packageTier: "Bridal looks + guests", likes: [{ userId: "u-priya", name: "Priya" }, { userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
+    makeupPricing: {
+      bridalByEvent: { 'Engagement': 12000, 'Haldi': 8000, 'Mehendi': 9000, 'Sangeeth': 12000, 'Pelli (Wedding)': 18000, 'Reception': 16000 },
+      groomPrice: 5000,
+      guestPricePerPerson: 2500,
+    },
   },
   "v-makeup-2": {
     id: "v-makeup-2", code: "Makeup 002", name: "Beauty Bliss Studio", photo: img("makeup", 2),
-    style: "Natural Glam", area: "Rajouri Garden, Delhi", price: 55000,
-    rating: 4.4, packageTier: "Bridal (2 looks)", likes: [], booked: false, amountPaid: 0,
-    categoryFields: { looksIncluded: "2 looks", makeupType: "Natural", teamSize: "Solo", hairStyling: "Add-on", draping: "Add-on", products: ["Lakme", "Mix of brands"], trialSession: "Extra cost", falseLashes: "Add-on", travelToVenue: "Extra charge", familyMakeup: "Not available" },
+    style: "Natural Glam", area: "Rajouri Garden, Delhi", price: 6000,
+    rating: 4.4, packageTier: "Bridal looks + guests", likes: [], booked: false, amountPaid: 0,
+    makeupPricing: {
+      bridalByEvent: { 'Engagement': 9000, 'Haldi': 6000, 'Pelli (Wedding)': 14000, 'Reception': 12000 },
+      groomPrice: 4000,
+      guestPricePerPerson: 1800,
+    },
   },
 
   // === DJ/MUSIC ===
