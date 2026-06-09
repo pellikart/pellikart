@@ -275,15 +275,33 @@ export const mockVendors: Record<string, Vendor> = {
   // === MEHENDI ===
   "v-mehendi-1": {
     id: "v-mehendi-1", code: "Mehendi 001", name: "Henna by Priya", photo: img("mehendi", 1),
-    style: "Rajasthani Bridal", area: "Chandni Chowk, Delhi", price: 35000,
-    rating: 4.9, packageTier: "Bridal + 20 guests", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
-    categoryFields: { designStyles: ["Rajasthani", "Indo-Arabic"], bridalCoverage: "Full hands + Full feet", complexity: "Intricate bridal", additionalGuests: "20", brideTime: "4 hours", teamSize: "3-4 artists", groomMehendi: "Included", glitterAddon: "Add-on", whiteMehendi: "Available", conesIncluded: "Included", travelToVenue: "Included" },
+    style: "Rajasthani Bridal", area: "Chandni Chowk, Delhi", price: 4000,
+    rating: 4.9, packageTier: "Bridal + guests", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
+    mehendiPricing: {
+      bridalOffered: true,
+      bridal: {
+        '2 Hands': { 'Minimal': 5000, 'Arabic': 8000, 'Heavy Bridal': 15000 },
+        '2 Legs': { 'Minimal': 4000, 'Arabic': 7000, 'Heavy Bridal': 12000 },
+        'Both Hands & Legs': { 'Minimal': 8000, 'Arabic': 14000, 'Heavy Bridal': 25000 },
+      },
+      groomPrice: 3000,
+      guestPricePerPerson: 500,
+      conesIncluded: true,
+    },
   },
   "v-mehendi-2": {
     id: "v-mehendi-2", code: "Mehendi 002", name: "Artful Hands", photo: img("mehendi", 2),
-    style: "Arabic Fusion", area: "Lajpat Nagar, Delhi", price: 28000,
-    rating: 4.5, packageTier: "Bridal + 15 guests", likes: [], booked: false, amountPaid: 0,
-    categoryFields: { designStyles: ["Arabic", "Contemporary"], bridalCoverage: "Full hands only", complexity: "Medium detail", additionalGuests: "15", brideTime: "3 hours", teamSize: "Solo", groomMehendi: "Not available", glitterAddon: "Included", whiteMehendi: "Not available", conesIncluded: "Add-on", travelToVenue: "Extra charge" },
+    style: "Arabic Fusion", area: "Lajpat Nagar, Delhi", price: 3500,
+    rating: 4.5, packageTier: "Bridal + guests", likes: [], booked: false, amountPaid: 0,
+    mehendiPricing: {
+      bridalOffered: true,
+      bridal: {
+        '2 Hands': { 'Minimal': 3500, 'Arabic': 6000 },
+        'Both Hands & Legs': { 'Minimal': 6000, 'Arabic': 10000 },
+      },
+      guestPricePerPerson: 400,
+      conesIncluded: false,
+    },
   },
 
   // === MAKEUP ===

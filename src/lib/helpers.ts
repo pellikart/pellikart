@@ -1,5 +1,5 @@
-import type { Vendor } from './types'
-import { PHOTOGRAPHY_RATE_ROLES, type PhotographyRateCard } from './vendor-category-config'
+import type { Vendor, Category } from './types'
+import { PHOTOGRAPHY_RATE_ROLES, type PhotographyRateCard, type MehendiPricing } from './vendor-category-config'
 
 /**
  * Per-hour total for a Photography rate card assuming 1 person in every offered
@@ -67,6 +67,61 @@ export function getPhotographySelectionTotal(
   if (picked <= 0) return null
   const transport = vendor.transportIncluded === false ? (vendor.transportExtra || 0) : 0
   return getRateCardTotal(vendor.rateCard, team.counts, team.hours) + transport
+}
+
+/**
+ * The "from" price for a Mehendi listing — the cheapest filled bridal price,
+ * falling back to the guest per-head price, then groom price. Used as the
+ * listing's board figure.
+ */
+export function getMehendiFromPrice(p?: MehendiPricing): number {
+  if (!p) return 0
+  const prices: number[] = []
+  if (p.bridalOffered) {
+    for (const cov of Object.values(p.bridal || {})) {
+      for (const v of Object.values(cov || {})) if (v > 0) prices.push(v)
+    }
+  }
+  if (prices.length) return Math.min(...prices)
+  if (p.guestPricePerPerson && p.guestPricePerPerson > 0) return p.guestPricePerPerson
+  if (p.groomPrice && p.groomPrice > 0) return p.groomPrice
+  return 0
+}
+
+/**
+ * The couple's selected total for a Mehendi listing (bridal coverage+design +
+ * optional groom + guests × per-head). Returns null when nothing meaningful is
+ * picked yet, so callers fall back to the "from" price.
+ */
+export function getMehendiSelectionTotal(
+  vendor: Vendor | undefined,
+  sel: { coverage?: string; design?: string; groom?: boolean; guests?: number } | undefined,
+): number | null {
+  const p = vendor?.mehendiPricing
+  if (!p || !sel) return null
+  let total = 0
+  let any = false
+  if (p.bridalOffered && sel.coverage && sel.design) {
+    const v = p.bridal?.[sel.coverage]?.[sel.design]
+    if (v && v > 0) { total += v; any = true }
+  }
+  if (sel.groom && p.groomPrice && p.groomPrice > 0) { total += p.groomPrice; any = true }
+  if (sel.guests && sel.guests > 0 && p.guestPricePerPerson && p.guestPricePerPerson > 0) {
+    total += sel.guests * p.guestPricePerPerson; any = true
+  }
+  return any ? total : null
+}
+
+/**
+ * The couple's configured total for a board category's selected vendor, across
+ * the categories that support per-selection pricing (Photography rate card,
+ * Mehendi). Returns null when nothing is configured, so the card/total falls
+ * back to the vendor's `price`.
+ */
+export function getCategorySelectionTotal(vendor: Vendor | undefined, category: Category | undefined): number | null {
+  if (!vendor || !category) return null
+  return getPhotographySelectionTotal(vendor, category.photographyTeam)
+    ?? getMehendiSelectionTotal(vendor, category.mehendiSelection)
 }
 
 export function bgStyle(photo: string): { background: string } {

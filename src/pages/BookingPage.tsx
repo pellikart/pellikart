@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { formatINR, bgStyle, getPhotographySelectionTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getCategorySelectionTotal } from '@/lib/helpers'
 import MilestoneTracker from '@/components/MilestoneTracker'
 
 export default function BookingPage() {
@@ -27,7 +27,7 @@ export default function BookingPage() {
   const vendorList = activeCategories.map((cat) => {
     const vendor = vendors[cat.selectedVendorId!]
     // For Photography rate-card listings, the couple's team selection sets the price.
-    const effectivePrice = getPhotographySelectionTotal(vendor, cat.photographyTeam) ?? vendor?.price ?? 0
+    const effectivePrice = getCategorySelectionTotal(vendor, cat) ?? vendor?.price ?? 0
     return { category: cat, vendor, effectivePrice }
   }).filter((item) => item.vendor)
 

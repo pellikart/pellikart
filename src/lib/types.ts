@@ -42,6 +42,8 @@ export interface Vendor {
   rateCard?: import('./vendor-category-config').PhotographyRateCard;
   /** Photography-only: hour blocks the vendor is willing to work (e.g. [4, 6, 8, 10]). */
   availableHours?: number[];
+  /** Mehendi-only: bridal coverage×design matrix + groom/guest pricing. */
+  mehendiPricing?: import('./vendor-category-config').MehendiPricing;
   rituals?: string[];
   transportIncluded?: boolean;
   transportExtra?: number;
@@ -107,6 +109,8 @@ export interface Category {
   /** Photography-only: the couple's rate-card selection for the selected vendor —
    *  how many people per role + shared coverage hours. Drives the live total. */
   photographyTeam?: { counts: Record<string, number>; hours: number };
+  /** Mehendi-only: the couple's selection — bridal coverage + design, groom, guests. */
+  mehendiSelection?: { coverage?: string; design?: string; groom?: boolean; guests?: number };
 }
 
 export interface SuggestedVendor {
@@ -157,6 +161,7 @@ export interface AppState {
   selectVendor: (ritualId: string, categoryId: string, vendorId: string) => void;
   selectVendorTier: (ritualId: string, categoryId: string, tierHours: number | undefined) => void;
   selectPhotographyTeam: (ritualId: string, categoryId: string, counts: Record<string, number>, hours: number) => void;
+  selectMehendiOptions: (ritualId: string, categoryId: string, selection: { coverage?: string; design?: string; groom?: boolean; guests?: number }) => void;
   addToShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   removeFromShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   toggleLike: (vendorId: string, userName: string, userId: string) => void;

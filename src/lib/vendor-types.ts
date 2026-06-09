@@ -113,6 +113,9 @@ export interface VendorListing {
   /** Photography-only: the hour blocks the vendor is willing to work (e.g. [4, 6, 8, 10]).
    *  Couples pick their coverage hours from this set. */
   availableHours?: number[]
+  /** Mehendi-only: bridal coverage×design matrix + groom/guest pricing.
+   *  Authored in onboarding; `price` holds the cheapest bridal "from" price. */
+  mehendiPricing?: import('./vendor-category-config').MehendiPricing
   /** Whether transport & logistics is bundled into the listing price. */
   transportIncluded?: boolean
   /** Extra transport & logistics charge in ₹ (only meaningful when transportIncluded === false). */

@@ -7,7 +7,11 @@ import { VendorBooking } from '@/lib/vendor-types'
 
 export default function VendorDashboard() {
   const navigate = useNavigate()
-  const { vendorProfile, vendorBookings, vendorTrials, vendorBidRequests, vendorEarnings, vendorNotifications, vendorAnalytics } = useVendorStore()
+  const { vendorProfile, vendorListings, vendorBookings, vendorTrials, vendorBidRequests, vendorEarnings, vendorNotifications, vendorAnalytics } = useVendorStore()
+  // Single-listing categories (Mehendi) edit their pricing rather than manage listings.
+  const mehendiListing = vendorProfile?.category === 'Mehendi'
+    ? vendorListings.find((l) => l.category === 'Mehendi')
+    : undefined
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [bookingTab, setBookingTab] = useState<'active' | 'completed' | 'cancelled'>('active')
 
@@ -40,6 +44,20 @@ export default function VendorDashboard() {
       </div>
 
       <div className="px-4 mt-3">
+        {/* Mehendi: edit pricing shortcut (single-listing category) */}
+        {mehendiListing && (
+          <button
+            onClick={() => navigate(`/vendor/listings/edit/${mehendiListing.id}`)}
+            className="w-full mb-4 p-3 rounded-xl bg-mustard-light border border-mustard/20 flex items-center justify-between text-left active:scale-[0.99] transition-transform"
+          >
+            <div>
+              <p className="text-[12px] font-semibold text-dark">Edit your Mehendi pricing</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">Update bridal, groom &amp; guest prices couples see.</p>
+            </div>
+            <span className="text-mustard text-[18px]">›</span>
+          </button>
+        )}
+
         {/* Earnings Cards */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           <button onClick={() => navigate('/vendor/earnings')} className="p-3 rounded-xl bg-mustard-light border border-mustard/20 text-left">

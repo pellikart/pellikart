@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getPhotographySelectionTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal } from '@/lib/helpers'
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
@@ -156,8 +156,8 @@ export default function CategoryBoardPage() {
   for (const cat of board.categories) {
     if (!cat.removed && cat.selectedVendorId && vendors[cat.selectedVendorId]) {
       const selVendor = vendors[cat.selectedVendorId]
-      const photoSel = getPhotographySelectionTotal(selVendor, cat.photographyTeam)
-      ritualTotal += photoSel != null ? photoSel : getListingTotal(selVendor, cat.selectedTierHours)
+      const sel = getCategorySelectionTotal(selVendor, cat)
+      ritualTotal += sel != null ? sel : getListingTotal(selVendor, cat.selectedTierHours)
     }
   }
   const bookingAmount = Math.round(ritualTotal * 0.04)
@@ -271,7 +271,7 @@ export default function CategoryBoardPage() {
                 trialSessions={trialSessions}
                 ritualId={ritualId!}
                 categoryId={categoryId!}
-                photographyTeam={category.photographyTeam}
+                category={category}
               />
             ) : (
               <CompareTable
@@ -764,12 +764,12 @@ function VisualGridCard({
 
 function VisualGrid({
   vendors, selectedId, unlocked, onSelect, onLike, onRemove, onTap,
-  trialSessions, ritualId, categoryId, photographyTeam,
+  trialSessions, ritualId, categoryId, category,
 }: {
   vendors: Vendor[]; selectedId: string | null; unlocked: boolean;
   onSelect: (id: string) => void; onLike: (id: string) => void; onRemove: (id: string) => void; onTap: (id: string) => void;
   trialSessions: Record<string, { status: string }>; ritualId: string; categoryId: string;
-  photographyTeam?: { counts: Record<string, number>; hours: number };
+  category: import('@/lib/types').Category;
 }) {
   return (
     <div className="masonry-grid">
@@ -783,7 +783,7 @@ function VisualGrid({
               v={v} isSelected={v.id === selectedId} unlocked={unlocked}
               onSelect={() => onSelect(v.id)} onLike={() => onLike(v.id)} onRemove={() => onRemove(v.id)} onTap={() => onTap(v.id)}
               trialStatus={trialStatus}
-              selectionTotal={v.id === selectedId ? getPhotographySelectionTotal(v, photographyTeam) : null}
+              selectionTotal={v.id === selectedId ? getCategorySelectionTotal(v, category) : null}
             />
           </div>
         )

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal } from '@/lib/helpers'
-import { getListingConfig, PHOTOGRAPHY_RATE_ROLES } from '@/lib/vendor-category-config'
+import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal } from '@/lib/helpers'
+import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
@@ -21,7 +21,7 @@ interface Props {
 
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectMehendiOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -62,6 +62,22 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   function addPhotographer() {
     if (!ritualId || !categoryId) return
     persistTeam(teamCounts, teamHours)
+    selectVendor(ritualId, categoryId, vendor.id)
+  }
+
+  // ── Mehendi selection (bridal coverage + design, groom, guests) ──
+  const savedMehendi = currentCategory?.mehendiSelection
+  const [mehendiSel, setMehendiSel] = useState<{ coverage?: string; design?: string; groom?: boolean; guests?: number }>(
+    () => savedMehendi ?? {},
+  )
+  function updateMehendi(patch: Partial<typeof mehendiSel>) {
+    const next = { ...mehendiSel, ...patch }
+    setMehendiSel(next)
+    if (ritualId && categoryId) selectMehendiOptions(ritualId, categoryId, next)
+  }
+  function addMehendi() {
+    if (!ritualId || !categoryId) return
+    selectMehendiOptions(ritualId, categoryId, mehendiSel)
     selectVendor(ritualId, categoryId, vendor.id)
   }
 
@@ -276,8 +292,122 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )
             })()}
 
-            {/* Price (non rate-card listings) */}
-            {!vendor.rateCard && (
+            {/* Mehendi — interactive pricing picker (bridal coverage+design, groom, guests) */}
+            {vendor.mehendiPricing && (() => {
+              const p = vendor.mehendiPricing
+              const fromPrice = getMehendiFromPrice(p)
+              const offeredCoverages = MEHENDI_COVERAGES.filter(cov => MEHENDI_DESIGNS.some(d => (p.bridal?.[cov]?.[d] ?? 0) > 0))
+              const designsFor = (cov?: string) => cov ? MEHENDI_DESIGNS.filter(d => (p.bridal?.[cov]?.[d] ?? 0) > 0) : []
+              const groomOK = (p.groomPrice ?? 0) > 0
+              const guestOK = (p.guestPricePerPerson ?? 0) > 0
+              const total = getMehendiSelectionTotal(vendor, mehendiSel)
+              const guests = mehendiSel.guests || 0
+              return (
+                <div className="mb-4">
+                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
+                  <p className="text-[10px] text-gray-400 mb-2">Pick what you need — your price updates live</p>
+                  {p.conesIncluded !== undefined && (
+                    <span className={`inline-block text-[10px] font-medium px-2 py-1 rounded-full mb-3 ${p.conesIncluded ? 'bg-green-100 text-green-700' : 'bg-empty-bg text-gray-500'}`}>
+                      {p.conesIncluded ? '✓ Mehendi cones included' : 'Mehendi cones not included'}
+                    </span>
+                  )}
+
+                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-3">
+                    {/* Bridal coverage + design */}
+                    {p.bridalOffered && offeredCoverages.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Bridal mehendi</p>
+                        <p className="text-[10px] text-gray-500 mb-1">Coverage</p>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {offeredCoverages.map(cov => (
+                            <button
+                              key={cov}
+                              type="button"
+                              onClick={() => updateMehendi({ coverage: cov, design: (designsFor(cov) as string[]).includes(mehendiSel.design || '') ? mehendiSel.design : undefined })}
+                              className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${mehendiSel.coverage === cov ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600'}`}
+                            >{cov}</button>
+                          ))}
+                        </div>
+                        {mehendiSel.coverage && (
+                          <>
+                            <p className="text-[10px] text-gray-500 mb-1">Design</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {designsFor(mehendiSel.coverage).map(d => {
+                                const price = p.bridal?.[mehendiSel.coverage!]?.[d] ?? 0
+                                const sel = mehendiSel.design === d
+                                return (
+                                  <button
+                                    key={d}
+                                    type="button"
+                                    onClick={() => updateMehendi({ design: d })}
+                                    className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${sel ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600'}`}
+                                  >{d} · {formatINR(price)}</button>
+                                )
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Groom */}
+                    {groomOK && (
+                      <button
+                        type="button"
+                        onClick={() => updateMehendi({ groom: !mehendiSel.groom })}
+                        className={`w-full flex items-center justify-between py-2 px-3 rounded-lg text-left transition-all ${mehendiSel.groom ? 'border-2 border-magenta bg-magenta-light' : 'border border-card-border bg-white'}`}
+                      >
+                        <span className="text-[12px] font-medium text-dark">{mehendiSel.groom ? '✓ ' : ''}Groom mehendi</span>
+                        <span className="text-[12px] font-semibold text-magenta">{formatINR(p.groomPrice!)}</span>
+                      </button>
+                    )}
+
+                    {/* Guests */}
+                    {guestOK && (
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[12px] font-medium text-dark">Guest mehendi</p>
+                          <p className="text-[10px] text-gray-500">{formatINR(p.guestPricePerPerson!)} / guest</p>
+                        </div>
+                        <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
+                          <button type="button" onClick={() => updateMehendi({ guests: Math.max(0, guests - 1) })} disabled={guests <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
+                          <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{guests}</span>
+                          <button type="button" onClick={() => updateMehendi({ guests: guests + 1 })} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Total */}
+                    {total != null && (
+                      <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
+                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                      </div>
+                    )}
+
+                    {/* Add to board */}
+                    {ritualId && categoryId && (
+                      <button
+                        type="button"
+                        onClick={addMehendi}
+                        className={`w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                          isAddedToBoard
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-magenta text-white active:scale-[0.98]'
+                        }`}
+                      >
+                        {isAddedToBoard
+                          ? '✓ Added to your board'
+                          : total != null ? `Add to my board · ${formatINR(total)}` : 'Add to my board'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Price (non rate-card / non-mehendi listings) */}
+            {!vendor.rateCard && !vendor.mehendiPricing && (
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
             )}
             {!vendor.rateCard && vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (

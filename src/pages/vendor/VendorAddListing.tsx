@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
@@ -14,6 +14,10 @@ export default function VendorAddListing() {
   const navigate = useNavigate()
   const { vendorProfile, vendorListings, addListing, updateListing, _vendorDbId, _liveMode } = useVendorStore()
   const profileCategory = vendorProfile?.category || 'Photography'
+  // Mehendi is a single-listing category authored in onboarding — no manual add flow.
+  useEffect(() => {
+    if (profileCategory === 'Mehendi') navigate('/vendor/listings', { replace: true })
+  }, [profileCategory, navigate])
   // Venue vendors can also create in-house Catering / Decor listings.
   const allowedCategories = useMemo(() =>
     profileCategory === 'Venue' ? ['Venue', 'Catering', 'Decor'] : [profileCategory],

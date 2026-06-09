@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { RitualBoard as RitualBoardType } from '@/lib/types'
-import { formatINR, formatDateRange, bgStyle, getPhotographySelectionTotal } from '@/lib/helpers'
+import { formatINR, formatDateRange, bgStyle, getCategorySelectionTotal } from '@/lib/helpers'
 import { getUnavailableVendors } from '@/lib/availability'
 import { ONBOARDING_CONFIG } from '@/lib/vendor-category-config'
 import CategoryCard from './CategoryCard'
@@ -40,8 +40,8 @@ export default function RitualBoard({ board }: Props) {
   for (const cat of filledCategories) {
     if (cat.selectedVendorId && vendors[cat.selectedVendorId]) {
       const v = vendors[cat.selectedVendorId]
-      const photoSel = getPhotographySelectionTotal(v, cat.photographyTeam)
-      ritualTotal += photoSel != null ? photoSel : v.price
+      const sel = getCategorySelectionTotal(v, cat)
+      ritualTotal += sel != null ? sel : v.price
     }
   }
 
@@ -61,8 +61,8 @@ export default function RitualBoard({ board }: Props) {
       const v = vendors[cat.selectedVendorId!]
       if (!v) continue
       const name = unlocked ? v.name : v.code
-      const photoSel = getPhotographySelectionTotal(v, cat.photographyTeam)
-      lines.push(`✅ ${cat.label}: ${name} — ${formatINR(photoSel != null ? photoSel : v.price)}`)
+      const sel = getCategorySelectionTotal(v, cat)
+      lines.push(`✅ ${cat.label}: ${name} — ${formatINR(sel != null ? sel : v.price)}`)
     }
     if (emptyCategories.length > 0) {
       lines.push('')

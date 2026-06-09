@@ -741,6 +741,39 @@ export type PhotographyRateCard = Partial<Record<PhotographyRoleKey, number>>
  *  picks their coverage hours from whichever of these the vendor selects. */
 export const PHOTOGRAPHY_HOUR_OPTIONS = [2, 4, 6, 8, 10] as const
 
+// ─── MEHENDI PRICING ────────────────────────
+
+/**
+ * Mehendi is a single-listing category: the pricing is authored during vendor
+ * onboarding (not as a separate listing) and auto-creates one listing. Bridal
+ * mehendi is priced as a coverage × design matrix; groom and guest mehendi are
+ * flat prices. Couples pick a bridal coverage + design, optionally groom, and a
+ * guest count, and see a live total.
+ */
+export const MEHENDI_COVERAGES = ['2 Hands', '2 Legs', 'Both Hands & Legs'] as const
+export const MEHENDI_DESIGNS = ['Minimal', 'Arabic', 'Heavy Bridal'] as const
+
+export type MehendiCoverage = typeof MEHENDI_COVERAGES[number]
+export type MehendiDesign = typeof MEHENDI_DESIGNS[number]
+
+export interface MehendiPricing {
+  /** Whether the vendor offers bridal mehendi at all (gates the matrix). */
+  bridalOffered: boolean
+  /** coverage → design → price (₹). A missing/0 entry means that combo isn't offered. */
+  bridal: Record<string, Record<string, number>>
+  /** Flat price for groom mehendi (₹). Omitted/0 = not offered. */
+  groomPrice?: number
+  /** Price per guest for guest mehendi (₹). Omitted/0 = not offered. */
+  guestPricePerPerson?: number
+  /** Whether mehendi cones (the product) are included. Shown on the couple's card. */
+  conesIncluded?: boolean
+}
+
+/** A fresh, empty Mehendi pricing object (bridal + cones on by default). */
+export function emptyMehendiPricing(): MehendiPricing {
+  return { bridalOffered: true, bridal: {}, conesIncluded: true }
+}
+
 // ─── RITUALS / EVENTS ───────────────────────
 
 /** All rituals/events a listing can be tagged for (used for couple-vendor matching) */

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
-import { formatINR, getRateCardBaseHourly } from '@/lib/helpers'
-import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, type SelectField, type PhotographyRateCard } from '@/lib/vendor-category-config'
+import { formatINR, getRateCardBaseHourly, getMehendiFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, type SelectField, type PhotographyRateCard, type MehendiPricing } from '@/lib/vendor-category-config'
+import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 
 export default function VendorEditListing() {
   const { listingId } = useParams<{ listingId: string }>()
@@ -20,6 +21,7 @@ export default function VendorEditListing() {
   const [price, setPrice] = useState(pr.min)
   const [rateCard, setRateCard] = useState<PhotographyRateCard>({})
   const [availableHours, setAvailableHours] = useState<number[]>([])
+  const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [coverIndex, setCoverIndex] = useState(0)
@@ -36,6 +38,7 @@ export default function VendorEditListing() {
       setPrice(listing.price)
       setRateCard(listing.rateCard || {})
       setAvailableHours(listing.availableHours || [])
+      setMehendiPricing(listing.mehendiPricing || emptyMehendiPricing())
       setIncludes(listing.includes)
       setRituals(listing.rituals || [])
       setCategoryFields(listing.categoryFields || {})
@@ -112,12 +115,15 @@ export default function VendorEditListing() {
     if (!listing) return
     // Photography prices off the rate card — its board price is the per-hour total
     // for 1 of each offered role.
-    const effectivePrice = category === 'Photography' ? getRateCardBaseHourly(rateCard) : price
+    const effectivePrice = category === 'Photography' ? getRateCardBaseHourly(rateCard)
+      : category === 'Mehendi' ? getMehendiFromPrice(mehendiPricing)
+      : price
     updateListing({
       ...listing,
       name, photos, coverPhotoIndex: coverIndex, style, price: effectivePrice, rituals, includes, categoryFields,
       rateCard: category === 'Photography' ? rateCard : undefined,
       availableHours: category === 'Photography' && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
+      mehendiPricing: category === 'Mehendi' ? mehendiPricing : undefined,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
     })
@@ -212,7 +218,8 @@ export default function VendorEditListing() {
           </div>
         </div>
 
-        {/* Style */}
+        {/* Style (not used for Mehendi — pricing-only listing) */}
+        {category !== 'Mehendi' && (
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1.5">Style</label>
           <div className="flex flex-wrap gap-1.5">
@@ -221,6 +228,7 @@ export default function VendorEditListing() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Pricing — Photography uses a per-hour rate card; everything else a single price */}
         {category === 'Photography' ? (
@@ -274,6 +282,11 @@ export default function VendorEditListing() {
               <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">{formatINR(getRateCardBaseHourly(rateCard))}/hr</span> (1 of each offered role).</p>
             )}
           </div>
+        ) : category === 'Mehendi' ? (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-2">Mehendi pricing</label>
+            <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />
+          </div>
         ) : (
           <div>
             <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
@@ -285,8 +298,8 @@ export default function VendorEditListing() {
           </div>
         )}
 
-        {/* Category-specific fields */}
-        {config.steps.map((stepConfig) =>
+        {/* Category-specific fields (Mehendi pricing fully replaces these) */}
+        {category !== 'Mehendi' && config.steps.map((stepConfig) =>
           stepConfig.fields.filter(field => isFieldVisible(field, categoryFields)).map(field => (
             <FieldRenderer
               key={field.key}
@@ -299,6 +312,7 @@ export default function VendorEditListing() {
         )}
 
         {/* Includes */}
+        {category !== 'Mehendi' && (
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1.5">What's included ({includes.length})</label>
           <div className="flex flex-wrap gap-2">
@@ -312,6 +326,7 @@ export default function VendorEditListing() {
             })}
           </div>
         </div>
+        )}
       </div>
     </div>
   )

@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
-import { VendorProfile, VendorPackage } from '@/lib/vendor-types'
+import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
 import { uploadPhotos, updateVendorFields } from '@/lib/supabase-db'
+import { emptyMehendiPricing, type MehendiPricing } from '@/lib/vendor-category-config'
+import { getMehendiFromPrice } from '@/lib/helpers'
+import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
@@ -32,10 +35,16 @@ export default function VendorOnboarding() {
   const [videoFiles, setVideoFiles] = useState<File[]>([])
   const [videoPreviews, setVideoPreviews] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  // Mehendi is a single-listing category: its pricing is authored here in onboarding
+  // and auto-creates one listing on go-live.
+  const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
 
-  // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, 5=Portfolio Photos, 6=Ready
-  // Category-specific specialty details are now captured per-listing, not at the profile level.
-  const totalSteps = 6
+  // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, 5=Portfolio Photos, [6=Mehendi pricing], last=Ready
+  // Most categories capture specialty details per-listing. Mehendi captures its
+  // pricing here and inserts an extra screen before the Ready screen.
+  const isMehendi = category === 'Mehendi'
+  const totalSteps = isMehendi ? 7 : 6
+  const mehendiStep = 6 // only meaningful when isMehendi
 
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
   function back() { setStep((s) => Math.max(s - 1, 1)) }
@@ -99,6 +108,9 @@ export default function VendorOnboarding() {
     // Now that completeVendorOnboarding has run upsertVendor, _vendorDbId
     // is populated. Upload photos/videos and persist their public URLs.
     const { _vendorDbId, _userId, _liveMode } = useVendorStore.getState()
+    // Photos to attach to an auto-created listing (Mehendi). Demo uses blob previews;
+    // live uses the uploaded public URLs once available.
+    let listingPhotos: string[] = _liveMode ? [] : photoPreviews
     if (_liveMode && _vendorDbId && _userId) {
       const portfolioUrls = photoFiles.length > 0
         ? await uploadPhotos(_vendorDbId, photoFiles, 'portfolio')
@@ -106,6 +118,7 @@ export default function VendorOnboarding() {
       const portfolioVideoUrls = videoFiles.length > 0
         ? await uploadPhotos(_vendorDbId, videoFiles, 'portfolio')
         : []
+      listingPhotos = portfolioUrls
 
       if (portfolioUrls.length > 0 || portfolioVideoUrls.length > 0) {
         const updates: Partial<VendorProfile> = {}
@@ -133,6 +146,25 @@ export default function VendorOnboarding() {
           portfolioVideos: videoPreviews.length > 0 ? videoPreviews : undefined,
         } : null,
       }))
+    }
+
+    // Mehendi: auto-create the single listing from the onboarding pricing so it
+    // shows on the couple side without a separate listing-creation flow.
+    if (isMehendi) {
+      const listing: VendorListing = {
+        id: `vl-${Date.now()}`,
+        name: `${profile.businessName} — Mehendi`,
+        photos: listingPhotos,
+        coverPhotoIndex: 0,
+        category: 'Mehendi',
+        price: getMehendiFromPrice(mehendiPricing),
+        mehendiPricing,
+        style: '',
+        rituals: ['Mehendi'],
+        includes: [],
+        createdAt: new Date().toISOString().split('T')[0],
+      }
+      useVendorStore.getState().addListing(listing)
     }
 
     setUploading(false)
@@ -333,8 +365,18 @@ export default function VendorOnboarding() {
           </div>
         )}
 
-        {/* Screen 6: Ready */}
-        {step === 6 && (
+        {/* Screen 6 (Mehendi only): pricing — authored here, becomes the listing */}
+        {isMehendi && step === mehendiStep && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[22px] font-bold text-dark">Your Mehendi pricing</h1>
+            <p className="text-[12px] text-gray-400 mt-1 mb-5">This becomes your listing — couples pick what they want and see the price. You can edit it anytime from your dashboard.</p>
+            <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />
+            <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
+          </div>
+        )}
+
+        {/* Ready (last screen) */}
+        {step === totalSteps && (
           <div className="animate-fadeIn text-center">
             <div className="text-4xl mb-4">🎉</div>
             <h1 className="text-[22px] font-bold text-dark leading-tight">Your profile is ready!</h1>

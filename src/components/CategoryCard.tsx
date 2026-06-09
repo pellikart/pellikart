@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Category, Vendor } from '@/lib/types'
-import { formatINR, bgStyle, getPhotographySelectionTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getCategorySelectionTotal } from '@/lib/helpers'
 import ListingDetailSheet from './ListingDetailSheet'
 
 interface Props {
@@ -60,7 +60,7 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
             </div>
           </div>
           {(() => {
-            const photoSel = getPhotographySelectionTotal(vendor, category.photographyTeam)
+            const photoSel = getCategorySelectionTotal(vendor, category)
             if (photoSel != null) return <p className="text-white font-bold text-xs">{formatINR(photoSel)}</p>
             return <p className="text-white font-bold text-xs">{formatINR(vendor.price)}{vendor.rateCard ? <span className="font-normal text-[10px]">/hr</span> : ''}</p>
           })()}

@@ -7,17 +7,22 @@ export default function VendorListings() {
   const navigate = useNavigate()
   const { vendorListings, vendorProfile, deleteListing } = useVendorStore()
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  // Single-listing categories (e.g. Mehendi) author their one listing in onboarding,
+  // so vendors don't create/delete listings manually — they just edit pricing.
+  const singleListing = vendorProfile?.category === 'Mehendi'
 
   return (
     <div className="min-h-dvh bg-white pb-20 page-enter">
       <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
-        <p className="text-[14px] font-bold text-dark">My Listings</p>
-        <button
-          onClick={() => navigate('/vendor/listings/new')}
-          className="bg-mustard text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg active:scale-[0.97] transition-transform"
-        >
-          + Add listing
-        </button>
+        <p className="text-[14px] font-bold text-dark">{singleListing ? 'My Listing' : 'My Listings'}</p>
+        {!singleListing && (
+          <button
+            onClick={() => navigate('/vendor/listings/new')}
+            className="bg-mustard text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg active:scale-[0.97] transition-transform"
+          >
+            + Add listing
+          </button>
+        )}
       </div>
 
       <div className="px-4 mt-3">
@@ -67,15 +72,17 @@ export default function VendorListings() {
                       onClick={() => navigate(`/vendor/listings/edit/${l.id}`)}
                       className="flex-1 py-1.5 rounded-lg border border-mustard text-mustard text-[10px] font-medium active:bg-mustard-light transition-colors"
                     >
-                      Edit listing
+                      {singleListing ? 'Edit pricing' : 'Edit listing'}
                     </button>
-                    <button
-                      onClick={() => setDeleteTarget({ id: l.id, name: l.name })}
-                      aria-label="Delete listing"
-                      className="px-3 py-1.5 rounded-lg border border-red-200 text-red-500 text-[10px] font-medium active:bg-red-50 transition-colors"
-                    >
-                      Delete
-                    </button>
+                    {!singleListing && (
+                      <button
+                        onClick={() => setDeleteTarget({ id: l.id, name: l.name })}
+                        aria-label="Delete listing"
+                        className="px-3 py-1.5 rounded-lg border border-red-200 text-red-500 text-[10px] font-medium active:bg-red-50 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
