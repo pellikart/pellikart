@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { formatINR } from '@/lib/helpers'
@@ -8,9 +8,12 @@ export default function VendorListings() {
   const navigate = useNavigate()
   const { vendorListings, vendorProfile, deleteListing } = useVendorStore()
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
-  // Single-listing categories (Mehendi, Makeup, Saree Draping) author their one listing
-  // in onboarding, so vendors don't create/delete listings manually — they just edit pricing.
+  // Single-listing categories (Mehendi, Makeup, Saree Draping, Hair Stylist) have no
+  // Listings page — they author + edit their one listing from onboarding + the dashboard.
   const singleListing = isSingleListingCategory(vendorProfile?.category)
+  useEffect(() => {
+    if (singleListing) navigate('/vendor', { replace: true })
+  }, [singleListing, navigate])
 
   return (
     <div className="min-h-dvh bg-white pb-20 page-enter">

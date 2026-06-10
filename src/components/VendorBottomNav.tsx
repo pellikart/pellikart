@@ -1,4 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useVendorStore } from '@/lib/vendor-store'
+import { isSingleListingCategory } from '@/lib/vendor-category-config'
 
 const tabs = [
   {
@@ -37,14 +39,21 @@ const tabs = [
 
 export default function VendorBottomNav() {
   const { pathname } = useLocation()
+  const { vendorProfile } = useVendorStore()
 
   const mainPaths = ['/vendor', '/vendor/listings', '/vendor/calendar', '/vendor/profile']
   if (!mainPaths.includes(pathname)) return null
 
+  // Single-listing categories (Mehendi/Makeup/Saree Draping/Hair Stylist) author and
+  // edit their one listing from onboarding + the dashboard — no Listings tab.
+  const visibleTabs = isSingleListingCategory(vendorProfile?.category)
+    ? tabs.filter((t) => t.href !== '/vendor/listings')
+    : tabs
+
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white border-t border-card-border z-40">
       <div className="flex items-center justify-around py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           const active = pathname === tab.href
           return (
             <Link key={tab.href} to={tab.href} className="flex flex-col items-center gap-0.5 px-3 py-1">
