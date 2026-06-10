@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
-import { getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from "./helpers";
+import { getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from "./helpers";
 import {
   fetchCouple, upsertCouple,
   fetchRitualBoards, insertRitualBoard,
@@ -129,6 +129,10 @@ export function buildLiveVendorMap(
       sareeDrapingPricing: (() => {
         const sd = l.saree_draping_pricing as import('./vendor-category-config').SareeDrapingPricing | null
         return sd && (sd.bridalPricePerLook || sd.groomPricePerLook || sd.guestPricePerPerson) ? sd : undefined
+      })(),
+      hairStylingPricing: (() => {
+        const hp = l.hair_styling_pricing as import('./vendor-category-config').HairStylingPricing | null
+        return hp && (hp.bridalPricePerLook || hp.groomPricePerLook || hp.guestPricePerPerson) ? hp : undefined
       })(),
       rituals: (l.rituals as string[]) || undefined,
       transportIncluded: (l.transport_included as boolean | null) ?? undefined,
@@ -433,9 +437,9 @@ export const useStore = create<AppState & LiveModeState & {
               name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
               photo: design.photo, style: design.style,
               area: parentVendor?.area || '', capacity: parentVendor?.capacity,
-              // Photography/Mehendi/Makeup/Saree price from their own pricing model —
+              // Photography/Mehendi/Makeup/Saree/Hair price from their own pricing model —
               // use the parent's board figure instead of the fixed design price.
-              price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : Math.round(design.price * scale), rating: design.rating,
+              price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
               packageTier: design.description, likes: [], booked: false, amountPaid: 0,
               // Inherit category-specific fields so the Compare table shows real detail for design listings
               categoryFields: parentVendor?.categoryFields,
@@ -448,6 +452,7 @@ export const useStore = create<AppState & LiveModeState & {
               mehendiPricing: parentVendor?.mehendiPricing,
               makeupPricing: parentVendor?.makeupPricing,
               sareeDrapingPricing: parentVendor?.sareeDrapingPricing,
+              hairStylingPricing: parentVendor?.hairStylingPricing,
               paidRooms: parentVendor?.paidRooms,
               includes: parentVendor?.includes,
               transportIncluded: parentVendor?.transportIncluded,
@@ -488,9 +493,9 @@ export const useStore = create<AppState & LiveModeState & {
           name: `${design.name} by ${parentVendor?.name || 'Vendor'}`,
           photo: design.photo, style: design.style,
           area: parentVendor?.area || '', capacity: parentVendor?.capacity,
-          // Photography/Mehendi/Makeup/Saree price from their own pricing model —
+          // Photography/Mehendi/Makeup/Saree/Hair price from their own pricing model —
           // use the parent's board figure instead of the fixed design price.
-          price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : Math.round(design.price * scale), rating: design.rating,
+          price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
           packageTier: design.description, likes: [], booked: false, amountPaid: 0,
           // Inherit category-specific fields so the Compare table shows real detail for design listings
           categoryFields: parentVendor?.categoryFields,
@@ -503,6 +508,7 @@ export const useStore = create<AppState & LiveModeState & {
           mehendiPricing: parentVendor?.mehendiPricing,
           makeupPricing: parentVendor?.makeupPricing,
           sareeDrapingPricing: parentVendor?.sareeDrapingPricing,
+          hairStylingPricing: parentVendor?.hairStylingPricing,
           paidRooms: parentVendor?.paidRooms,
           includes: parentVendor?.includes,
           transportIncluded: parentVendor?.transportIncluded,
@@ -618,6 +624,20 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       updateBoardCategory(categoryId, { sareeSelection: selection })
+    }
+  },
+
+  selectHairOptions: (ritualId, categoryId, selection) => {
+    const { _liveMode } = get()
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, hairSelection: selection } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { hairSelection: selection })
     }
   },
 

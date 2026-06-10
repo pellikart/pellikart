@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
 import { uploadPhotos, updateVendorFields } from '@/lib/supabase-db'
-import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, isSingleListingCategory, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing } from '@/lib/vendor-category-config'
-import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
+import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
 import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
+import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
@@ -42,19 +43,24 @@ export default function VendorOnboarding() {
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
   const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
-  // Makeup-only: some makeup artists also offer saree draping as an add-on.
+  // Makeup-only: some makeup artists also offer saree draping / hairstyling as add-ons.
   const [sareeAvailable, setSareeAvailable] = useState<boolean | null>(null)
+  const [hairPricing, setHairPricing] = useState<HairStylingPricing>(emptyHairStylingPricing())
+  const [hairAvailable, setHairAvailable] = useState<boolean | null>(null)
 
-  // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, 5=Portfolio Photos, [6=Pricing], [7=Saree add-on (Makeup)], last=Ready
-  // Single-listing categories (Mehendi/Makeup/Saree Draping) capture pricing here.
-  // Makeup gets an extra "also offer saree draping?" screen.
+  // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, 5=Portfolio Photos,
+  //   [6=Pricing], [7=Saree add-on (Makeup)], [8=Hair add-on (Makeup)], last=Ready
+  // Single-listing categories (Mehendi/Makeup/Saree Draping/Hair Stylist) capture
+  // pricing here. Makeup gets two extra "also offer …?" screens.
   const isMehendi = category === 'Mehendi'
   const isMakeup = category === 'Makeup'
   const isSaree = category === 'Saree Draping'
+  const isHair = category === 'Hair Stylist'
   const isSingleListing = isSingleListingCategory(category)
   const pricingStep = 6 // only meaningful for single-listing categories
   const sareeAddonStep = 7 // Makeup only
-  const totalSteps = isMakeup ? 8 : isSingleListing ? 7 : 6
+  const hairAddonStep = 8 // Makeup only
+  const totalSteps = isMakeup ? 9 : isSingleListing ? 7 : 6
 
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
   function back() { setStep((s) => Math.max(s - 1, 1)) }
@@ -172,8 +178,10 @@ export default function VendorOnboarding() {
       const listing: VendorListing = isMehendi
         ? { ...base, name: `${profile.businessName} — Mehendi`, category: 'Mehendi', price: getMehendiFromPrice(mehendiPricing), mehendiPricing, rituals: ['Mehendi'] }
         : isMakeup
-        ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricing), makeupPricing, sareeDrapingPricing: sareeAvailable ? sareePricing : undefined, rituals: [] }
-        : { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
+        ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricing), makeupPricing, sareeDrapingPricing: sareeAvailable ? sareePricing : undefined, hairStylingPricing: hairAvailable ? hairPricing : undefined, rituals: [] }
+        : isSaree
+        ? { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
+        : { ...base, name: `${profile.businessName} — Hair Stylist`, category: 'Hair Stylist', price: getHairStylingFromPrice(hairPricing), hairStylingPricing: hairPricing, rituals: [] }
       useVendorStore.getState().addListing(listing)
     }
 
@@ -384,7 +392,9 @@ export default function VendorOnboarding() {
               ? <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />
               : isMakeup
               ? <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
-              : <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />}
+              : isSaree
+              ? <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />
+              : <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />}
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
           </div>
         )}
@@ -408,6 +418,30 @@ export default function VendorOnboarding() {
             </div>
             {sareeAvailable === true && (
               <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />
+            )}
+            <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
+          </div>
+        )}
+
+        {/* Screen 8 (Makeup only): hairstyling add-on */}
+        {isMakeup && step === hairAddonStep && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[22px] font-bold text-dark">Do you also offer Hairstyling?</h1>
+            <p className="text-[12px] text-gray-400 mt-1 mb-5">Many makeup artists style hair too. Add it and couples can book it together.</p>
+            <div className="flex gap-2 mb-5">
+              <button
+                type="button"
+                onClick={() => setHairAvailable(true)}
+                className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium transition-all ${hairAvailable === true ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+              >Yes</button>
+              <button
+                type="button"
+                onClick={() => setHairAvailable(false)}
+                className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium transition-all ${hairAvailable === false ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+              >No</button>
+            </div>
+            {hairAvailable === true && (
+              <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />
             )}
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
           </div>

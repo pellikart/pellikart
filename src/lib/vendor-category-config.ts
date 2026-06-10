@@ -817,10 +817,31 @@ export function emptySareeDrapingPricing(): SareeDrapingPricing {
   return {}
 }
 
+// ─── HAIR STYLING PRICING ───────────────────
+
+/**
+ * Hair Stylist is a single-listing category (like Saree Draping): pricing is
+ * authored in onboarding. Bridal and groom hairstyling are priced per look;
+ * guest hairstyling is per guest.
+ */
+export interface HairStylingPricing {
+  /** Bridal hairstyling price per look (₹). Omitted/0 = not offered. */
+  bridalPricePerLook?: number
+  /** Groom hairstyling price per look (₹). Omitted/0 = not offered. */
+  groomPricePerLook?: number
+  /** Guest hairstyling price per guest (₹). Omitted/0 = not offered. */
+  guestPricePerPerson?: number
+}
+
+/** A fresh, empty Hair Styling pricing object. */
+export function emptyHairStylingPricing(): HairStylingPricing {
+  return {}
+}
+
 // ─── SINGLE-LISTING CATEGORIES ──────────────
 
 /** Categories whose one listing is authored in onboarding (no separate listing flow). */
-export const SINGLE_LISTING_CATEGORIES = ['Mehendi', 'Makeup', 'Saree Draping'] as const
+export const SINGLE_LISTING_CATEGORIES = ['Mehendi', 'Makeup', 'Saree Draping', 'Hair Stylist'] as const
 
 export function isSingleListingCategory(category?: string | null): boolean {
   return !!category && (SINGLE_LISTING_CATEGORIES as readonly string[]).includes(category)

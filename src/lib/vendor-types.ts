@@ -122,6 +122,8 @@ export interface VendorListing {
   /** Saree Draping-only: bridal/groom per-look + guest pricing. Authored in
    *  onboarding; `price` holds the cheapest "from" price. */
   sareeDrapingPricing?: import('./vendor-category-config').SareeDrapingPricing
+  /** Hair Stylist-only (or a Makeup add-on): bridal/groom per-look + guest pricing. */
+  hairStylingPricing?: import('./vendor-category-config').HairStylingPricing
   /** Whether transport & logistics is bundled into the listing price. */
   transportIncluded?: boolean
   /** Extra transport & logistics charge in ₹ (only meaningful when transportIncluded === false). */

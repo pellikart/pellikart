@@ -1,5 +1,5 @@
 import type { Vendor, Category } from './types'
-import { PHOTOGRAPHY_RATE_ROLES, type PhotographyRateCard, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing } from './vendor-category-config'
+import { PHOTOGRAPHY_RATE_ROLES, type PhotographyRateCard, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
 
 /**
  * Per-hour total for a Photography rate card assuming 1 person in every offered
@@ -184,21 +184,50 @@ export function getSareeSelectionTotal(
   return any ? total : null
 }
 
+/** The "from" price for a Hair Styling listing — cheapest of bridal/groom per-look and guest per-head. */
+export function getHairStylingFromPrice(p?: HairStylingPricing): number {
+  if (!p) return 0
+  const prices = [p.bridalPricePerLook, p.groomPricePerLook, p.guestPricePerPerson].filter((v): v is number => !!v && v > 0)
+  return prices.length ? Math.min(...prices) : 0
+}
+
+/** The couple's selected total for a Hair Styling listing (bridal/groom looks × per-look + guests × per-head). */
+export function getHairSelectionTotal(
+  vendor: Vendor | undefined,
+  sel: { bridalLooks?: number; groomLooks?: number; guests?: number } | undefined,
+): number | null {
+  const p = vendor?.hairStylingPricing
+  if (!p || !sel) return null
+  let total = 0
+  let any = false
+  if (sel.bridalLooks && sel.bridalLooks > 0 && p.bridalPricePerLook && p.bridalPricePerLook > 0) {
+    total += sel.bridalLooks * p.bridalPricePerLook; any = true
+  }
+  if (sel.groomLooks && sel.groomLooks > 0 && p.groomPricePerLook && p.groomPricePerLook > 0) {
+    total += sel.groomLooks * p.groomPricePerLook; any = true
+  }
+  if (sel.guests && sel.guests > 0 && p.guestPricePerPerson && p.guestPricePerPerson > 0) {
+    total += sel.guests * p.guestPricePerPerson; any = true
+  }
+  return any ? total : null
+}
+
 /**
  * The couple's configured total for a board category's selected vendor, across
  * the categories that support per-selection pricing (Photography rate card,
- * Mehendi, Makeup, Saree Draping). Returns null when nothing is configured, so
- * the card/total falls back to the vendor's `price`.
+ * Mehendi, Makeup, Saree Draping, Hair Styling). Returns null when nothing is
+ * configured, so the card/total falls back to the vendor's `price`.
  */
 export function getCategorySelectionTotal(vendor: Vendor | undefined, category: Category | undefined): number | null {
   if (!vendor || !category) return null
   // Most categories are exclusive, but a Makeup artist can also offer Saree
-  // Draping as an add-on — sum whatever the couple configured.
+  // Draping and Hair Styling as add-ons — sum whatever the couple configured.
   const parts = [
     getPhotographySelectionTotal(vendor, category.photographyTeam),
     getMehendiSelectionTotal(vendor, category.mehendiSelection),
     getMakeupSelectionTotal(vendor, category.makeupSelection),
     getSareeSelectionTotal(vendor, category.sareeSelection),
+    getHairSelectionTotal(vendor, category.hairSelection),
   ].filter((v): v is number => v != null)
   return parts.length ? parts.reduce((a, b) => a + b, 0) : null
 }

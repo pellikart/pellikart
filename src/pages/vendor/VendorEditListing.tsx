@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
-import { formatINR, getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, isSingleListingCategory, type SelectField, type PhotographyRateCard, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing } from '@/lib/vendor-category-config'
+import { formatINR, getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, type SelectField, type PhotographyRateCard, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
 import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
+import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
 
 export default function VendorEditListing() {
   const { listingId } = useParams<{ listingId: string }>()
@@ -26,8 +27,10 @@ export default function VendorEditListing() {
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
   const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
-  // Makeup-only: whether this makeup artist also offers saree draping as an add-on.
+  // Makeup-only: whether this makeup artist also offers saree draping / hairstyling as add-ons.
   const [sareeAddon, setSareeAddon] = useState(false)
+  const [hairPricing, setHairPricing] = useState<HairStylingPricing>(emptyHairStylingPricing())
+  const [hairAddon, setHairAddon] = useState(false)
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [coverIndex, setCoverIndex] = useState(0)
@@ -48,6 +51,8 @@ export default function VendorEditListing() {
       setMakeupPricing(listing.makeupPricing || emptyMakeupPricing())
       setSareePricing(listing.sareeDrapingPricing || emptySareeDrapingPricing())
       setSareeAddon(listing.category === 'Makeup' && !!listing.sareeDrapingPricing)
+      setHairPricing(listing.hairStylingPricing || emptyHairStylingPricing())
+      setHairAddon(listing.category === 'Makeup' && !!listing.hairStylingPricing)
       setIncludes(listing.includes)
       setRituals(listing.rituals || [])
       setCategoryFields(listing.categoryFields || {})
@@ -128,6 +133,7 @@ export default function VendorEditListing() {
       : category === 'Mehendi' ? getMehendiFromPrice(mehendiPricing)
       : category === 'Makeup' ? getMakeupFromPrice(makeupPricing)
       : category === 'Saree Draping' ? getSareeDrapingFromPrice(sareePricing)
+      : category === 'Hair Stylist' ? getHairStylingFromPrice(hairPricing)
       : price
     updateListing({
       ...listing,
@@ -138,6 +144,9 @@ export default function VendorEditListing() {
       makeupPricing: category === 'Makeup' ? makeupPricing : undefined,
       sareeDrapingPricing: category === 'Saree Draping' ? sareePricing
         : category === 'Makeup' && sareeAddon ? sareePricing
+        : undefined,
+      hairStylingPricing: category === 'Hair Stylist' ? hairPricing
+        : category === 'Makeup' && hairAddon ? hairPricing
         : undefined,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
@@ -316,11 +325,24 @@ export default function VendorEditListing() {
               </div>
               {sareeAddon && <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />}
             </div>
+            <div className="pt-2 border-t border-card-border">
+              <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Hairstyling?</label>
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => setHairAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${hairAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
+                <button type="button" onClick={() => setHairAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!hairAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
+              </div>
+              {hairAddon && <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />}
+            </div>
           </div>
         ) : category === 'Saree Draping' ? (
           <div>
             <label className="text-[11px] font-medium text-dark block mb-2">Saree draping pricing</label>
             <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />
+          </div>
+        ) : category === 'Hair Stylist' ? (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-2">Hair styling pricing</label>
+            <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />
           </div>
         ) : (
           <div>

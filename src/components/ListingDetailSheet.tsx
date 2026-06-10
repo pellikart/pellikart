@@ -2,23 +2,24 @@ import { useState } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal } from '@/lib/helpers'
 import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS, MAKEUP_EVENTS } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
 
-/** The saree-draping stepper rows (bridal/groom/guest), shared by the standalone
- *  Saree Draping listing and the Makeup add-on section. */
-function SareeRows({ p, sel, onUpdate }: {
-  p: import('@/lib/vendor-category-config').SareeDrapingPricing
+/** Per-look/guest stepper rows (bridal/groom/guest), shared by Saree Draping and
+ *  Hair Styling — both standalone listings and Makeup add-on sections. */
+function PerLookGuestRows({ p, sel, onUpdate, labels }: {
+  p: { bridalPricePerLook?: number; groomPricePerLook?: number; guestPricePerPerson?: number }
   sel: { bridalLooks?: number; groomLooks?: number; guests?: number }
   onUpdate: (patch: { bridalLooks?: number; groomLooks?: number; guests?: number }) => void
+  labels: { bridal: string; groom: string; guest: string }
 }) {
   const rows: { key: 'bridalLooks' | 'groomLooks' | 'guests'; label: string; price: number; unit: string }[] = []
-  if ((p.bridalPricePerLook ?? 0) > 0) rows.push({ key: 'bridalLooks', label: 'Bridal saree draping', price: p.bridalPricePerLook!, unit: '/ look' })
-  if ((p.groomPricePerLook ?? 0) > 0) rows.push({ key: 'groomLooks', label: 'Groom panche draping', price: p.groomPricePerLook!, unit: '/ look' })
-  if ((p.guestPricePerPerson ?? 0) > 0) rows.push({ key: 'guests', label: 'Guest saree draping', price: p.guestPricePerPerson!, unit: '/ guest' })
+  if ((p.bridalPricePerLook ?? 0) > 0) rows.push({ key: 'bridalLooks', label: labels.bridal, price: p.bridalPricePerLook!, unit: '/ look' })
+  if ((p.groomPricePerLook ?? 0) > 0) rows.push({ key: 'groomLooks', label: labels.groom, price: p.groomPricePerLook!, unit: '/ look' })
+  if ((p.guestPricePerPerson ?? 0) > 0) rows.push({ key: 'guests', label: labels.guest, price: p.guestPricePerPerson!, unit: '/ guest' })
   return (
     <div className="space-y-1.5">
       {rows.map(r => {
@@ -54,7 +55,7 @@ interface Props {
 
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -130,8 +131,9 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   function addMakeup() {
     if (!ritualId || !categoryId) return
     selectMakeupOptions(ritualId, categoryId, makeupSel)
-    // Makeup artists can also offer saree draping — persist that selection too.
+    // Makeup artists can also offer saree draping / hairstyling — persist those too.
     if (vendor.sareeDrapingPricing) selectSareeOptions(ritualId, categoryId, sareeSel)
+    if (vendor.hairStylingPricing) selectHairOptions(ritualId, categoryId, hairSel)
     selectVendor(ritualId, categoryId, vendor.id)
   }
 
@@ -148,6 +150,22 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   function addSaree() {
     if (!ritualId || !categoryId) return
     selectSareeOptions(ritualId, categoryId, sareeSel)
+    selectVendor(ritualId, categoryId, vendor.id)
+  }
+
+  // ── Hair Styling selection (bridal looks, groom looks, guests) ──
+  const savedHair = currentCategory?.hairSelection
+  const [hairSel, setHairSel] = useState<{ bridalLooks?: number; groomLooks?: number; guests?: number }>(
+    () => savedHair ?? {},
+  )
+  function updateHair(patch: Partial<typeof hairSel>) {
+    const next = { ...hairSel, ...patch }
+    setHairSel(next)
+    if (ritualId && categoryId) selectHairOptions(ritualId, categoryId, next)
+  }
+  function addHair() {
+    if (!ritualId || !categoryId) return
+    selectHairOptions(ritualId, categoryId, hairSel)
     selectVendor(ritualId, categoryId, vendor.id)
   }
 
@@ -485,10 +503,13 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const guestOK = (p.guestPricePerPerson ?? 0) > 0
               const makeupTotal = getMakeupSelectionTotal(vendor, makeupSel)
               const guests = makeupSel.guests || 0
-              // Optional saree-draping add-on (some makeup artists offer it too).
+              // Optional add-ons (some makeup artists also offer saree draping / hairstyling).
               const sp = vendor.sareeDrapingPricing
+              const hp = vendor.hairStylingPricing
               const sareeTotal = sp ? getSareeSelectionTotal(vendor, sareeSel) : null
-              const total = makeupTotal != null || sareeTotal != null ? (makeupTotal ?? 0) + (sareeTotal ?? 0) : null
+              const hairTotal = hp ? getHairSelectionTotal(vendor, hairSel) : null
+              const total = makeupTotal != null || sareeTotal != null || hairTotal != null
+                ? (makeupTotal ?? 0) + (sareeTotal ?? 0) + (hairTotal ?? 0) : null
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
@@ -551,7 +572,15 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                     {sp && (
                       <div className="pt-3 border-t border-mustard/20">
                         <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Saree draping <span className="text-gray-400 font-normal normal-case">· add-on</span></p>
-                        <SareeRows p={sp} sel={sareeSel} onUpdate={updateSaree} />
+                        <PerLookGuestRows p={sp} sel={sareeSel} onUpdate={updateSaree} labels={{ bridal: 'Bridal saree draping', groom: 'Groom panche draping', guest: 'Guest saree draping' }} />
+                      </div>
+                    )}
+
+                    {/* Hairstyling add-on (this makeup artist also offers it) */}
+                    {hp && (
+                      <div className="pt-3 border-t border-mustard/20">
+                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Hairstyling <span className="text-gray-400 font-normal normal-case">· add-on</span></p>
+                        <PerLookGuestRows p={hp} sel={hairSel} onUpdate={updateHair} labels={{ bridal: 'Bridal hairstyling', groom: 'Groom hairstyling', guest: 'Guest hairstyling' }} />
                       </div>
                     )}
 
@@ -592,7 +621,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
                   <p className="text-[10px] text-gray-400 mb-3">Choose how many you need — your price updates live</p>
                   <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-2">
-                    <SareeRows p={p} sel={sareeSel} onUpdate={updateSaree} />
+                    <PerLookGuestRows p={p} sel={sareeSel} onUpdate={updateSaree} labels={{ bridal: 'Bridal saree draping', groom: 'Groom panche draping', guest: 'Guest saree draping' }} />
 
                     {total != null && (
                       <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
@@ -621,8 +650,47 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )
             })()}
 
-            {/* Price (non rate-card / non-mehendi / non-makeup / non-saree listings) */}
-            {!vendor.rateCard && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && (
+            {/* Hair Styling — standalone listing (a Makeup listing folds hair into its block above) */}
+            {vendor.hairStylingPricing && !vendor.makeupPricing && (() => {
+              const p = vendor.hairStylingPricing
+              const fromPrice = getHairStylingFromPrice(p)
+              const total = getHairSelectionTotal(vendor, hairSel)
+              return (
+                <div className="mb-4">
+                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
+                  <p className="text-[10px] text-gray-400 mb-3">Choose how many you need — your price updates live</p>
+                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-2">
+                    <PerLookGuestRows p={p} sel={hairSel} onUpdate={updateHair} labels={{ bridal: 'Bridal hairstyling', groom: 'Groom hairstyling', guest: 'Guest hairstyling' }} />
+
+                    {total != null && (
+                      <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
+                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                      </div>
+                    )}
+
+                    {ritualId && categoryId && (
+                      <button
+                        type="button"
+                        onClick={addHair}
+                        className={`w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                          isAddedToBoard
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-magenta text-white active:scale-[0.98]'
+                        }`}
+                      >
+                        {isAddedToBoard
+                          ? '✓ Added to your board'
+                          : total != null ? `Add to my board · ${formatINR(total)}` : 'Add to my board'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Price (non rate-card / non-mehendi / non-makeup / non-saree / non-hair listings) */}
+            {!vendor.rateCard && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
             )}
             {!vendor.rateCard && vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
