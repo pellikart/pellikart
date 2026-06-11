@@ -5,6 +5,7 @@ import { formatINR, getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPri
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, type SelectField, type PhotographyRateCard, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
+import MakeupAddonsEditor from '@/components/MakeupAddonsEditor'
 import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
 import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
 
@@ -26,6 +27,7 @@ export default function VendorEditListing() {
   const [availableHours, setAvailableHours] = useState<number[]>([])
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
+  const [makeupAddons, setMakeupAddons] = useState<Record<string, number>>({})
   const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
   // Makeup-only: whether this makeup artist also offers saree draping / hairstyling as add-ons.
   const [sareeAddon, setSareeAddon] = useState(false)
@@ -33,6 +35,8 @@ export default function VendorEditListing() {
   const [hairAddon, setHairAddon] = useState(false)
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
+  const [transportIncluded, setTransportIncluded] = useState<boolean | null>(null)
+  const [transportExtra, setTransportExtra] = useState(0)
   const [coverIndex, setCoverIndex] = useState(0)
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
   const [bundledListings, setBundledListings] = useState<string[]>([])
@@ -49,12 +53,15 @@ export default function VendorEditListing() {
       setAvailableHours(listing.availableHours || [])
       setMehendiPricing(listing.mehendiPricing || emptyMehendiPricing())
       setMakeupPricing(listing.makeupPricing || emptyMakeupPricing())
+      setMakeupAddons(listing.makeupPricing?.addons || {})
       setSareePricing(listing.sareeDrapingPricing || emptySareeDrapingPricing())
       setSareeAddon(listing.category === 'Makeup' && !!listing.sareeDrapingPricing)
       setHairPricing(listing.hairStylingPricing || emptyHairStylingPricing())
       setHairAddon(listing.category === 'Makeup' && !!listing.hairStylingPricing)
       setIncludes(listing.includes)
       setRituals(listing.rituals || [])
+      setTransportIncluded(listing.transportIncluded ?? null)
+      setTransportExtra(listing.transportExtra ?? 0)
       setCategoryFields(listing.categoryFields || {})
       setBundledListings(listing.bundledListings || [])
       setBundleMandatory(listing.bundleMandatory || false)
@@ -141,13 +148,15 @@ export default function VendorEditListing() {
       rateCard: category === 'Photography' ? rateCard : undefined,
       availableHours: category === 'Photography' && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
       mehendiPricing: category === 'Mehendi' ? mehendiPricing : undefined,
-      makeupPricing: category === 'Makeup' ? makeupPricing : undefined,
+      makeupPricing: category === 'Makeup' ? { ...makeupPricing, addons: makeupAddons } : undefined,
       sareeDrapingPricing: category === 'Saree Draping' ? sareePricing
         : category === 'Makeup' && sareeAddon ? sareePricing
         : undefined,
       hairStylingPricing: category === 'Hair Stylist' ? hairPricing
         : category === 'Makeup' && hairAddon ? hairPricing
         : undefined,
+      transportIncluded: transportIncluded === null ? undefined : transportIncluded,
+      transportExtra: transportIncluded === false && transportExtra > 0 ? transportExtra : undefined,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
     })
@@ -318,6 +327,11 @@ export default function VendorEditListing() {
               <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
             </div>
             <div className="pt-2 border-t border-card-border">
+              <label className="text-[13px] font-semibold text-dark block mb-1">Add-ons</label>
+              <p className="text-[10px] text-gray-400 mb-2">Price any extras you offer. Leave blank for ones you don't.</p>
+              <MakeupAddonsEditor value={makeupAddons} onChange={setMakeupAddons} />
+            </div>
+            <div className="pt-2 border-t border-card-border">
               <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Saree Draping?</label>
               <div className="flex gap-2 mb-3">
                 <button type="button" onClick={() => setSareeAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${sareeAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
@@ -352,6 +366,40 @@ export default function VendorEditListing() {
               className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
               style={{ background: `linear-gradient(to right, #D4A017 ${((price - pr.min) / (pr.max - pr.min)) * 100}%, #eee ${((price - pr.min) / (pr.max - pr.min)) * 100}%)` }}
             />
+          </div>
+        )}
+
+        {/* Transport & logistics — for single-listing categories (their only edit surface) */}
+        {isSingleListingCategory(category) && (
+          <div className="p-3 rounded-xl bg-empty-bg border border-card-border">
+            <p className="text-[12px] font-semibold text-dark mb-1.5">Transport &amp; logistics included?</p>
+            <div className="flex gap-1.5 mb-2">
+              <button
+                type="button"
+                onClick={() => { setTransportIncluded(true); setTransportExtra(0) }}
+                className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === true ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+              >Yes</button>
+              <button
+                type="button"
+                onClick={() => setTransportIncluded(false)}
+                className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === false ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+              >No</button>
+            </div>
+            {transportIncluded === false && (
+              <div>
+                <label className="text-[10px] text-gray-500 block mb-1">Extra amount couples will pay</label>
+                <div className="relative max-w-[200px]">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                  <input
+                    type="number" min={0} step={500} value={transportExtra || ''}
+                    onChange={(e) => setTransportExtra(Math.max(0, parseInt(e.target.value) || 0))}
+                    placeholder="0"
+                    className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+                {transportExtra > 0 && <p className="text-[9px] text-gray-400 mt-0.5">Shown to couples as a sub-line: +{formatINR(transportExtra)}</p>}
+              </div>
+            )}
           </div>
         )}
 

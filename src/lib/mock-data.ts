@@ -290,6 +290,7 @@ export const mockVendors: Record<string, Vendor> = {
       guestPricePerPerson: 500,
       conesIncluded: true,
     },
+    transportIncluded: true,
   },
   "v-mehendi-2": {
     id: "v-mehendi-2", code: "Mehendi 002", name: "Artful Hands", photo: img("mehendi", 2),
@@ -312,9 +313,10 @@ export const mockVendors: Record<string, Vendor> = {
     style: "HD Airbrush", area: "Green Park, Delhi", price: 8000,
     rating: 4.8, packageTier: "Bridal looks + guests", likes: [{ userId: "u-priya", name: "Priya" }, { userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
     makeupPricing: {
-      bridalByEvent: { 'Engagement': 12000, 'Haldi': 8000, 'Mehendi': 9000, 'Sangeeth': 12000, 'Pelli (Wedding)': 18000, 'Reception': 16000 },
+      bridalByEvent: { 'Bridal Makeup (Wedding)': 18000, 'Engagement/Reception Look': 14000, 'Pre-Wedding Ceremonies (Haldi, Sangeeth, etc.)': 9000 },
       groomPrice: 5000,
       guestPricePerPerson: 2500,
+      addons: { 'Hair extensions': 2000, 'False lashes': 800, 'Contact lens': 1200, 'Nail paint': 500 },
     },
     // This makeup artist also offers saree draping + hairstyling as add-ons.
     sareeDrapingPricing: { bridalPricePerLook: 3500, groomPricePerLook: 2500, guestPricePerPerson: 1000 },
@@ -325,12 +327,14 @@ export const mockVendors: Record<string, Vendor> = {
     style: "Natural Glam", area: "Rajouri Garden, Delhi", price: 6000,
     rating: 4.4, packageTier: "Bridal looks + guests", likes: [], booked: false, amountPaid: 0,
     makeupPricing: {
-      bridalByEvent: { 'Engagement': 9000, 'Haldi': 6000, 'Pelli (Wedding)': 14000, 'Reception': 12000 },
+      bridalByEvent: { 'Bridal Makeup (Wedding)': 14000, 'Engagement/Reception Look': 10000, 'Pre-Wedding Ceremonies (Haldi, Sangeeth, etc.)': 6000 },
       groomPrice: 4000,
       guestPricePerPerson: 1800,
+      addons: { 'Hair accessories': 1500, 'False lashes': 600, 'Nail paint': 400 },
     },
-    sareeDrapingPricing: { bridalPricePerLook: 2800, guestPricePerPerson: 900 },
+    sareeDrapingPricing: { bridalPricePerLook: 2800, guestPricePerPerson: 900, prePleatingPricePerSaree: 700 },
     hairStylingPricing: { bridalPricePerLook: 3200, guestPricePerPerson: 700 },
+    transportIncluded: false, transportExtra: 2000,
   },
 
   // === SAREE DRAPING ===
@@ -338,13 +342,13 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-saree-1", code: "Saree 001", name: "Drape Diva", photo: img("makeup", 5),
     style: "Bridal Draping", area: "Jubilee Hills, Hyderabad", price: 1500,
     rating: 4.8, packageTier: "Bridal + guests", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
-    sareeDrapingPricing: { bridalPricePerLook: 3000, groomPricePerLook: 2000, guestPricePerPerson: 800 },
+    sareeDrapingPricing: { bridalPricePerLook: 3000, groomPricePerLook: 2000, guestPricePerPerson: 800, prePleatingPricePerSaree: 500 },
   },
   "v-saree-2": {
     id: "v-saree-2", code: "Saree 002", name: "Pleats & Perfection", photo: img("makeup", 6),
     style: "Modern Draping", area: "Madhapur, Hyderabad", price: 1200,
     rating: 4.5, packageTier: "Bridal + guests", likes: [], booked: false, amountPaid: 0,
-    sareeDrapingPricing: { bridalPricePerLook: 2500, guestPricePerPerson: 1200 },
+    sareeDrapingPricing: { bridalPricePerLook: 2500, guestPricePerPerson: 1200, prePleatingPricePerSaree: 600 },
   },
 
   // === HAIR STYLIST ===

@@ -128,6 +128,9 @@ export default function VendorAddListing() {
     if (hasStylePriceStep) stylePriceStep = nextStep++
     if (hasInclusionsStep) inclusionsStep = nextStep++
   }
+  // Photos & videos go near the end (not for Decor, which uses per-design photos),
+  // so vendors fill all text/number fields first and finish with the upload.
+  const photosStep = hasPhotosNameStep ? nextStep++ : -1
   const reviewStep = nextStep
   const totalSteps = reviewStep
 
@@ -403,11 +406,11 @@ export default function VendorAddListing() {
 
       <div className="flex-1 px-5 py-5 overflow-y-auto">
 
-        {/* Step 1: Photos & Name */}
+        {/* Step 1: Name (photos & videos moved to the end) */}
         {step === photosNameStep && hasPhotosNameStep && (
           <div className="animate-fadeIn">
-            <h1 className="text-[20px] font-bold text-dark">What do you want to list?</h1>
-            <p className="text-[11px] text-gray-400 mt-1 mb-5">Add photos and a name for your {category.toLowerCase()} listing.</p>
+            <h1 className="text-[20px] font-bold text-dark">Name your listing</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Give your {category.toLowerCase()} listing a clear name. You'll add photos &amp; videos at the end.</p>
 
             {/* Listing type picker (only for Venue vendors who offer more than just venues) */}
             {allowedCategories.length > 1 && (
@@ -425,49 +428,6 @@ export default function VendorAddListing() {
                 </div>
               </div>
             )}
-
-            {/* Photo upload */}
-            <p className="text-[10px] text-gray-400 mb-2">Tap any photo to set it as your listing cover.</p>
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {photoPreviews.map((p, i) => (
-                <div key={i} className="aspect-square rounded-xl overflow-hidden relative cursor-pointer" onClick={() => setCoverIndex(i)}>
-                  <img src={p} alt="" className="w-full h-full object-cover" />
-                  {i === coverIndex && <span className="absolute top-1 left-1 bg-mustard text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">COVER</span>}
-                  {i !== coverIndex && <div className="absolute inset-0 bg-black/20" />}
-                </div>
-              ))}
-              {photoPreviews.length < 10 && (
-                <label className="aspect-square rounded-xl border-2 border-dashed border-mustard/30 flex flex-col items-center justify-center cursor-pointer active:bg-mustard-light/20">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                  <span className="text-[8px] text-gray-400 mt-1">Add photo</span>
-                  <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
-                </label>
-              )}
-            </div>
-
-            {/* Video upload */}
-            <p className="text-[11px] font-medium text-dark mb-1.5">Videos <span className="text-[10px] text-gray-400 font-normal">(optional)</span></p>
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {videoPreviews.map((v, i) => (
-                <div key={i} className="aspect-square rounded-xl overflow-hidden relative group bg-black">
-                  <video src={v} className="w-full h-full object-cover" muted playsInline />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
-                  </div>
-                  <button
-                    onClick={() => removeVideo(i)}
-                    className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
-                  >×</button>
-                </div>
-              ))}
-              {videoPreviews.length < 5 && (
-                <label className="aspect-square rounded-xl border-2 border-dashed border-mustard/30 flex flex-col items-center justify-center cursor-pointer active:bg-mustard-light/20">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-                  <span className="text-[8px] text-gray-400 mt-1">Add video</span>
-                  <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideoUpload} />
-                </label>
-              )}
-            </div>
 
             {/* Name */}
             <div>
@@ -780,6 +740,61 @@ export default function VendorAddListing() {
             <div className="flex gap-2 mt-6">
               <button onClick={() => setStep(inclusionsStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
               <button onClick={() => setStep(inclusionsStep + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* Photos & videos — moved to the end so text fields come first */}
+        {step === photosStep && hasPhotosNameStep && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">Add photos &amp; videos</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Tap any photo to set it as your listing cover. Videos are optional.</p>
+
+            {/* Photo upload */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {photoPreviews.map((p, i) => (
+                <div key={i} className="aspect-square rounded-xl overflow-hidden relative cursor-pointer" onClick={() => setCoverIndex(i)}>
+                  <img src={p} alt="" className="w-full h-full object-cover" />
+                  {i === coverIndex && <span className="absolute top-1 left-1 bg-mustard text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">COVER</span>}
+                  {i !== coverIndex && <div className="absolute inset-0 bg-black/20" />}
+                </div>
+              ))}
+              {photoPreviews.length < 10 && (
+                <label className="aspect-square rounded-xl border-2 border-dashed border-mustard/30 flex flex-col items-center justify-center cursor-pointer active:bg-mustard-light/20">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                  <span className="text-[8px] text-gray-400 mt-1">Add photo</span>
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+                </label>
+              )}
+            </div>
+
+            {/* Video upload */}
+            <p className="text-[11px] font-medium text-dark mb-1.5">Videos <span className="text-[10px] text-gray-400 font-normal">(optional)</span></p>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {videoPreviews.map((v, i) => (
+                <div key={i} className="aspect-square rounded-xl overflow-hidden relative group bg-black">
+                  <video src={v} className="w-full h-full object-cover" muted playsInline />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                  </div>
+                  <button
+                    onClick={() => removeVideo(i)}
+                    className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                  >×</button>
+                </div>
+              ))}
+              {videoPreviews.length < 5 && (
+                <label className="aspect-square rounded-xl border-2 border-dashed border-mustard/30 flex flex-col items-center justify-center cursor-pointer active:bg-mustard-light/20">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                  <span className="text-[8px] text-gray-400 mt-1">Add video</span>
+                  <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideoUpload} />
+                </label>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setStep(photosStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              <button onClick={() => setStep(photosStep + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
             </div>
           </div>
         )}

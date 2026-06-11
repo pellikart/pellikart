@@ -751,7 +751,15 @@ export const PHOTOGRAPHY_HOUR_OPTIONS = [2, 4, 6, 8, 10] as const
  * guest count, and see a live total.
  */
 export const MEHENDI_COVERAGES = ['2 Hands', '2 Legs', 'Both Hands & Legs'] as const
+// Stored keys (do not rename — pricing data is keyed by these). Use mehendiDesignLabel()
+// for what's shown to vendors/couples.
 export const MEHENDI_DESIGNS = ['Minimal', 'Arabic', 'Heavy Bridal'] as const
+
+/** Display label for a mehendi design (the stored value differs from the shown text). */
+const MEHENDI_DESIGN_LABELS: Record<string, string> = { 'Minimal': 'Basic/Simple' }
+export function mehendiDesignLabel(design: string): string {
+  return MEHENDI_DESIGN_LABELS[design] || design
+}
 
 export type MehendiCoverage = typeof MEHENDI_COVERAGES[number]
 export type MehendiDesign = typeof MEHENDI_DESIGNS[number]
@@ -782,6 +790,15 @@ export function emptyMehendiPricing(): MehendiPricing {
  * flat per-look price; guest makeup is per guest. Couples pick the events they
  * want, optionally groom, and a guest count, and see a live total.
  */
+/** Makeup add-ons a vendor can price (flat price each). */
+export const MAKEUP_ADDONS = [
+  'Hair extensions',
+  'Hair accessories',
+  'False lashes',
+  'Contact lens',
+  'Nail paint',
+] as const
+
 export interface MakeupPricing {
   /** event name → bridal makeup price per look (₹). Missing/0 = not offered. */
   bridalByEvent: Record<string, number>
@@ -789,6 +806,8 @@ export interface MakeupPricing {
   groomPrice?: number
   /** Price per guest for guest makeup (₹). Omitted/0 = not offered. */
   guestPricePerPerson?: number
+  /** Add-on name → flat price (₹). Missing/0 = not offered. */
+  addons?: Record<string, number>
 }
 
 /** A fresh, empty Makeup pricing object. */
@@ -810,6 +829,8 @@ export interface SareeDrapingPricing {
   groomPricePerLook?: number
   /** Guest saree draping price per guest (₹). Omitted/0 = not offered. */
   guestPricePerPerson?: number
+  /** Saree pre-pleating (done before the event) price per saree (₹). Omitted/0 = not offered. */
+  prePleatingPricePerSaree?: number
 }
 
 /** A fresh, empty Saree Draping pricing object. */
@@ -852,8 +873,13 @@ export function isSingleListingCategory(category?: string | null): boolean {
 /** All rituals/events a listing can be tagged for (used for couple-vendor matching) */
 export const RITUALS = ['Pre-Wedding Shoot', 'Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
 
-/** Events a bridal makeup artist prices per look. Mirrors the ritual/event list. */
-export const MAKEUP_EVENTS = RITUALS
+/** Bridal makeup look-categories a makeup artist prices per look (grouped from the
+ *  full event list to keep the form short). bridalByEvent is keyed by these. */
+export const MAKEUP_EVENTS = [
+  'Bridal Makeup (Wedding)',
+  'Engagement/Reception Look',
+  'Pre-Wedding Ceremonies (Haldi, Sangeeth, etc.)',
+] as const
 
 /** Get the listing config for a category, with a safe fallback */
 export function getListingConfig(category: string): CategoryListingConfig {

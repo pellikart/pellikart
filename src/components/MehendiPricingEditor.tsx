@@ -1,4 +1,4 @@
-import { MEHENDI_COVERAGES, MEHENDI_DESIGNS, type MehendiPricing } from '@/lib/vendor-category-config'
+import { MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, type MehendiPricing } from '@/lib/vendor-category-config'
 
 interface Props {
   value: MehendiPricing
@@ -53,7 +53,7 @@ export default function MehendiPricingEditor({ value, onChange }: Props) {
                 <div className="space-y-2">
                   {MEHENDI_DESIGNS.map(design => (
                     <div key={design} className="flex items-center justify-between gap-3">
-                      <span className="text-[12px] text-dark">{design}</span>
+                      <span className="text-[12px] text-dark">{mehendiDesignLabel(design)}</span>
                       <div className="relative w-[130px] shrink-0">
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
                         <input

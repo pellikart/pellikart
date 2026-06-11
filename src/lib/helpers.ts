@@ -53,10 +53,15 @@ export function getListingTotal(vendor: Vendor | undefined, tierHours?: number):
   return base + extra
 }
 
+/** The flat transport/logistics extra a vendor charges (0 when bundled or unset). */
+export function vendorTransportExtra(vendor: Vendor | undefined): number {
+  return vendor?.transportIncluded === false ? (vendor.transportExtra || 0) : 0
+}
+
 /**
- * The couple's selected total for a Photography rate-card listing, including
- * transport extras. Returns null when there's no rate card or nothing is picked
- * yet — callers then fall back to the per-hour "from" price.
+ * The couple's selected total for a Photography rate-card listing (pure — transport
+ * is added once by getCategorySelectionTotal / the detail block). Returns null when
+ * there's no rate card or nothing is picked yet.
  */
 export function getPhotographySelectionTotal(
   vendor: Vendor | undefined,
@@ -65,8 +70,7 @@ export function getPhotographySelectionTotal(
   if (!vendor?.rateCard || !team) return null
   const picked = Object.values(team.counts).reduce((s, n) => s + Math.max(0, n || 0), 0)
   if (picked <= 0) return null
-  const transport = vendor.transportIncluded === false ? (vendor.transportExtra || 0) : 0
-  return getRateCardTotal(vendor.rateCard, team.counts, team.hours) + transport
+  return getRateCardTotal(vendor.rateCard, team.counts, team.hours)
 }
 
 /**
@@ -132,7 +136,7 @@ export function getMakeupFromPrice(p?: MakeupPricing): number {
  */
 export function getMakeupSelectionTotal(
   vendor: Vendor | undefined,
-  sel: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number } | undefined,
+  sel: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] } | undefined,
 ): number | null {
   const p = vendor?.makeupPricing
   if (!p || !sel) return null
@@ -141,6 +145,10 @@ export function getMakeupSelectionTotal(
   for (const [e, looks] of Object.entries(sel.eventLooks || {})) {
     const v = p.bridalByEvent?.[e]
     if (v && v > 0 && looks > 0) { total += v * looks; any = true }
+  }
+  for (const a of sel.addons || []) {
+    const v = p.addons?.[a]
+    if (v && v > 0) { total += v; any = true }
   }
   if (sel.groom && p.groomPrice && p.groomPrice > 0) { total += p.groomPrice; any = true }
   if (sel.guests && sel.guests > 0 && p.guestPricePerPerson && p.guestPricePerPerson > 0) {
@@ -155,7 +163,7 @@ export function getMakeupSelectionTotal(
  */
 export function getSareeDrapingFromPrice(p?: SareeDrapingPricing): number {
   if (!p) return 0
-  const prices = [p.bridalPricePerLook, p.groomPricePerLook, p.guestPricePerPerson].filter((v): v is number => !!v && v > 0)
+  const prices = [p.bridalPricePerLook, p.groomPricePerLook, p.guestPricePerPerson, p.prePleatingPricePerSaree].filter((v): v is number => !!v && v > 0)
   return prices.length ? Math.min(...prices) : 0
 }
 
@@ -166,7 +174,7 @@ export function getSareeDrapingFromPrice(p?: SareeDrapingPricing): number {
  */
 export function getSareeSelectionTotal(
   vendor: Vendor | undefined,
-  sel: { bridalLooks?: number; groomLooks?: number; guests?: number } | undefined,
+  sel: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number } | undefined,
 ): number | null {
   const p = vendor?.sareeDrapingPricing
   if (!p || !sel) return null
@@ -180,6 +188,9 @@ export function getSareeSelectionTotal(
   }
   if (sel.guests && sel.guests > 0 && p.guestPricePerPerson && p.guestPricePerPerson > 0) {
     total += sel.guests * p.guestPricePerPerson; any = true
+  }
+  if (sel.prePleatingSarees && sel.prePleatingSarees > 0 && p.prePleatingPricePerSaree && p.prePleatingPricePerSaree > 0) {
+    total += sel.prePleatingSarees * p.prePleatingPricePerSaree; any = true
   }
   return any ? total : null
 }
@@ -229,7 +240,8 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
     getSareeSelectionTotal(vendor, category.sareeSelection),
     getHairSelectionTotal(vendor, category.hairSelection),
   ].filter((v): v is number => v != null)
-  return parts.length ? parts.reduce((a, b) => a + b, 0) : null
+  // Transport/logistics is a flat per-vendor extra — add it once when anything is picked.
+  return parts.length ? parts.reduce((a, b) => a + b, 0) + vendorTransportExtra(vendor) : null
 }
 
 export function bgStyle(photo: string): { background: string } {

@@ -20,12 +20,12 @@ export default function MakeupPricingEditor({ value, onChange }: Props) {
       {/* Bridal makeup — per event, per look */}
       <div>
         <label className="text-[13px] font-semibold text-dark block mb-1">Bridal makeup — price per look</label>
-        <p className="text-[10px] text-gray-400 mb-3">Set your per-look price for each event you cover. Leave blank if you don't offer it.</p>
+        <p className="text-[10px] text-gray-400 mb-3">Set your per-look price for each look category. Leave blank if you don't offer it.</p>
         <div className="rounded-xl border border-card-border divide-y divide-card-border">
           {MAKEUP_EVENTS.map(event => (
             <div key={event} className="flex items-center justify-between gap-3 px-3 py-2.5">
-              <span className="text-[12px] text-dark">{event}</span>
-              <div className="relative w-[130px] shrink-0">
+              <span className="text-[12px] text-dark flex-1 min-w-0 leading-tight">{event}</span>
+              <div className="relative w-[120px] shrink-0">
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
                 <input
                   type="number" min={0} step={500}

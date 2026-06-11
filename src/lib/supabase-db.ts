@@ -399,8 +399,8 @@ export async function fetchRitualBoards(coupleId: string) {
         selectedTierHours: c.selected_tier_hours ?? undefined,
         photographyTeam: (c.photography_team as { counts: Record<string, number>; hours: number } | null) ?? undefined,
         mehendiSelection: (c.mehendi_selection as { coverage?: string; design?: string; groom?: boolean; guests?: number } | null) ?? undefined,
-        makeupSelection: (c.makeup_selection as { eventLooks?: Record<string, number>; groom?: boolean; guests?: number } | null) ?? undefined,
-        sareeSelection: (c.saree_selection as { bridalLooks?: number; groomLooks?: number; guests?: number } | null) ?? undefined,
+        makeupSelection: (c.makeup_selection as { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] } | null) ?? undefined,
+        sareeSelection: (c.saree_selection as { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number } | null) ?? undefined,
         hairSelection: (c.hair_selection as { bridalLooks?: number; groomLooks?: number; guests?: number } | null) ?? undefined,
       })),
   })) as RitualBoard[]

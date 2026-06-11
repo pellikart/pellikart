@@ -47,6 +47,10 @@ export default function SareeDrapingPricingEditor({ value, onChange }: Props) {
         label="Guest Saree draping" hint="Price per guest. Leave blank if not offered." unit="/ guest" step={100}
         val={value.guestPricePerPerson} onChange={(n) => onChange({ ...value, guestPricePerPerson: n })}
       />
+      <PriceField
+        label="Saree Pre-Pleating (before the event)" hint="Price per saree. Leave blank if not offered." unit="/ saree" step={100}
+        val={value.prePleatingPricePerSaree} onChange={(n) => onChange({ ...value, prePleatingPricePerSaree: n })}
+      />
     </div>
   )
 }

@@ -4,9 +4,10 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
 import { uploadPhotos, updateVendorFields } from '@/lib/supabase-db'
 import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
-import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
+import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, formatINR } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
+import MakeupAddonsEditor from '@/components/MakeupAddonsEditor'
 import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
 import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
 
@@ -42,25 +43,31 @@ export default function VendorOnboarding() {
   // onboarding and auto-create one listing on go-live.
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
+  const [makeupAddons, setMakeupAddons] = useState<Record<string, number>>({})
   const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
   // Makeup-only: some makeup artists also offer saree draping / hairstyling as add-ons.
   const [sareeAvailable, setSareeAvailable] = useState<boolean | null>(null)
   const [hairPricing, setHairPricing] = useState<HairStylingPricing>(emptyHairStylingPricing())
   const [hairAvailable, setHairAvailable] = useState<boolean | null>(null)
+  // Single-listing categories: transport & logistics applied to the auto-created listing.
+  const [transportIncluded, setTransportIncluded] = useState<boolean | null>(null)
+  const [transportExtra, setTransportExtra] = useState(0)
 
-  // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, 5=Portfolio Photos,
-  //   [6=Pricing], [7=Saree add-on (Makeup)], [8=Hair add-on (Makeup)], last=Ready
-  // Single-listing categories (Mehendi/Makeup/Saree Draping/Hair Stylist) capture
-  // pricing here. Makeup gets two extra "also offer …?" screens.
+  // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, then category pricing/
+  // add-ons (girly), then Portfolio Photos, then Ready. Photos go last so vendors
+  // fill all text/number fields first and finish with the upload.
   const isMehendi = category === 'Mehendi'
   const isMakeup = category === 'Makeup'
   const isSaree = category === 'Saree Draping'
   const isHair = category === 'Hair Stylist'
   const isSingleListing = isSingleListingCategory(category)
-  const pricingStep = 6 // only meaningful for single-listing categories
-  const sareeAddonStep = 7 // Makeup only
-  const hairAddonStep = 8 // Makeup only
-  const totalSteps = isMakeup ? 9 : isSingleListing ? 7 : 6
+  let _s = 5
+  const pricingStep = isSingleListing ? _s++ : -1      // single-listing categories only
+  const makeupAddonsStep = isMakeup ? _s++ : -1        // Makeup only — add-ons (lashes, etc.)
+  const sareeAddonStep = isMakeup ? _s++ : -1          // Makeup only
+  const hairAddonStep = isMakeup ? _s++ : -1           // Makeup only
+  const portfolioStep = _s++                           // photos & videos — always, near the end
+  const totalSteps = _s                                // Ready
 
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
   function back() { setStep((s) => Math.max(s - 1, 1)) }
@@ -174,11 +181,13 @@ export default function VendorOnboarding() {
         style: '',
         includes: [],
         createdAt: new Date().toISOString().split('T')[0],
+        transportIncluded: transportIncluded === null ? undefined : transportIncluded,
+        transportExtra: transportIncluded === false && transportExtra > 0 ? transportExtra : undefined,
       }
       const listing: VendorListing = isMehendi
         ? { ...base, name: `${profile.businessName} — Mehendi`, category: 'Mehendi', price: getMehendiFromPrice(mehendiPricing), mehendiPricing, rituals: ['Mehendi'] }
         : isMakeup
-        ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricing), makeupPricing, sareeDrapingPricing: sareeAvailable ? sareePricing : undefined, hairStylingPricing: hairAvailable ? hairPricing : undefined, rituals: [] }
+        ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricing), makeupPricing: { ...makeupPricing, addons: makeupAddons }, sareeDrapingPricing: sareeAvailable ? sareePricing : undefined, hairStylingPricing: hairAvailable ? hairPricing : undefined, rituals: [] }
         : isSaree
         ? { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
         : { ...base, name: `${profile.businessName} — Hair Stylist`, category: 'Hair Stylist', price: getHairStylingFromPrice(hairPricing), hairStylingPricing: hairPricing, rituals: [] }
@@ -325,8 +334,8 @@ export default function VendorOnboarding() {
           </div>
         )}
 
-        {/* Screen 5: Portfolio Photos */}
-        {step === 5 && (
+        {/* Portfolio Photos — moved near the end so text/number fields come first */}
+        {step === portfolioStep && (
           <div className="animate-fadeIn">
             <h1 className="text-[22px] font-bold text-dark">Show your work</h1>
             <p className="text-[12px] text-gray-400 mt-1 mb-5">Upload photos of your best work. This is what couples see first. (You can add more later)</p>
@@ -395,6 +404,16 @@ export default function VendorOnboarding() {
               : isSaree
               ? <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />
               : <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />}
+            <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
+          </div>
+        )}
+
+        {/* Makeup add-ons (lashes, extensions, etc.) — after the makeup pricing screen */}
+        {isMakeup && step === makeupAddonsStep && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[22px] font-bold text-dark">Add-ons</h1>
+            <p className="text-[12px] text-gray-400 mt-1 mb-5">Price any extras you offer. Leave blank for ones you don't. Couples can add these on top of their look.</p>
+            <MakeupAddonsEditor value={makeupAddons} onChange={setMakeupAddons} />
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
           </div>
         )}
@@ -473,7 +492,42 @@ export default function VendorOnboarding() {
                 </div>
               </div>
             </div>
-            <button onClick={handleGoLive} disabled={uploading} className="mt-8 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform disabled:opacity-50">
+
+            {/* Transport & logistics — applied to the auto-created listing */}
+            {isSingleListing && (
+              <div className="mt-4 p-3 rounded-xl bg-empty-bg border border-card-border text-left">
+                <p className="text-[12px] font-semibold text-dark mb-1">Transport &amp; logistics included?</p>
+                <div className="flex gap-1.5 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => { setTransportIncluded(true); setTransportExtra(0) }}
+                    className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === true ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+                  >Yes</button>
+                  <button
+                    type="button"
+                    onClick={() => setTransportIncluded(false)}
+                    className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === false ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+                  >No</button>
+                </div>
+                {transportIncluded === false && (
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Extra amount couples will pay</label>
+                    <div className="relative max-w-[200px]">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                      <input
+                        type="number" min={0} step={500} value={transportExtra || ''}
+                        onChange={(e) => setTransportExtra(Math.max(0, parseInt(e.target.value) || 0))}
+                        placeholder="0"
+                        className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    {transportExtra > 0 && <p className="text-[9px] text-gray-400 mt-0.5">Shown to couples as a sub-line: +{formatINR(transportExtra)}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button onClick={handleGoLive} disabled={uploading} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform disabled:opacity-50">
               {uploading ? 'Setting up...' : 'Go live'}
             </button>
           </div>

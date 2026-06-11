@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal } from '@/lib/helpers'
-import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS, MAKEUP_EVENTS } from '@/lib/vendor-category-config'
+import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, vendorTransportExtra } from '@/lib/helpers'
+import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
@@ -11,15 +11,16 @@ import MenuPicker from './MenuPicker'
 /** Per-look/guest stepper rows (bridal/groom/guest), shared by Saree Draping and
  *  Hair Styling — both standalone listings and Makeup add-on sections. */
 function PerLookGuestRows({ p, sel, onUpdate, labels }: {
-  p: { bridalPricePerLook?: number; groomPricePerLook?: number; guestPricePerPerson?: number }
-  sel: { bridalLooks?: number; groomLooks?: number; guests?: number }
-  onUpdate: (patch: { bridalLooks?: number; groomLooks?: number; guests?: number }) => void
-  labels: { bridal: string; groom: string; guest: string }
+  p: { bridalPricePerLook?: number; groomPricePerLook?: number; guestPricePerPerson?: number; prePleatingPricePerSaree?: number }
+  sel: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number }
+  onUpdate: (patch: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number }) => void
+  labels: { bridal: string; groom: string; guest: string; prePleating?: string }
 }) {
-  const rows: { key: 'bridalLooks' | 'groomLooks' | 'guests'; label: string; price: number; unit: string }[] = []
+  const rows: { key: 'bridalLooks' | 'groomLooks' | 'guests' | 'prePleatingSarees'; label: string; price: number; unit: string }[] = []
   if ((p.bridalPricePerLook ?? 0) > 0) rows.push({ key: 'bridalLooks', label: labels.bridal, price: p.bridalPricePerLook!, unit: '/ look' })
   if ((p.groomPricePerLook ?? 0) > 0) rows.push({ key: 'groomLooks', label: labels.groom, price: p.groomPricePerLook!, unit: '/ look' })
   if ((p.guestPricePerPerson ?? 0) > 0) rows.push({ key: 'guests', label: labels.guest, price: p.guestPricePerPerson!, unit: '/ guest' })
+  if (labels.prePleating && (p.prePleatingPricePerSaree ?? 0) > 0) rows.push({ key: 'prePleatingSarees', label: labels.prePleating, price: p.prePleatingPricePerSaree!, unit: '/ saree' })
   return (
     <div className="space-y-1.5">
       {rows.map(r => {
@@ -40,6 +41,19 @@ function PerLookGuestRows({ p, sel, onUpdate, labels }: {
       })}
     </div>
   )
+}
+
+/** Transport/logistics line shown inside a pricing box: an "included" note, or a
+ *  "+₹X" breakdown line (folded into the estimated total). */
+function TransportRow({ vendor }: { vendor: Vendor }) {
+  if (vendor.transportIncluded === true) {
+    return <div className="flex items-center justify-between text-[11px] text-green-600"><span>Transport &amp; logistics included</span><span>✓</span></div>
+  }
+  const extra = vendorTransportExtra(vendor)
+  if (extra > 0) {
+    return <div className="flex items-center justify-between text-[11px] text-gray-600"><span>Transport &amp; logistics</span><span className="font-medium text-dark">+{formatINR(extra)}</span></div>
+  }
+  return null
 }
 
 interface Props {
@@ -117,13 +131,17 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
   // ── Makeup selection (looks per bridal event, groom, guests) ──
   const savedMakeup = currentCategory?.makeupSelection
-  const [makeupSel, setMakeupSel] = useState<{ eventLooks?: Record<string, number>; groom?: boolean; guests?: number }>(
+  const [makeupSel, setMakeupSel] = useState<{ eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] }>(
     () => savedMakeup ?? {},
   )
   function updateMakeup(patch: Partial<typeof makeupSel>) {
     const next = { ...makeupSel, ...patch }
     setMakeupSel(next)
     if (ritualId && categoryId) selectMakeupOptions(ritualId, categoryId, next)
+  }
+  function toggleMakeupAddon(addon: string) {
+    const cur = makeupSel.addons || []
+    updateMakeup({ addons: cur.includes(addon) ? cur.filter(a => a !== addon) : [...cur, addon] })
   }
   function setEventLooks(event: string, looks: number) {
     updateMakeup({ eventLooks: { ...makeupSel.eventLooks, [event]: Math.max(0, looks) } })
@@ -139,7 +157,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
   // ── Saree Draping selection (bridal looks, groom looks, guests) ──
   const savedSaree = currentCategory?.sareeSelection
-  const [sareeSel, setSareeSel] = useState<{ bridalLooks?: number; groomLooks?: number; guests?: number }>(
+  const [sareeSel, setSareeSel] = useState<{ bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number }>(
     () => savedSaree ?? {},
   )
   function updateSaree(patch: Partial<typeof sareeSel>) {
@@ -388,7 +406,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const designsFor = (cov?: string) => cov ? MEHENDI_DESIGNS.filter(d => (p.bridal?.[cov]?.[d] ?? 0) > 0) : []
               const groomOK = (p.groomPrice ?? 0) > 0
               const guestOK = (p.guestPricePerPerson ?? 0) > 0
-              const total = getMehendiSelectionTotal(vendor, mehendiSel)
+              const baseTotal = getMehendiSelectionTotal(vendor, mehendiSel)
+              const total = baseTotal != null ? baseTotal + vendorTransportExtra(vendor) : null
               const guests = mehendiSel.guests || 0
               return (
                 <div className="mb-4">
@@ -429,7 +448,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                                     type="button"
                                     onClick={() => updateMehendi({ design: d })}
                                     className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${sel ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600'}`}
-                                  >{d} · {formatINR(price)}</button>
+                                  >{mehendiDesignLabel(d)} · {formatINR(price)}</button>
                                 )
                               })}
                             </div>
@@ -467,9 +486,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
                     {/* Total */}
                     {total != null && (
-                      <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
-                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                      <div className="pt-3 border-t border-mustard/20 space-y-1">
+                        <TransportRow vendor={vendor} />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                          <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                        </div>
                       </div>
                     )}
 
@@ -499,6 +521,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const p = vendor.makeupPricing
               const fromPrice = getMakeupFromPrice(p)
               const offeredEvents = MAKEUP_EVENTS.filter(e => (p.bridalByEvent?.[e] ?? 0) > 0)
+              const offeredAddons = MAKEUP_ADDONS.filter(a => (p.addons?.[a] ?? 0) > 0)
               const groomOK = (p.groomPrice ?? 0) > 0
               const guestOK = (p.guestPricePerPerson ?? 0) > 0
               const makeupTotal = getMakeupSelectionTotal(vendor, makeupSel)
@@ -509,24 +532,24 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const sareeTotal = sp ? getSareeSelectionTotal(vendor, sareeSel) : null
               const hairTotal = hp ? getHairSelectionTotal(vendor, hairSel) : null
               const total = makeupTotal != null || sareeTotal != null || hairTotal != null
-                ? (makeupTotal ?? 0) + (sareeTotal ?? 0) + (hairTotal ?? 0) : null
+                ? (makeupTotal ?? 0) + (sareeTotal ?? 0) + (hairTotal ?? 0) + vendorTransportExtra(vendor) : null
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
-                  <p className="text-[10px] text-gray-400 mb-3">Choose how many looks per event — your price updates live</p>
+                  <p className="text-[10px] text-gray-400 mb-3">Choose how many looks per category — your price updates live</p>
 
                   <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-3">
                     {/* Bridal looks per event */}
                     {offeredEvents.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Bridal makeup · looks per event</p>
+                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Bridal makeup · looks per category</p>
                         <div className="space-y-1.5">
                           {offeredEvents.map(e => {
                             const looks = makeupSel.eventLooks?.[e] || 0
                             return (
                               <div key={e} className={`flex items-center justify-between gap-2 py-2 px-3 rounded-lg transition-all ${looks > 0 ? 'border-2 border-magenta bg-magenta-light' : 'border border-card-border bg-white'}`}>
-                                <div className="min-w-0">
-                                  <p className="text-[12px] font-medium text-dark truncate">{e}</p>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[12px] font-medium text-dark leading-tight">{e}</p>
                                   <p className="text-[10px] text-gray-500">{formatINR(p.bridalByEvent[e])} / look</p>
                                 </div>
                                 <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
@@ -568,11 +591,34 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                       </div>
                     )}
 
+                    {/* Makeup add-ons (lashes, extensions, etc.) */}
+                    {offeredAddons.length > 0 && (
+                      <div className="pt-3 border-t border-mustard/20">
+                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Add-ons</p>
+                        <div className="space-y-1.5">
+                          {offeredAddons.map(a => {
+                            const sel = (makeupSel.addons || []).includes(a)
+                            return (
+                              <button
+                                key={a}
+                                type="button"
+                                onClick={() => toggleMakeupAddon(a)}
+                                className={`w-full flex items-center justify-between py-2 px-3 rounded-lg text-left transition-all ${sel ? 'border-2 border-magenta bg-magenta-light' : 'border border-card-border bg-white'}`}
+                              >
+                                <span className="text-[12px] font-medium text-dark">{sel ? '✓ ' : ''}{a}</span>
+                                <span className="text-[12px] font-semibold text-magenta">{formatINR(p.addons![a])}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Saree draping add-on (this makeup artist also offers it) */}
                     {sp && (
                       <div className="pt-3 border-t border-mustard/20">
                         <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Saree draping <span className="text-gray-400 font-normal normal-case">· add-on</span></p>
-                        <PerLookGuestRows p={sp} sel={sareeSel} onUpdate={updateSaree} labels={{ bridal: 'Bridal saree draping', groom: 'Groom panche draping', guest: 'Guest saree draping' }} />
+                        <PerLookGuestRows p={sp} sel={sareeSel} onUpdate={updateSaree} labels={{ bridal: 'Bridal saree draping', groom: 'Groom panche draping', guest: 'Guest saree draping', prePleating: 'Saree pre-pleating' }} />
                       </div>
                     )}
 
@@ -585,9 +631,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                     )}
 
                     {total != null && (
-                      <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
-                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                      <div className="pt-3 border-t border-mustard/20 space-y-1">
+                        <TransportRow vendor={vendor} />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                          <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                        </div>
                       </div>
                     )}
 
@@ -615,18 +664,22 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {vendor.sareeDrapingPricing && !vendor.makeupPricing && (() => {
               const p = vendor.sareeDrapingPricing
               const fromPrice = getSareeDrapingFromPrice(p)
-              const total = getSareeSelectionTotal(vendor, sareeSel)
+              const baseTotal = getSareeSelectionTotal(vendor, sareeSel)
+              const total = baseTotal != null ? baseTotal + vendorTransportExtra(vendor) : null
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
                   <p className="text-[10px] text-gray-400 mb-3">Choose how many you need — your price updates live</p>
                   <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-2">
-                    <PerLookGuestRows p={p} sel={sareeSel} onUpdate={updateSaree} labels={{ bridal: 'Bridal saree draping', groom: 'Groom panche draping', guest: 'Guest saree draping' }} />
+                    <PerLookGuestRows p={p} sel={sareeSel} onUpdate={updateSaree} labels={{ bridal: 'Bridal saree draping', groom: 'Groom panche draping', guest: 'Guest saree draping', prePleating: 'Saree pre-pleating' }} />
 
                     {total != null && (
-                      <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
-                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                      <div className="pt-3 border-t border-mustard/20 space-y-1">
+                        <TransportRow vendor={vendor} />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                          <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                        </div>
                       </div>
                     )}
 
@@ -654,7 +707,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {vendor.hairStylingPricing && !vendor.makeupPricing && (() => {
               const p = vendor.hairStylingPricing
               const fromPrice = getHairStylingFromPrice(p)
-              const total = getHairSelectionTotal(vendor, hairSel)
+              const baseTotal = getHairSelectionTotal(vendor, hairSel)
+              const total = baseTotal != null ? baseTotal + vendorTransportExtra(vendor) : null
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
@@ -663,9 +717,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                     <PerLookGuestRows p={p} sel={hairSel} onUpdate={updateHair} labels={{ bridal: 'Bridal hairstyling', groom: 'Groom hairstyling', guest: 'Guest hairstyling' }} />
 
                     {total != null && (
-                      <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
-                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                      <div className="pt-3 border-t border-mustard/20 space-y-1">
+                        <TransportRow vendor={vendor} />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                          <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                        </div>
                       </div>
                     )}
 
@@ -701,8 +758,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {vendor.sizes && vendor.sizes.length > 0 && (
               <p className="text-[10px] text-gray-400">Starting price · varies by size below</p>
             )}
-            {/* Transport & logistics sub-line (rate-card listings fold this into their own total) */}
-            {!vendor.rateCard && (vendor.transportIncluded === false && vendor.transportExtra && vendor.transportExtra > 0 ? (
+            {/* Transport & logistics sub-line (per-selection pricing listings fold this into their own total) */}
+            {!vendor.rateCard && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (vendor.transportIncluded === false && vendor.transportExtra && vendor.transportExtra > 0 ? (
               <>
                 <p className="text-[11px] text-gray-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-gray-400">
                   Transport &amp; logistics: <span className="font-semibold text-dark">+{formatINR(vendor.transportExtra)}</span>
