@@ -43,19 +43,12 @@ export function getEffectivePrice(vendor: Vendor | undefined, tierHours?: number
 }
 
 /**
- * Returns the total price the couple should expect to pay, including
- * transport/logistics extras when the vendor doesn't bundle them.
+ * Returns the total price the couple should expect to pay. Transport/logistics is
+ * an informational yes/no flag only (it varies by distance), so it's never added.
  */
 export function getListingTotal(vendor: Vendor | undefined, tierHours?: number): number {
   if (!vendor) return 0
-  const base = getEffectivePrice(vendor, tierHours)
-  const extra = vendor.transportIncluded === false ? (vendor.transportExtra || 0) : 0
-  return base + extra
-}
-
-/** The flat transport/logistics extra a vendor charges (0 when bundled or unset). */
-export function vendorTransportExtra(vendor: Vendor | undefined): number {
-  return vendor?.transportIncluded === false ? (vendor.transportExtra || 0) : 0
+  return getEffectivePrice(vendor, tierHours)
 }
 
 /**
@@ -240,8 +233,7 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
     getSareeSelectionTotal(vendor, category.sareeSelection),
     getHairSelectionTotal(vendor, category.hairSelection),
   ].filter((v): v is number => v != null)
-  // Transport/logistics is a flat per-vendor extra — add it once when anything is picked.
-  return parts.length ? parts.reduce((a, b) => a + b, 0) + vendorTransportExtra(vendor) : null
+  return parts.length ? parts.reduce((a, b) => a + b, 0) : null
 }
 
 export function bgStyle(photo: string): { background: string } {

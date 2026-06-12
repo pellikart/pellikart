@@ -4,7 +4,7 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
 import { uploadPhotos, updateVendorFields } from '@/lib/supabase-db'
 import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
-import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, formatINR } from '@/lib/helpers'
+import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
 import MakeupAddonsEditor from '@/components/MakeupAddonsEditor'
@@ -51,7 +51,6 @@ export default function VendorOnboarding() {
   const [hairAvailable, setHairAvailable] = useState<boolean | null>(null)
   // Single-listing categories: transport & logistics applied to the auto-created listing.
   const [transportIncluded, setTransportIncluded] = useState<boolean | null>(null)
-  const [transportExtra, setTransportExtra] = useState(0)
 
   // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, then category pricing/
   // add-ons (girly), then Portfolio Photos, then Ready. Photos go last so vendors
@@ -182,7 +181,6 @@ export default function VendorOnboarding() {
         includes: [],
         createdAt: new Date().toISOString().split('T')[0],
         transportIncluded: transportIncluded === null ? undefined : transportIncluded,
-        transportExtra: transportIncluded === false && transportExtra > 0 ? transportExtra : undefined,
       }
       const listing: VendorListing = isMehendi
         ? { ...base, name: `${profile.businessName} — Mehendi`, category: 'Mehendi', price: getMehendiFromPrice(mehendiPricing), mehendiPricing, rituals: ['Mehendi'] }
@@ -500,7 +498,7 @@ export default function VendorOnboarding() {
                 <div className="flex gap-1.5 mb-2">
                   <button
                     type="button"
-                    onClick={() => { setTransportIncluded(true); setTransportExtra(0) }}
+                    onClick={() => setTransportIncluded(true)}
                     className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === true ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
                   >Yes</button>
                   <button
@@ -509,21 +507,7 @@ export default function VendorOnboarding() {
                     className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === false ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
                   >No</button>
                 </div>
-                {transportIncluded === false && (
-                  <div>
-                    <label className="text-[10px] text-gray-500 block mb-1">Extra amount couples will pay</label>
-                    <div className="relative max-w-[200px]">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
-                      <input
-                        type="number" min={0} step={500} value={transportExtra || ''}
-                        onChange={(e) => setTransportExtra(Math.max(0, parseInt(e.target.value) || 0))}
-                        placeholder="0"
-                        className="w-full pl-6 pr-2 py-2 rounded-xl border border-card-border text-[11px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
-                    {transportExtra > 0 && <p className="text-[9px] text-gray-400 mt-0.5">Shown to couples as a sub-line: +{formatINR(transportExtra)}</p>}
-                  </div>
-                )}
+                <p className="text-[9px] text-gray-400">Just lets couples know if travel is bundled — no amount, since it varies by distance.</p>
               </div>
             )}
 

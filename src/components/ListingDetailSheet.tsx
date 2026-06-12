@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, vendorTransportExtra } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal } from '@/lib/helpers'
 import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
@@ -43,15 +43,14 @@ function PerLookGuestRows({ p, sel, onUpdate, labels }: {
   )
 }
 
-/** Transport/logistics line shown inside a pricing box: an "included" note, or a
- *  "+₹X" breakdown line (folded into the estimated total). */
+/** Transport/logistics informational note shown inside a pricing box — whether it's
+ *  included or not (no amount; it varies by distance). */
 function TransportRow({ vendor }: { vendor: Vendor }) {
   if (vendor.transportIncluded === true) {
-    return <div className="flex items-center justify-between text-[11px] text-green-600"><span>Transport &amp; logistics included</span><span>✓</span></div>
+    return <div className="text-[11px] text-green-600">Transport &amp; logistics included</div>
   }
-  const extra = vendorTransportExtra(vendor)
-  if (extra > 0) {
-    return <div className="flex items-center justify-between text-[11px] text-gray-600"><span>Transport &amp; logistics</span><span className="font-medium text-dark">+{formatINR(extra)}</span></div>
+  if (vendor.transportIncluded === false) {
+    return <div className="text-[11px] text-gray-500">Transport &amp; logistics not included</div>
   }
   return null
 }
@@ -285,8 +284,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const offered = PHOTOGRAPHY_RATE_ROLES.filter(r => (vendor.rateCard![r.key] ?? 0) > 0)
               const baseHourly = offered.reduce((s, r) => s + (vendor.rateCard![r.key] ?? 0), 0)
               const perHourSelected = offered.reduce((s, r) => s + (vendor.rateCard![r.key] ?? 0) * (teamCounts[r.key] || 0), 0)
-              const transport = vendor.transportIncluded === false ? (vendor.transportExtra || 0) : 0
-              const total = getRateCardTotal(vendor.rateCard, teamCounts, teamHours) + transport
+              const total = getRateCardTotal(vendor.rateCard, teamCounts, teamHours)
               const anyPicked = perHourSelected > 0
               return (
                 <div className="mb-4">
@@ -364,12 +362,6 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                           <span>{formatINR(perHourSelected)}/hr × {teamHours} hr</span>
                           <span className="font-medium text-dark">{formatINR(perHourSelected * teamHours)}</span>
                         </div>
-                        {transport > 0 && (
-                          <div className="flex items-center justify-between text-[11px] text-gray-600">
-                            <span>Transport &amp; logistics</span>
-                            <span className="font-medium text-dark">+{formatINR(transport)}</span>
-                          </div>
-                        )}
                         <div className="flex items-center justify-between pt-1">
                           <span className="text-[12px] font-semibold text-dark">Estimated total</span>
                           <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
@@ -407,7 +399,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const groomOK = (p.groomPrice ?? 0) > 0
               const guestOK = (p.guestPricePerPerson ?? 0) > 0
               const baseTotal = getMehendiSelectionTotal(vendor, mehendiSel)
-              const total = baseTotal != null ? baseTotal + vendorTransportExtra(vendor) : null
+              const total = baseTotal
               const guests = mehendiSel.guests || 0
               return (
                 <div className="mb-4">
@@ -532,7 +524,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const sareeTotal = sp ? getSareeSelectionTotal(vendor, sareeSel) : null
               const hairTotal = hp ? getHairSelectionTotal(vendor, hairSel) : null
               const total = makeupTotal != null || sareeTotal != null || hairTotal != null
-                ? (makeupTotal ?? 0) + (sareeTotal ?? 0) + (hairTotal ?? 0) + vendorTransportExtra(vendor) : null
+                ? (makeupTotal ?? 0) + (sareeTotal ?? 0) + (hairTotal ?? 0) : null
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
@@ -665,7 +657,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const p = vendor.sareeDrapingPricing
               const fromPrice = getSareeDrapingFromPrice(p)
               const baseTotal = getSareeSelectionTotal(vendor, sareeSel)
-              const total = baseTotal != null ? baseTotal + vendorTransportExtra(vendor) : null
+              const total = baseTotal
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
@@ -708,7 +700,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const p = vendor.hairStylingPricing
               const fromPrice = getHairStylingFromPrice(p)
               const baseTotal = getHairSelectionTotal(vendor, hairSel)
-              const total = baseTotal != null ? baseTotal + vendorTransportExtra(vendor) : null
+              const total = baseTotal
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
@@ -758,21 +750,18 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {vendor.sizes && vendor.sizes.length > 0 && (
               <p className="text-[10px] text-gray-400">Starting price · varies by size below</p>
             )}
-            {/* Transport & logistics sub-line (per-selection pricing listings fold this into their own total) */}
-            {!vendor.rateCard && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (vendor.transportIncluded === false && vendor.transportExtra && vendor.transportExtra > 0 ? (
-              <>
-                <p className="text-[11px] text-gray-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-gray-400">
-                  Transport &amp; logistics: <span className="font-semibold text-dark">+{formatINR(vendor.transportExtra)}</span>
-                </p>
-                <p className="text-[12px] font-semibold text-dark mt-1 pt-1 border-t border-card-border/50">
-                  Total: <span className="text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours) + vendor.transportExtra)}</span>
-                </p>
-                <div className="mb-3" />
-              </>
-            ) : vendor.transportIncluded === true ? (
+            {/* Transport & logistics — informational yes/no only (varies by distance, no amount) */}
+            {!vendor.rateCard && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (vendor.transportIncluded === true ? (
               <>
                 <p className="text-[10px] text-green-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0">
                   Transport &amp; logistics included
+                </p>
+                <div className="mb-3" />
+              </>
+            ) : vendor.transportIncluded === false ? (
+              <>
+                <p className="text-[10px] text-gray-500 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-gray-400">
+                  Transport &amp; logistics not included
                 </p>
                 <div className="mb-3" />
               </>
