@@ -37,6 +37,7 @@ export default function LandingNav({ transparentOnTop = false }: Props) {
   const links: { label: string; href: string; external?: boolean }[] = [
     { label: 'Home', href: '/' },
     { label: 'Why us', href: '/why' },
+    { label: 'Showcase', href: '/showcase' },
     { label: 'Try the app', href: '/try' },
     { label: 'App', href: '/app', external: true },
   ]

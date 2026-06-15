@@ -5,6 +5,7 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { AuthProvider, useAuth } from '@/lib/auth-context'
 import { fetchVendor } from '@/lib/supabase-db'
 import LandingPage from './pages/LandingPage'
+import ShowcasePage from './pages/ShowcasePage'
 import TryAppPage from './pages/TryAppPage'
 import WhyUsPage from './pages/WhyUsPage'
 import RoleSelectPage from './pages/RoleSelectPage'
@@ -42,6 +43,17 @@ export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
           <Route path="/share/:boardId" element={<SharedBoardPage />} />
         </Routes>
       </div>
+    )
+  }
+
+  // Marketing showcase route — public, no auth. /showcase is the index;
+  // /showcase/:category renders a single detailed carousel slide.
+  if (pathname === '/showcase' || pathname.startsWith('/showcase/')) {
+    return (
+      <Routes>
+        <Route path="/showcase" element={<ShowcasePage />} />
+        <Route path="/showcase/:slug" element={<ShowcasePage />} />
+      </Routes>
     )
   }
 
