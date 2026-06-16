@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
@@ -17,23 +17,63 @@ const TEAM_SIZES_DEFAULT = ['Solo', '2-5', '5-10', '10+']
 // Decor crews are usually larger — start at 5 and step up by 5 to 30+.
 const TEAM_SIZES_DECOR = ['5', '10', '15', '20', '25', '30+']
 
+// Photos straight off a phone are 5–12 MB and decode to huge bitmaps. Holding ten
+// of them in memory (as File objects + full-res <img> previews) can spike memory
+// enough that mobile browsers discard and reload the tab — which resets the whole
+// onboarding to step 1. Downscale to a web-friendly size on selection so previews
+// and uploads stay small. Falls back to the original file if anything fails.
+async function downscaleImage(file: File, maxDim = 2000, quality = 0.85): Promise<File> {
+  if (!file.type.startsWith('image/')) return file
+  try {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
+    // Already small enough — keep the original (avoids needless re-encode).
+    if (scale === 1 && file.size <= 1_500_000) { bitmap.close(); return file }
+    const w = Math.round(bitmap.width * scale)
+    const h = Math.round(bitmap.height * scale)
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) { bitmap.close(); return file }
+    ctx.drawImage(bitmap, 0, 0, w, h)
+    bitmap.close()
+    const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg', quality))
+    if (!blob) return file
+    return new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })
+  } catch {
+    return file
+  }
+}
+
+// Persist the questionnaire (everything except the binary photo/video files, which
+// can't be serialized) so an accidental refresh or a mobile memory-reload doesn't
+// wipe the vendor's progress. Stored per-tab; cleared once onboarding completes.
+const DRAFT_KEY = 'pellikart:vendor-onboarding-draft'
+function loadDraft(): Record<string, unknown> {
+  try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || '{}') } catch { return {} }
+}
+
 export default function VendorOnboarding() {
   const navigate = useNavigate()
   const { completeVendorOnboarding } = useVendorStore()
 
-  const [step, setStep] = useState(1)
-  const [businessName, setBusinessName] = useState('')
-  const [category, setCategory] = useState('')
-  const [area, setArea] = useState('')
-  const [phone, setPhone] = useState('')
-  const [secondaryPhone, setSecondaryPhone] = useState('')
-  const [whatsapp, setWhatsapp] = useState('')
-  const [email, setEmail] = useState('')
-  const [instagram, setInstagram] = useState('')
-  const [sameAsPhone, setSameAsPhone] = useState(true)
-  const [description, setDescription] = useState('')
-  const [experience, setExperience] = useState('')
-  const [teamSize, setTeamSize] = useState('')
+  // Restore any in-progress draft (text fields, selections, pricing, current step)
+  // so a refresh / mobile memory-reload resumes instead of starting over.
+  const draft = loadDraft()
+  const [step, setStep] = useState<number>(() => (draft.step as number) ?? 1)
+  const [businessName, setBusinessName] = useState((draft.businessName as string) ?? '')
+  const [category, setCategory] = useState((draft.category as string) ?? '')
+  const [area, setArea] = useState((draft.area as string) ?? '')
+  const [phone, setPhone] = useState((draft.phone as string) ?? '')
+  const [secondaryPhone, setSecondaryPhone] = useState((draft.secondaryPhone as string) ?? '')
+  const [whatsapp, setWhatsapp] = useState((draft.whatsapp as string) ?? '')
+  const [email, setEmail] = useState((draft.email as string) ?? '')
+  const [instagram, setInstagram] = useState((draft.instagram as string) ?? '')
+  const [sameAsPhone, setSameAsPhone] = useState((draft.sameAsPhone as boolean) ?? true)
+  const [description, setDescription] = useState((draft.description as string) ?? '')
+  const [experience, setExperience] = useState((draft.experience as string) ?? '')
+  const [teamSize, setTeamSize] = useState((draft.teamSize as string) ?? '')
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [videoFiles, setVideoFiles] = useState<File[]>([])
@@ -41,17 +81,33 @@ export default function VendorOnboarding() {
   const [uploading, setUploading] = useState(false)
   // Single-listing categories (Mehendi, Makeup) author their pricing here in
   // onboarding and auto-create one listing on go-live.
-  const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
-  const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
-  const [makeupAddons, setMakeupAddons] = useState<Record<string, number>>({})
-  const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
+  const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(() => (draft.mehendiPricing as MehendiPricing) ?? emptyMehendiPricing())
+  const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(() => (draft.makeupPricing as MakeupPricing) ?? emptyMakeupPricing())
+  const [makeupAddons, setMakeupAddons] = useState<Record<string, number>>(() => (draft.makeupAddons as Record<string, number>) ?? {})
+  const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(() => (draft.sareePricing as SareeDrapingPricing) ?? emptySareeDrapingPricing())
   // Makeup-only: some makeup artists also offer mehendi / saree draping / hairstyling as add-ons.
-  const [sareeAvailable, setSareeAvailable] = useState<boolean | null>(null)
-  const [hairPricing, setHairPricing] = useState<HairStylingPricing>(emptyHairStylingPricing())
-  const [hairAvailable, setHairAvailable] = useState<boolean | null>(null)
-  const [mehendiAvailable, setMehendiAvailable] = useState<boolean | null>(null)
+  const [sareeAvailable, setSareeAvailable] = useState<boolean | null>((draft.sareeAvailable as boolean | null) ?? null)
+  const [hairPricing, setHairPricing] = useState<HairStylingPricing>(() => (draft.hairPricing as HairStylingPricing) ?? emptyHairStylingPricing())
+  const [hairAvailable, setHairAvailable] = useState<boolean | null>((draft.hairAvailable as boolean | null) ?? null)
+  const [mehendiAvailable, setMehendiAvailable] = useState<boolean | null>((draft.mehendiAvailable as boolean | null) ?? null)
   // Single-listing categories: transport & logistics applied to the auto-created listing.
-  const [transportIncluded, setTransportIncluded] = useState<boolean | null>(null)
+  const [transportIncluded, setTransportIncluded] = useState<boolean | null>((draft.transportIncluded as boolean | null) ?? null)
+
+  // Keep the draft in sessionStorage in sync with the questionnaire. Photos/videos
+  // are intentionally excluded (binary files can't be serialized) — on a reload the
+  // vendor keeps every text/pricing answer and just re-adds media on the last step.
+  useEffect(() => {
+    const snapshot = {
+      step, businessName, category, area, phone, secondaryPhone, whatsapp, email,
+      instagram, sameAsPhone, description, experience, teamSize, mehendiPricing,
+      makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
+      hairAvailable, mehendiAvailable, transportIncluded,
+    }
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot)) } catch { /* quota/serialize errors are non-fatal */ }
+  }, [step, businessName, category, area, phone, secondaryPhone, whatsapp, email,
+    instagram, sameAsPhone, description, experience, teamSize, mehendiPricing,
+    makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
+    hairAvailable, mehendiAvailable, transportIncluded])
 
   // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, then category pricing/
   // add-ons (girly), then Portfolio Photos, then Ready. Photos go last so vendors
@@ -73,13 +129,15 @@ export default function VendorOnboarding() {
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
   function back() { setStep((s) => Math.max(s - 1, 1)) }
 
-  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files) {
-      const files = Array.from(e.target.files)
-      setPhotoFiles(prev => [...prev, ...files].slice(0, 10))
-      const previews = files.map(f => URL.createObjectURL(f))
-      setPhotoPreviews(prev => [...prev, ...previews].slice(0, 10))
-    }
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files) return
+    const incoming = Array.from(e.target.files)
+    e.target.value = '' // allow re-picking the same file and release the input's hold on it
+    // Downscale before storing so we never hold full-res phone photos in memory.
+    const files = await Promise.all(incoming.map(f => downscaleImage(f)))
+    setPhotoFiles(prev => [...prev, ...files].slice(0, 10))
+    const previews = files.map(f => URL.createObjectURL(f))
+    setPhotoPreviews(prev => [...prev, ...previews].slice(0, 10))
   }
 
   function removePhoto(index: number) {
@@ -195,6 +253,7 @@ export default function VendorOnboarding() {
     }
 
     setUploading(false)
+    try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
     navigate('/vendor')
   }
 
@@ -343,7 +402,7 @@ export default function VendorOnboarding() {
             <div className="grid grid-cols-3 gap-2 mb-4">
               {photoPreviews.map((p, i) => (
                 <div key={i} className="aspect-square rounded-xl overflow-hidden relative group">
-                  <img src={p} alt="" className="w-full h-full object-cover" />
+                  <img src={p} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   {i === 0 && <span className="absolute top-1 left-1 bg-mustard text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">COVER</span>}
                   <button
                     onClick={() => removePhoto(i)}
