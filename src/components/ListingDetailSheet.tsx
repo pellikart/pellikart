@@ -4,6 +4,7 @@ import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
 import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal } from '@/lib/helpers'
 import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
+import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
@@ -61,6 +62,88 @@ function PerLookGuestRows({ p, sel, onUpdate, labels }: {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/** Bridal coverage+design, groom, and guest controls for Mehendi — shared by the
+ *  standalone Mehendi listing and the Makeup add-on section (some makeup artists
+ *  also offer mehendi). */
+function MehendiControls({ p, sel, onUpdate }: {
+  p: MehendiPricing
+  sel: { coverage?: string; design?: string; groom?: boolean; guests?: number }
+  onUpdate: (patch: { coverage?: string; design?: string; groom?: boolean; guests?: number }) => void
+}) {
+  const offeredCoverages = MEHENDI_COVERAGES.filter(cov => MEHENDI_DESIGNS.some(d => (p.bridal?.[cov]?.[d] ?? 0) > 0))
+  const designsFor = (cov?: string) => cov ? MEHENDI_DESIGNS.filter(d => (p.bridal?.[cov]?.[d] ?? 0) > 0) : []
+  const groomOK = (p.groomPrice ?? 0) > 0
+  const guestOK = (p.guestPricePerPerson ?? 0) > 0
+  const guests = sel.guests || 0
+  return (
+    <div className="space-y-3">
+      {/* Bridal coverage + design */}
+      {p.bridalOffered && offeredCoverages.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Bridal mehendi</p>
+          <p className="text-[10px] text-gray-500 mb-1">Coverage</p>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {offeredCoverages.map(cov => (
+              <button
+                key={cov}
+                type="button"
+                onClick={() => onUpdate({ coverage: cov, design: (designsFor(cov) as string[]).includes(sel.design || '') ? sel.design : undefined })}
+                className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${sel.coverage === cov ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600'}`}
+              >{cov}</button>
+            ))}
+          </div>
+          {sel.coverage && (
+            <>
+              <p className="text-[10px] text-gray-500 mb-1">Design</p>
+              <div className="flex flex-wrap gap-1.5">
+                {designsFor(sel.coverage).map(d => {
+                  const price = p.bridal?.[sel.coverage!]?.[d] ?? 0
+                  const isSel = sel.design === d
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => onUpdate({ design: d })}
+                      className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${isSel ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600'}`}
+                    >{mehendiDesignLabel(d)} · {formatINR(price)}</button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Groom */}
+      {groomOK && (
+        <button
+          type="button"
+          onClick={() => onUpdate({ groom: !sel.groom })}
+          className={`w-full flex items-center justify-between py-2 px-3 rounded-lg text-left transition-all ${sel.groom ? 'border-2 border-magenta bg-magenta-light' : 'border border-card-border bg-white'}`}
+        >
+          <span className="text-[12px] font-medium text-dark">{sel.groom ? '✓ ' : ''}Groom mehendi</span>
+          <span className="text-[12px] font-semibold text-magenta">{formatINR(p.groomPrice!)}</span>
+        </button>
+      )}
+
+      {/* Guests */}
+      {guestOK && (
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[12px] font-medium text-dark">Guest mehendi</p>
+            <p className="text-[10px] text-gray-500">{formatINR(p.guestPricePerPerson!)} / guest</p>
+          </div>
+          <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
+            <button type="button" onClick={() => onUpdate({ guests: Math.max(0, guests - 1) })} disabled={guests <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
+            <StepperValueInput value={guests} onChange={v => onUpdate({ guests: v })} />
+            <button type="button" onClick={() => onUpdate({ guests: guests + 1 })} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -170,7 +253,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   function addMakeup() {
     if (!ritualId || !categoryId) return
     selectMakeupOptions(ritualId, categoryId, makeupSel)
-    // Makeup artists can also offer saree draping / hairstyling — persist those too.
+    // Makeup artists can also offer mehendi / saree draping / hairstyling — persist those too.
+    if (vendor.mehendiPricing) selectMehendiOptions(ritualId, categoryId, mehendiSel)
     if (vendor.sareeDrapingPricing) selectSareeOptions(ritualId, categoryId, sareeSel)
     if (vendor.hairStylingPricing) selectHairOptions(ritualId, categoryId, hairSel)
     selectVendor(ritualId, categoryId, vendor.id)
@@ -412,17 +496,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )
             })()}
 
-            {/* Mehendi — interactive pricing picker (bridal coverage+design, groom, guests) */}
-            {vendor.mehendiPricing && (() => {
+            {/* Mehendi — standalone listing (a Makeup listing folds mehendi into its block below) */}
+            {vendor.mehendiPricing && !vendor.makeupPricing && (() => {
               const p = vendor.mehendiPricing
               const fromPrice = getMehendiFromPrice(p)
-              const offeredCoverages = MEHENDI_COVERAGES.filter(cov => MEHENDI_DESIGNS.some(d => (p.bridal?.[cov]?.[d] ?? 0) > 0))
-              const designsFor = (cov?: string) => cov ? MEHENDI_DESIGNS.filter(d => (p.bridal?.[cov]?.[d] ?? 0) > 0) : []
-              const groomOK = (p.groomPrice ?? 0) > 0
-              const guestOK = (p.guestPricePerPerson ?? 0) > 0
               const baseTotal = getMehendiSelectionTotal(vendor, mehendiSel)
               const total = baseTotal
-              const guests = mehendiSel.guests || 0
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
@@ -434,69 +513,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                   )}
 
                   <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-3">
-                    {/* Bridal coverage + design */}
-                    {p.bridalOffered && offeredCoverages.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Bridal mehendi</p>
-                        <p className="text-[10px] text-gray-500 mb-1">Coverage</p>
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {offeredCoverages.map(cov => (
-                            <button
-                              key={cov}
-                              type="button"
-                              onClick={() => updateMehendi({ coverage: cov, design: (designsFor(cov) as string[]).includes(mehendiSel.design || '') ? mehendiSel.design : undefined })}
-                              className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${mehendiSel.coverage === cov ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600'}`}
-                            >{cov}</button>
-                          ))}
-                        </div>
-                        {mehendiSel.coverage && (
-                          <>
-                            <p className="text-[10px] text-gray-500 mb-1">Design</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {designsFor(mehendiSel.coverage).map(d => {
-                                const price = p.bridal?.[mehendiSel.coverage!]?.[d] ?? 0
-                                const sel = mehendiSel.design === d
-                                return (
-                                  <button
-                                    key={d}
-                                    type="button"
-                                    onClick={() => updateMehendi({ design: d })}
-                                    className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${sel ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600'}`}
-                                  >{mehendiDesignLabel(d)} · {formatINR(price)}</button>
-                                )
-                              })}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Groom */}
-                    {groomOK && (
-                      <button
-                        type="button"
-                        onClick={() => updateMehendi({ groom: !mehendiSel.groom })}
-                        className={`w-full flex items-center justify-between py-2 px-3 rounded-lg text-left transition-all ${mehendiSel.groom ? 'border-2 border-magenta bg-magenta-light' : 'border border-card-border bg-white'}`}
-                      >
-                        <span className="text-[12px] font-medium text-dark">{mehendiSel.groom ? '✓ ' : ''}Groom mehendi</span>
-                        <span className="text-[12px] font-semibold text-magenta">{formatINR(p.groomPrice!)}</span>
-                      </button>
-                    )}
-
-                    {/* Guests */}
-                    {guestOK && (
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <p className="text-[12px] font-medium text-dark">Guest mehendi</p>
-                          <p className="text-[10px] text-gray-500">{formatINR(p.guestPricePerPerson!)} / guest</p>
-                        </div>
-                        <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
-                          <button type="button" onClick={() => updateMehendi({ guests: Math.max(0, guests - 1) })} disabled={guests <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
-                          <StepperValueInput value={guests} onChange={v => updateMehendi({ guests: v })} />
-                          <button type="button" onClick={() => updateMehendi({ guests: guests + 1 })} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
-                        </div>
-                      </div>
-                    )}
+                    <MehendiControls p={p} sel={mehendiSel} onUpdate={updateMehendi} />
 
                     {/* Total */}
                     {total != null && (
@@ -540,13 +557,15 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const guestOK = (p.guestPricePerPerson ?? 0) > 0
               const makeupTotal = getMakeupSelectionTotal(vendor, makeupSel)
               const guests = makeupSel.guests || 0
-              // Optional add-ons (some makeup artists also offer saree draping / hairstyling).
+              // Optional add-ons (some makeup artists also offer mehendi / saree draping / hairstyling).
+              const mp = vendor.mehendiPricing
               const sp = vendor.sareeDrapingPricing
               const hp = vendor.hairStylingPricing
+              const mehendiTotal = mp ? getMehendiSelectionTotal(vendor, mehendiSel) : null
               const sareeTotal = sp ? getSareeSelectionTotal(vendor, sareeSel) : null
               const hairTotal = hp ? getHairSelectionTotal(vendor, hairSel) : null
-              const total = makeupTotal != null || sareeTotal != null || hairTotal != null
-                ? (makeupTotal ?? 0) + (sareeTotal ?? 0) + (hairTotal ?? 0) : null
+              const total = makeupTotal != null || mehendiTotal != null || sareeTotal != null || hairTotal != null
+                ? (makeupTotal ?? 0) + (mehendiTotal ?? 0) + (sareeTotal ?? 0) + (hairTotal ?? 0) : null
               return (
                 <div className="mb-4">
                   <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
@@ -625,6 +644,14 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                             )
                           })}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Mehendi add-on (this makeup artist also offers it) */}
+                    {mp && (
+                      <div className="pt-3 border-t border-mustard/20">
+                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Mehendi <span className="text-gray-400 font-normal normal-case">· add-on</span></p>
+                        <MehendiControls p={mp} sel={mehendiSel} onUpdate={updateMehendi} />
                       </div>
                     )}
 

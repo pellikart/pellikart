@@ -29,10 +29,11 @@ export default function VendorEditListing() {
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
   const [makeupAddons, setMakeupAddons] = useState<Record<string, number>>({})
   const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
-  // Makeup-only: whether this makeup artist also offers saree draping / hairstyling as add-ons.
+  // Makeup-only: whether this makeup artist also offers mehendi / saree draping / hairstyling as add-ons.
   const [sareeAddon, setSareeAddon] = useState(false)
   const [hairPricing, setHairPricing] = useState<HairStylingPricing>(emptyHairStylingPricing())
   const [hairAddon, setHairAddon] = useState(false)
+  const [mehendiAddon, setMehendiAddon] = useState(false)
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [transportIncluded, setTransportIncluded] = useState<boolean | null>(null)
@@ -51,6 +52,7 @@ export default function VendorEditListing() {
       setRateCard(listing.rateCard || {})
       setAvailableHours(listing.availableHours || [])
       setMehendiPricing(listing.mehendiPricing || emptyMehendiPricing())
+      setMehendiAddon(listing.category === 'Makeup' && !!listing.mehendiPricing)
       setMakeupPricing(listing.makeupPricing || emptyMakeupPricing())
       setMakeupAddons(listing.makeupPricing?.addons || {})
       setSareePricing(listing.sareeDrapingPricing || emptySareeDrapingPricing())
@@ -145,7 +147,9 @@ export default function VendorEditListing() {
       name, photos, coverPhotoIndex: coverIndex, style, price: effectivePrice, rituals, includes, categoryFields,
       rateCard: category === 'Photography' ? rateCard : undefined,
       availableHours: category === 'Photography' && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
-      mehendiPricing: category === 'Mehendi' ? mehendiPricing : undefined,
+      mehendiPricing: category === 'Mehendi' ? mehendiPricing
+        : category === 'Makeup' && mehendiAddon ? mehendiPricing
+        : undefined,
       makeupPricing: category === 'Makeup' ? { ...makeupPricing, addons: makeupAddons } : undefined,
       sareeDrapingPricing: category === 'Saree Draping' ? sareePricing
         : category === 'Makeup' && sareeAddon ? sareePricing
@@ -343,6 +347,14 @@ export default function VendorEditListing() {
                 <button type="button" onClick={() => setHairAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!hairAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
               </div>
               {hairAddon && <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />}
+            </div>
+            <div className="pt-2 border-t border-card-border">
+              <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Mehendi?</label>
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => setMehendiAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${mehendiAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
+                <button type="button" onClick={() => setMehendiAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!mehendiAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
+              </div>
+              {mehendiAddon && <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />}
             </div>
           </div>
         ) : category === 'Saree Draping' ? (

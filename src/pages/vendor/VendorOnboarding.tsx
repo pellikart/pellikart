@@ -45,10 +45,11 @@ export default function VendorOnboarding() {
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
   const [makeupAddons, setMakeupAddons] = useState<Record<string, number>>({})
   const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
-  // Makeup-only: some makeup artists also offer saree draping / hairstyling as add-ons.
+  // Makeup-only: some makeup artists also offer mehendi / saree draping / hairstyling as add-ons.
   const [sareeAvailable, setSareeAvailable] = useState<boolean | null>(null)
   const [hairPricing, setHairPricing] = useState<HairStylingPricing>(emptyHairStylingPricing())
   const [hairAvailable, setHairAvailable] = useState<boolean | null>(null)
+  const [mehendiAvailable, setMehendiAvailable] = useState<boolean | null>(null)
   // Single-listing categories: transport & logistics applied to the auto-created listing.
   const [transportIncluded, setTransportIncluded] = useState<boolean | null>(null)
 
@@ -65,6 +66,7 @@ export default function VendorOnboarding() {
   const makeupAddonsStep = isMakeup ? _s++ : -1        // Makeup only — add-ons (lashes, etc.)
   const sareeAddonStep = isMakeup ? _s++ : -1          // Makeup only
   const hairAddonStep = isMakeup ? _s++ : -1           // Makeup only
+  const mehendiAddonStep = isMakeup ? _s++ : -1        // Makeup only
   const portfolioStep = _s++                           // photos & videos — always, near the end
   const totalSteps = _s                                // Ready
 
@@ -185,7 +187,7 @@ export default function VendorOnboarding() {
       const listing: VendorListing = isMehendi
         ? { ...base, name: `${profile.businessName} — Mehendi`, category: 'Mehendi', price: getMehendiFromPrice(mehendiPricing), mehendiPricing, rituals: ['Mehendi'] }
         : isMakeup
-        ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricing), makeupPricing: { ...makeupPricing, addons: makeupAddons }, sareeDrapingPricing: sareeAvailable ? sareePricing : undefined, hairStylingPricing: hairAvailable ? hairPricing : undefined, rituals: [] }
+        ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricing), makeupPricing: { ...makeupPricing, addons: makeupAddons }, mehendiPricing: mehendiAvailable ? mehendiPricing : undefined, sareeDrapingPricing: sareeAvailable ? sareePricing : undefined, hairStylingPricing: hairAvailable ? hairPricing : undefined, rituals: [] }
         : isSaree
         ? { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
         : { ...base, name: `${profile.businessName} — Hair Stylist`, category: 'Hair Stylist', price: getHairStylingFromPrice(hairPricing), hairStylingPricing: hairPricing, rituals: [] }
@@ -459,6 +461,30 @@ export default function VendorOnboarding() {
             </div>
             {hairAvailable === true && (
               <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />
+            )}
+            <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
+          </div>
+        )}
+
+        {/* Screen 9 (Makeup only): mehendi add-on */}
+        {isMakeup && step === mehendiAddonStep && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[22px] font-bold text-dark">Do you also offer Mehendi?</h1>
+            <p className="text-[12px] text-gray-400 mt-1 mb-5">Many makeup artists offer mehendi too. Add it and couples can book both together.</p>
+            <div className="flex gap-2 mb-5">
+              <button
+                type="button"
+                onClick={() => setMehendiAvailable(true)}
+                className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium transition-all ${mehendiAvailable === true ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+              >Yes</button>
+              <button
+                type="button"
+                onClick={() => setMehendiAvailable(false)}
+                className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium transition-all ${mehendiAvailable === false ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+              >No</button>
+            </div>
+            {mehendiAvailable === true && (
+              <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />
             )}
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
           </div>

@@ -318,7 +318,17 @@ export const mockVendors: Record<string, Vendor> = {
       guestPricePerPerson: 2500,
       addons: { 'Hair extensions': 2000, 'False lashes': 800, 'Contact lens': 1200, 'Nail paint': 500 },
     },
-    // This makeup artist also offers saree draping + hairstyling as add-ons.
+    // This makeup artist also offers mehendi + saree draping + hairstyling as add-ons.
+    mehendiPricing: {
+      bridalOffered: true,
+      bridal: {
+        '2 Hands': { 'Minimal': 4500, 'Arabic': 7500, 'Heavy Bridal': 13000 },
+        'Both Hands & Legs': { 'Minimal': 7500, 'Arabic': 13000, 'Heavy Bridal': 22000 },
+      },
+      groomPrice: 2500,
+      guestPricePerPerson: 450,
+      conesIncluded: true,
+    },
     sareeDrapingPricing: { bridalPricePerLook: 3500, groomPricePerLook: 2500, guestPricePerPerson: 1000 },
     hairStylingPricing: { bridalPricePerLook: 4000, groomPricePerLook: 1800, guestPricePerPerson: 1200 },
   },
