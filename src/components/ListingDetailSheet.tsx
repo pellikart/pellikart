@@ -8,6 +8,28 @@ import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
 
+/** Editable number display for a +/− stepper — lets users type a value directly
+ *  instead of only tapping the buttons. Shows blank with a "0" placeholder when
+ *  empty so the leading zero never gets in the way of typing. */
+function StepperValueInput({ value, onChange, max }: { value: number; onChange: (v: number) => void; max?: number }) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={value === 0 ? '' : String(value)}
+      placeholder="0"
+      onChange={e => {
+        const digits = e.target.value.replace(/[^0-9]/g, '')
+        let n = digits === '' ? 0 : parseInt(digits, 10)
+        if (max != null) n = Math.min(max, n)
+        onChange(Math.max(0, n))
+      }}
+      onFocus={e => e.target.select()}
+      className="w-8 text-center text-[12px] font-semibold text-dark bg-transparent outline-none focus:bg-mustard-light/30"
+    />
+  )
+}
+
 /** Per-look/guest stepper rows (bridal/groom/guest), shared by Saree Draping and
  *  Hair Styling — both standalone listings and Makeup add-on sections. */
 function PerLookGuestRows({ p, sel, onUpdate, labels }: {
@@ -33,7 +55,7 @@ function PerLookGuestRows({ p, sel, onUpdate, labels }: {
             </div>
             <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
               <button type="button" onClick={() => onUpdate({ [r.key]: Math.max(0, value - 1) })} disabled={value <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
-              <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{value}</span>
+              <StepperValueInput value={value} onChange={v => onUpdate({ [r.key]: v })} />
               <button type="button" onClick={() => onUpdate({ [r.key]: value + 1 })} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
             </div>
           </div>
@@ -470,7 +492,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                         </div>
                         <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
                           <button type="button" onClick={() => updateMehendi({ guests: Math.max(0, guests - 1) })} disabled={guests <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
-                          <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{guests}</span>
+                          <StepperValueInput value={guests} onChange={v => updateMehendi({ guests: v })} />
                           <button type="button" onClick={() => updateMehendi({ guests: guests + 1 })} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
                         </div>
                       </div>
@@ -546,7 +568,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                                 </div>
                                 <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
                                   <button type="button" onClick={() => setEventLooks(e, looks - 1)} disabled={looks <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
-                                  <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{looks}</span>
+                                  <StepperValueInput value={looks} onChange={v => setEventLooks(e, v)} />
                                   <button type="button" onClick={() => setEventLooks(e, looks + 1)} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
                                 </div>
                               </div>
@@ -577,7 +599,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                         </div>
                         <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
                           <button type="button" onClick={() => updateMakeup({ guests: Math.max(0, guests - 1) })} disabled={guests <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
-                          <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{guests}</span>
+                          <StepperValueInput value={guests} onChange={v => updateMakeup({ guests: v })} />
                           <button type="button" onClick={() => updateMakeup({ guests: guests + 1 })} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
                         </div>
                       </div>
