@@ -45,7 +45,7 @@ export default function WhyUsPage() {
 
           <div className="text-center mt-12">
             <Link to="/try" className="inline-block bg-magenta text-white font-semibold px-6 py-3.5 rounded-xl hover:opacity-90 transition-opacity">
-              Try the app →
+              How it works →
             </Link>
           </div>
         </div>

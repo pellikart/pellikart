@@ -63,7 +63,7 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <Link to="/try" className="bg-magenta text-white font-semibold px-6 py-3.5 rounded-xl text-center hover:opacity-90 transition-opacity">
-                Try the app →
+                How it works →
               </Link>
               <a href="#waitlist" className="border-2 border-magenta text-magenta font-semibold px-6 py-3.5 rounded-xl text-center hover:bg-magenta-light transition-colors">
                 Join early access
@@ -264,7 +264,7 @@ export default function LandingPage() {
             <div>
               <h4 className="text-[12px] font-bold text-dark uppercase tracking-wider mb-3">Product</h4>
               <ul className="space-y-2">
-                <li><Link to="/try" className="text-[13px] text-gray-500 hover:text-magenta">Try the app</Link></li>
+                <li><Link to="/try" className="text-[13px] text-gray-500 hover:text-magenta">How it works</Link></li>
                 <li><Link to="/why" className="text-[13px] text-gray-500 hover:text-magenta">Why us</Link></li>
                 <li><a href="#" className="text-[13px] text-gray-500 hover:text-magenta">Subscription tiers</a></li>
               </ul>
@@ -291,11 +291,12 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Mobile sticky CTA bar */}
+      {/* Mobile sticky CTA bar — opens the real app (/app needs a full page reload
+          to switch the BrowserRouter basename, so use a plain anchor). */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-card-border p-3 z-40 shadow-lg">
-        <Link to="/try" className="block w-full bg-magenta text-white font-semibold py-3 rounded-xl text-center text-[14px]">
-          Try the app →
-        </Link>
+        <a href="/app" className="block w-full bg-magenta text-white font-semibold py-3 rounded-xl text-center text-[14px]">
+          Go to the app →
+        </a>
       </div>
     </div>
   )
