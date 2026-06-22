@@ -351,8 +351,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={onClose}>
-        <div className="bg-white rounded-t-2xl w-full max-w-[480px] max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center md:items-stretch md:justify-end" onClick={onClose}>
+        <div className="bg-white rounded-t-2xl w-full max-w-[480px] max-h-[85vh] overflow-y-auto md:rounded-t-none md:rounded-l-2xl md:max-w-[560px] md:max-h-none md:h-dvh" onClick={(e) => e.stopPropagation()}>
           {/* Hero */}
           <div className="h-44 relative" style={bgStyle(vendor.photo)}>
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />

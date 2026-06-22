@@ -179,6 +179,7 @@ export const useStore = create<AppState & LiveModeState & {
   subscription: 'free',
   vendors: cloneVendors(),
   ritualBoards: cloneBoards(),
+  activeBoardId: null,
   milestoneProgress: {},
   trialSessions: {},
   trialsUsed: {},
@@ -1129,4 +1130,6 @@ export const useStore = create<AppState & LiveModeState & {
       })
     }
   },
+
+  setActiveBoardId: (id) => set({ activeBoardId: id }),
 }));

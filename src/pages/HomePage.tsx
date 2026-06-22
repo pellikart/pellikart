@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import GrandTotalBar from '@/components/GrandTotalBar'
 import UnlockBanner from '@/components/UnlockBanner'
@@ -6,12 +7,21 @@ import TrialsBanner from '@/components/TrialsBanner'
 import RitualBoard from '@/components/RitualBoard'
 
 export default function HomePage() {
-  const { ritualBoards, vendors, addRitualBoard } = useStore()
+  const { ritualBoards, vendors, addRitualBoard, activeBoardId, setActiveBoardId } = useStore()
   const [showAddBoard, setShowAddBoard] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDateStart, setNewDateStart] = useState('')
   const [newDateEnd, setNewDateEnd] = useState('')
-  const [activeBoardId, setActiveBoardId] = useState<string | null>(ritualBoards[0]?.id ?? null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // The desktop sidebar's "New event" button deep-links here with ?add=1.
+  useEffect(() => {
+    if (searchParams.get('add') === '1') {
+      setShowAddBoard(true)
+      searchParams.delete('add')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   // Keep active tab valid as boards change (e.g. after creating a new one or deleting)
   useEffect(() => {
@@ -45,9 +55,9 @@ export default function HomePage() {
       <UnlockBanner />
       <TrialsBanner />
 
-      {/* Ritual board tabs */}
+      {/* Ritual board tabs — mobile only; the desktop sidebar replaces these */}
       {ritualBoards.length > 0 && (
-        <div className="mt-3 px-4 overflow-x-auto no-scrollbar">
+        <div className="mt-3 px-4 overflow-x-auto no-scrollbar md:hidden">
           <div className="flex items-center gap-2 w-max">
             {ritualBoards.map((b) => {
               const active = b.id === activeBoard?.id
