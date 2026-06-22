@@ -159,6 +159,8 @@ export interface AppState {
   onboardingData: OnboardingData | null;
   subscription: SubscriptionTier;
   ritualBoards: RitualBoard[];
+  // The event board currently in focus (shared between the desktop sidebar and HomePage).
+  activeBoardId: string | null;
   vendors: Record<string, Vendor>;
   milestoneProgress: Record<string, number>;
   // Trial sessions: keyed by "ritualId-categoryId-vendorId"
@@ -198,6 +200,7 @@ export interface AppState {
   getMaxTrials: () => number;
   addDesignAsVendor: (design: Design) => void;
   addRitualBoard: (name: string, dateStart?: string, dateEnd?: string) => void;
+  setActiveBoardId: (id: string | null) => void;
 }
 
 // Re-export vendor types for convenience

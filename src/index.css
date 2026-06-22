@@ -52,6 +52,20 @@ body {
   grid-row: span 2;
 }
 
+/* Desktop: the explore/board grid fans out to more columns instead of
+   staying a 2-wide phone column. Mobile (<768px) is untouched. */
+@media (min-width: 768px) {
+  .masonry-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}
+@media (min-width: 1280px) {
+  .masonry-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .page-enter {
   animation: slideIn 0.2s ease-out;
 }

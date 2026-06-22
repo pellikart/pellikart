@@ -29,6 +29,7 @@ import VendorListings from './pages/vendor/VendorListings'
 import VendorAddListing from './pages/vendor/VendorAddListing'
 import VendorEditListing from './pages/vendor/VendorEditListing'
 import VendorBottomNav from './components/VendorBottomNav'
+import CoupleShell from './components/CoupleShell'
 
 export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
   const { pathname, search } = useLocation()
@@ -229,7 +230,7 @@ function AppRoutes() {
 
   // User flow
   return (
-    <div className="app-container">
+    <CoupleShell>
       <Routes>
         <Route path="/onboarding" element={onboardingComplete ? <Navigate to="/?embed=1" /> : <OnboardingPage />} />
         <Route path="/" element={onboardingComplete ? <HomePage /> : <Navigate to="/onboarding" />} />
@@ -237,6 +238,6 @@ function AppRoutes() {
         <Route path="/booking/:ritualId" element={onboardingComplete ? <BookingPage /> : <Navigate to="/onboarding" />} />
         <Route path="*" element={<Navigate to="/?embed=1" />} />
       </Routes>
-    </div>
+    </CoupleShell>
   )
 }
