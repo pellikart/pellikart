@@ -41,8 +41,13 @@ function distinctValues(vendors: Vendor[], key: string): string[] {
 export function buildFilterDefs(categoryLabel: string, vendors: Vendor[]): { primary: FilterDef[]; more: FilterDef[] } {
   const config = getListingConfig(categoryLabel)
   const allFields = config.steps.flatMap((s) => s.fields)
-  const usefulMain = allFields.filter((f) => !f.visibleWhen && vendors.some((v) => hasValue(v, f.key)))
-  const usefulConditional = allFields.filter((f) => f.visibleWhen && vendors.some((v) => hasValue(v, f.key)))
+  const nonConditional = allFields.filter((f) => !f.visibleWhen)
+  const conditional = allFields.filter((f) => f.visibleWhen)
+  // Default chips prefer params vendors actually filled, padded with the rest
+  // up to the limit. Everything else — including params no vendor filled yet —
+  // is still offered under "Other filters" so the full parameter list is there.
+  const filled = (f: SelectField) => vendors.some((v) => hasValue(v, f.key))
+  const filledFirst = [...nonConditional.filter(filled), ...nonConditional.filter((f) => !filled(f))]
 
   const toDef = (f: SelectField): FilterDef | null => {
     if (f.type === 'single' || f.type === 'multi') {
@@ -54,8 +59,9 @@ export function buildFilterDefs(categoryLabel: string, vendors: Vendor[]): { pri
     return null
   }
 
-  const primaryFields = usefulMain.slice(0, DEFAULT_CATEGORY_FILTERS)
-  const moreFields = [...usefulMain.slice(DEFAULT_CATEGORY_FILTERS), ...usefulConditional]
+  const primaryFields = filledFirst.slice(0, DEFAULT_CATEGORY_FILTERS)
+  const primarySet = new Set(primaryFields)
+  const moreFields = [...filledFirst.filter((f) => !primarySet.has(f)), ...conditional]
 
   const primary: FilterDef[] = [
     { kind: 'price', key: 'price', label: 'Price', min: config.priceRange.min, max: config.priceRange.max, step: config.priceRange.step },
@@ -63,12 +69,11 @@ export function buildFilterDefs(categoryLabel: string, vendors: Vendor[]): { pri
     ...(primaryFields.map(toDef).filter(Boolean) as FilterDef[]),
   ]
   const usefulInclusions = config.inclusions.filter((inc) => vendors.some((v) => v.includes?.includes(inc)))
-  if (usefulInclusions.length) primary.push({ kind: 'inclusions', key: '__inclusions', label: 'Inclusions', options: usefulInclusions })
+  primary.push({ kind: 'inclusions', key: '__inclusions', label: 'Inclusions', options: usefulInclusions.length ? usefulInclusions : config.inclusions })
 
   const more: FilterDef[] = moreFields.map(toDef).filter(Boolean) as FilterDef[]
   // Style is a generic parameter on every category — surface it under "Other".
-  const usefulStyles = config.styles.filter((st) => vendors.some((v) => v.style === st))
-  if (usefulStyles.length) more.unshift({ kind: 'options', key: '__style', label: 'Style', options: usefulStyles, multiValue: false })
+  if (config.styles.length) more.unshift({ kind: 'options', key: '__style', label: 'Style', options: config.styles, multiValue: false })
 
   return { primary, more }
 }
@@ -167,43 +172,49 @@ export default function ExploreFilterBar({
 
   return (
     <div className="relative border-b border-card-border">
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar px-4 py-2">
-        {defs.map((def) => {
-          const active = isActive(values[def.key], def)
-          return (
-            <button
-              key={def.key}
-              onClick={() => setOpenKey(openKey === def.key ? null : def.key)}
-              className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
-                active || openKey === def.key ? 'bg-magenta text-white border-magenta' : 'bg-white text-gray-600 border-card-border'
-              }`}
-            >
-              {def.label}
-              {active && def.kind !== 'price' && def.kind !== 'range' && def.kind !== 'rating' && (
-                <span className="text-[9px]">({(values[def.key] as string[]).length})</span>
-              )}
-              <span className="text-[8px] opacity-70">▾</span>
-            </button>
-          )
-        })}
+      <div className="flex items-stretch">
+        <div className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto no-scrollbar px-4 py-2">
+          {defs.map((def) => {
+            const active = isActive(values[def.key], def)
+            return (
+              <button
+                key={def.key}
+                onClick={() => setOpenKey(openKey === def.key ? null : def.key)}
+                className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
+                  active || openKey === def.key ? 'bg-magenta text-white border-magenta' : 'bg-white text-gray-600 border-card-border'
+                }`}
+              >
+                {def.label}
+                {active && def.kind !== 'price' && def.kind !== 'range' && def.kind !== 'rating' && (
+                  <span className="text-[9px]">({(values[def.key] as string[]).length})</span>
+                )}
+                <span className="text-[8px] opacity-70">▾</span>
+              </button>
+            )
+          })}
+        </div>
 
-        {moreDefs.length > 0 && (
-          <button
-            onClick={() => setOpenKey(openKey === MORE_KEY ? null : MORE_KEY)}
-            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
-              moreActive > 0 || openKey === MORE_KEY ? 'bg-magenta text-white border-magenta' : 'bg-white text-magenta border-magenta/40'
-            }`}
-          >
-            <span className="text-[11px] leading-none">⋯</span>
-            Other filters
-            {moreActive > 0 && <span className="text-[9px]">({moreActive})</span>}
-          </button>
-        )}
-
-        {totalActive > 0 && (
-          <button onClick={clearAll} className="shrink-0 px-2.5 py-1.5 text-[11px] font-medium text-magenta">
-            Clear all
-          </button>
+        {/* Pinned to the right so it never scrolls out of view */}
+        {(moreDefs.length > 0 || totalActive > 0) && (
+          <div className="shrink-0 flex items-center gap-1 pl-2 pr-3 py-2 border-l border-card-border bg-white">
+            {moreDefs.length > 0 && (
+              <button
+                onClick={() => setOpenKey(openKey === MORE_KEY ? null : MORE_KEY)}
+                className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
+                  moreActive > 0 || openKey === MORE_KEY ? 'bg-magenta text-white border-magenta' : 'bg-white text-magenta border-magenta/40'
+                }`}
+              >
+                <span className="text-[11px] leading-none">⋯</span>
+                Other filters
+                {moreActive > 0 && <span className="text-[9px]">({moreActive})</span>}
+              </button>
+            )}
+            {totalActive > 0 && (
+              <button onClick={clearAll} className="shrink-0 px-2 py-1.5 text-[11px] font-medium text-magenta">
+                Clear
+              </button>
+            )}
+          </div>
         )}
       </div>
 
