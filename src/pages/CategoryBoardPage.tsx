@@ -5,6 +5,7 @@ import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySele
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
+import ExploreFilterBar, { buildFilterDefs, applyExploreFilters, type FilterValues } from '@/components/ExploreFilterBar'
 import { trackEvent, trackImpressions, selectBidDb, createBids, fetchCoupleBids } from '@/lib/supabase-db'
 import { getListingConfig, type SelectField } from '@/lib/vendor-category-config'
 import { shouldShowBundlePopup, buildBundleEntries, planBundleApplication } from '@/lib/bundle'
@@ -52,6 +53,7 @@ export default function CategoryBoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [feedTab, setFeedTab] = useState<'explore' | 'suggestions' | 'customize'>('explore')
+  const [filterValues, setFilterValues] = useState<FilterValues>({})
   const [sheetExpanded, setSheetExpanded] = useState(false)
   const [detailVendorId, setDetailVendorId] = useState<string | null>(null)
   const [trialPickerVendorId, setTrialPickerVendorId] = useState<string | null>(null)
@@ -102,6 +104,16 @@ export default function CategoryBoardPage() {
         return v ? { ...d, price: v.price } : d
       })
   const exploreDesigns = allDesigns.filter((d) => !category.shortlistedVendorIds.includes(d.id))
+
+  // Category-aware Explore filters. Join each explore item to the vendor that
+  // actually carries categoryFields/includes, derive the available filters from
+  // those vendors, and apply the current selections.
+  const getExploreVendor = (d: { id: string; vendorId: string }): Vendor | undefined => {
+    const cands = [vendors[d.id], mockVendors[d.vendorId], vendors[d.vendorId], mockVendors[d.id]]
+    return cands.find((c) => c && (c.categoryFields || c.includes)) || cands.find(Boolean)
+  }
+  const exploreFilterDefs = buildFilterDefs(category.label, exploreDesigns.map(getExploreVendor).filter(Boolean) as Vendor[])
+  const filteredExplore = applyExploreFilters(exploreDesigns, filterValues, exploreFilterDefs, getExploreVendor)
   // Customization (couple briefs vendors → bids) is currently only meaningful for Decor.
   // Other categories have predefined listings; couples just pick from the explore feed.
   const supportsCustomize = category.label === 'Decor'
@@ -110,6 +122,9 @@ export default function CategoryBoardPage() {
   useEffect(() => {
     if (!supportsCustomize && feedTab === 'customize') setFeedTab('explore')
   }, [supportsCustomize, feedTab])
+
+  // Reset Explore filters when switching to a different category.
+  useEffect(() => { setFilterValues({}) }, [categoryId])
 
   // Persist the Decor brief (debounced 600ms after the last edit). Only fires
   // for Decor and only when the brief actually differs from what's in the store.
@@ -407,21 +422,33 @@ export default function CategoryBoardPage() {
           </div>
 
           {feedTab === 'explore' && (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
-              {exploreDesigns.length === 0 ? (
-                <p className="col-span-full text-center text-gray-400 text-xs py-8">All listings are already shortlisted!</p>
-              ) : (
-                exploreDesigns.map((d) => (
-                  <DesignFeedCard
-                    key={d.id}
-                    design={d}
-                    vendorName={unlocked ? (mockVendors[d.vendorId]?.name || d.vendorId) : mockVendors[d.vendorId]?.code || d.vendorId}
-                    onAdd={() => { addDesignAsVendor(d); addToShortlist(ritualId!, categoryId!, d.id) }}
-                    onTap={() => { addDesignAsVendor(d); setDetailVendorId(d.id) }}
-                  />
-                ))
+            <>
+              {exploreDesigns.length > 0 && (
+                <div className="-mx-4 mb-3">
+                  <ExploreFilterBar defs={exploreFilterDefs} values={filterValues} onChange={setFilterValues} />
+                </div>
               )}
-            </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+                {exploreDesigns.length === 0 ? (
+                  <p className="col-span-full text-center text-gray-400 text-xs py-8">All listings are already shortlisted!</p>
+                ) : filteredExplore.length === 0 ? (
+                  <div className="col-span-full text-center py-8">
+                    <p className="text-gray-400 text-xs">No listings match your filters.</p>
+                    <button onClick={() => setFilterValues({})} className="mt-2 text-magenta text-xs font-medium">Clear filters</button>
+                  </div>
+                ) : (
+                  filteredExplore.map((d) => (
+                    <DesignFeedCard
+                      key={d.id}
+                      design={d}
+                      vendorName={unlocked ? (mockVendors[d.vendorId]?.name || d.vendorId) : mockVendors[d.vendorId]?.code || d.vendorId}
+                      onAdd={() => { addDesignAsVendor(d); addToShortlist(ritualId!, categoryId!, d.id) }}
+                      onTap={() => { addDesignAsVendor(d); setDetailVendorId(d.id) }}
+                    />
+                  ))
+                )}
+              </div>
+            </>
           )}
 
           {feedTab === 'suggestions' && (
@@ -434,9 +461,9 @@ export default function CategoryBoardPage() {
                   return (
                     <div key={v.id} className="flex flex-col">
                       <span className="text-[10px] text-mustard font-medium mb-1 px-1">Suggested by {v.suggestedBy}</span>
-                      <div className="rounded-xl overflow-hidden relative min-h-[120px] cursor-pointer" style={bgStyle(vendor.photo)} onClick={() => setDetailVendorId(v.id)}>
+                      <div className="rounded-xl overflow-hidden relative aspect-square cursor-pointer" style={bgStyle(vendor.photo)} onClick={() => setDetailVendorId(v.id)}>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                        <div className="relative z-10 h-full flex flex-col justify-between p-2 min-h-[120px]">
+                        <div className="relative z-10 h-full flex flex-col justify-between p-2">
                           <span className="bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full self-end">★ {vendor.rating}</span>
                           <div>
                             <p className="text-white/80 text-[9px]">{unlocked ? vendor.name : vendor.code}</p>
@@ -937,9 +964,9 @@ function CompareTable({
 
 function DesignFeedCard({ design, vendorName, onAdd, onTap }: { design: Design; vendorName: string; onAdd: () => void; onTap?: () => void }) {
   return (
-    <div className="rounded-xl overflow-hidden relative min-h-[150px] cursor-pointer" style={bgStyle(design.photo)} onClick={onTap}>
+    <div className="rounded-xl overflow-hidden relative aspect-square cursor-pointer" style={bgStyle(design.photo)} onClick={onTap}>
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-      <div className="relative z-10 h-full flex flex-col justify-between p-2 min-h-[150px]">
+      <div className="relative z-10 h-full flex flex-col justify-between p-2">
         <div className="flex items-start justify-end">
           <span className="bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full">★ {design.rating}</span>
         </div>
