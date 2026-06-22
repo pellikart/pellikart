@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
 import { formatINR, getRateCardBaseHourly } from '@/lib/helpers'
@@ -10,14 +10,17 @@ import MenuBuilder from '@/components/MenuBuilder'
 import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
 import type { PaidRoom, MenuSection } from '@/lib/vendor-types'
 
-export default function VendorAddListing() {
+export default function VendorAddListing({ embedded = false, onPublished }: { embedded?: boolean; onPublished?: () => void } = {}) {
   const navigate = useNavigate()
+  // First listing during onboarding — either embedded in the onboarding flow,
+  // or (legacy) reached via the ?onboarding=1 route.
+  const isFirstListing = embedded || new URLSearchParams(useLocation().search).get('onboarding') === '1'
   const { vendorProfile, vendorListings, addListing, updateListing, _vendorDbId, _liveMode } = useVendorStore()
   const profileCategory = vendorProfile?.category || 'Photography'
   // Single-listing categories (Mehendi/Makeup/Saree Draping) are authored in onboarding — no manual add flow.
   useEffect(() => {
-    if (isSingleListingCategory(profileCategory)) navigate('/vendor/listings', { replace: true })
-  }, [profileCategory, navigate])
+    if (!embedded && isSingleListingCategory(profileCategory)) navigate('/vendor/listings', { replace: true })
+  }, [embedded, profileCategory, navigate])
   // Venue vendors can also create in-house Catering / Decor listings.
   const allowedCategories = useMemo(() =>
     profileCategory === 'Venue' ? ['Venue', 'Catering', 'Decor'] : [profileCategory],
@@ -27,7 +30,10 @@ export default function VendorAddListing() {
   const config = getListingConfig(category)
 
   const [step, setStep] = useState(1)
-  const [name, setName] = useState('')
+  // Listing name was removed from the UI — listings are identified by their
+  // anonymous public code + photo/price/specs. Kept blank so effectiveName uses
+  // the auto-generated fallback.
+  const [name] = useState('')
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [videoFiles, setVideoFiles] = useState<File[]>([])
@@ -95,7 +101,11 @@ export default function VendorAddListing() {
   //   - Photography: Pricing → Review (no Inclusions)
   //   - Others:      Pricing → Inclusions → Review
   const categoryStepCount = config.steps.length
-  const hasPhotosNameStep = category !== 'Decor'
+  // Step 1 (listing-type picker) only exists for Venue vendors who can also list
+  // in-house catering/décor. The listing NAME step was removed — listings are
+  // identified by their anonymous public code + photo/price/specs.
+  const hasListingTypeStep = allowedCategories.length > 1
+  const hasPhotosStep = category !== 'Decor'
   const hasStylePriceStep = category !== 'Venue' && category !== 'Decor'
   const hasPaidRoomsStep = category === 'Venue'
   const hasMenuStep = category === 'Catering'
@@ -104,8 +114,8 @@ export default function VendorAddListing() {
 
   // Each category gets a contiguous run of steps. Decor skips Photos & Name, so its
   // step indices start at 1 with Rituals.
-  const photosNameStep = hasPhotosNameStep ? 1 : -1
-  const ritualsStep = hasPhotosNameStep ? 2 : 1
+  const firstStep = hasListingTypeStep ? 1 : -1
+  const ritualsStep = hasListingTypeStep ? 2 : 1
   const categoryStepStart = ritualsStep + 1
 
   let nextStep = categoryStepStart + categoryStepCount
@@ -128,7 +138,7 @@ export default function VendorAddListing() {
   }
   // Photos & videos go near the end (not for Decor, which uses per-design photos),
   // so vendors fill all text/number fields first and finish with the upload.
-  const photosStep = hasPhotosNameStep ? nextStep++ : -1
+  const photosStep = hasPhotosStep ? nextStep++ : -1
   const reviewStep = nextStep
   const totalSteps = reviewStep
 
@@ -321,7 +331,7 @@ export default function VendorAddListing() {
 
     const listing: VendorListing = {
       id: `vl-${Date.now()}`,
-      name: name || `${category} Listing`,
+      name: effectiveName,
       photos: photoUrls,
       videos: videoUrls.length > 0 ? videoUrls : undefined,
       coverPhotoIndex: coverIndex,
@@ -359,42 +369,45 @@ export default function VendorAddListing() {
     }
 
     setPublishing(false)
+    // Embedded in onboarding — hand control back so onboarding can finish.
+    if (embedded && onPublished) { onPublished(); return }
     navigate('/vendor/listings')
   }
 
-  // Placeholder names per category
-  const namePlaceholders: Record<string, string> = {
-    Venue: 'e.g. Royal Mughal Night',
-    Catering: 'e.g. Grand Multi-Cuisine Feast',
-    Photography: 'e.g. Cinematic Love Story Package',
-    Decor: 'e.g. Floral Cascade Mandap',
-    Makeup: 'e.g. HD Bridal Glam Package',
-    Mehendi: 'e.g. Rajasthani Bridal Full Hands',
-    'DJ / Music': 'e.g. Bollywood + EDM Night',
-    Pandit: 'e.g. Complete Vedic Ceremony',
-    Invitations: 'e.g. Luxury Gold Foil Box Invite',
-    Banjantrilu: 'e.g. Traditional Nadaswaram Set',
-    Reels: 'e.g. Cinematic Wedding Reels',
-    'Hair Stylist': 'e.g. Bridal 3-Look Hair Package',
-    'Saree Draping': 'e.g. Bridal 3-Drape Package',
-    'Live Stalls': 'e.g. Live Bangle Stall · 3 hours',
-    'Hosts / Entertainers': 'e.g. Sangeeth Anchor + Game Show · 2 hours',
-    'Wedding Props': 'e.g. Pelli Butta + Aduthera Combo',
-  }
 
   // Price label per category
   const priceLabel = category === 'Catering' ? 'Price per plate' : category === 'Invitations' ? 'Price per invite' : 'Price'
+
+  // Name is optional. If left blank, fall back to an ANONYMOUS default — never
+  // the business name, since the paywall hides vendor identity until couples
+  // unlock. We use a category headline attribute when there's a descriptive one,
+  // else a generic label. Per-listing differences still show via the cover
+  // photo, price, and the spec chips on the card.
+  const HEADLINE_FIELD: Record<string, string> = { Venue: 'venueType', Catering: 'foodType', Decor: 'decorType' }
+  const headlineValue = (() => {
+    const key = HEADLINE_FIELD[category]
+    const v = key ? categoryFields[key] : undefined
+    return typeof v === 'string' && v.trim() ? v.trim() : null
+  })()
+  const effectiveName = name.trim() || (headlineValue ? `${category} · ${headlineValue}` : `${category} Package`)
 
   return (
     <div className="min-h-dvh bg-white page-enter flex flex-col">
       {/* Header */}
       <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/vendor/listings')} className="text-sm">←</button>
-          <p className="text-[14px] font-bold text-dark">New Listing</p>
+          {!isFirstListing && <button onClick={() => navigate('/vendor/listings')} className="text-sm">←</button>}
+          <p className="text-[14px] font-bold text-dark">{isFirstListing ? 'Your first listing' : 'New Listing'}</p>
         </div>
         <span className="text-[10px] text-gray-400">Step {step}/{totalSteps}</span>
       </div>
+
+      {/* Onboarding hand-off banner */}
+      {isFirstListing && (
+        <div className="px-4 py-2 bg-mustard-light/60 border-b border-mustard/20">
+          <p className="text-[11px] text-mustard font-medium text-center">Last step — add your first listing so couples can find you</p>
+        </div>
+      )}
 
       {/* Progress */}
       <div className="h-1 bg-gray-100">
@@ -404,36 +417,20 @@ export default function VendorAddListing() {
       <div className="flex-1 px-5 py-5 overflow-y-auto">
 
         {/* Step 1: Name (photos & videos moved to the end) */}
-        {step === photosNameStep && hasPhotosNameStep && (
+        {step === firstStep && hasListingTypeStep && (
           <div className="animate-fadeIn">
-            <h1 className="text-[20px] font-bold text-dark">Name your listing</h1>
-            <p className="text-[11px] text-gray-400 mt-1 mb-5">Give your {category.toLowerCase()} listing a clear name. You'll add photos &amp; videos at the end.</p>
+            <h1 className="text-[20px] font-bold text-dark">Listing type</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">As a venue you can also list in-house catering or décor. What is this listing for?</p>
 
-            {/* Listing type picker (only for Venue vendors who offer more than just venues) */}
-            {allowedCategories.length > 1 && (
-              <div className="mb-4">
-                <p className="text-[11px] font-medium text-dark mb-1.5">Listing type</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {allowedCategories.map(c => (
-                    <button
-                      key={c} onClick={() => changeCategory(c)}
-                      className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${c === category ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Name */}
-            <div>
-              <label className="text-[11px] font-medium text-dark block mb-1.5">Listing name</label>
-              <input
-                type="text" value={name} onChange={(e) => setName(e.target.value)}
-                placeholder={namePlaceholders[category] || `e.g. ${category} Package`}
-                className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard"
-              />
+            <div className="flex flex-wrap gap-2">
+              {allowedCategories.map(c => (
+                <button
+                  key={c} onClick={() => changeCategory(c)}
+                  className={`py-2 px-4 rounded-full text-[12px] font-medium transition-all ${c === category ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}
+                >
+                  {c}
+                </button>
+              ))}
             </div>
 
             <button onClick={() => setStep(ritualsStep)} className="mt-6 w-full py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">
@@ -446,7 +443,7 @@ export default function VendorAddListing() {
         {step === ritualsStep && (
           <div className="animate-fadeIn">
             {/* Listing type picker for Decor (since Photos & Name step is skipped) */}
-            {!hasPhotosNameStep && allowedCategories.length > 1 && (
+            {!hasListingTypeStep && allowedCategories.length > 1 && (
               <div className="mb-4">
                 <p className="text-[11px] font-medium text-dark mb-1.5">Listing type</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -515,8 +512,8 @@ export default function VendorAddListing() {
             })()}
 
             <div className="flex gap-2 mt-6">
-              {hasPhotosNameStep ? (
-                <button onClick={() => setStep(photosNameStep)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              {hasListingTypeStep ? (
+                <button onClick={() => setStep(firstStep)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
               ) : (
                 <button onClick={() => navigate('/vendor/listings')} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
               )}
@@ -742,7 +739,7 @@ export default function VendorAddListing() {
         )}
 
         {/* Photos & videos — moved to the end so text fields come first */}
-        {step === photosStep && hasPhotosNameStep && (
+        {step === photosStep && hasPhotosStep && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">Add photos &amp; videos</h1>
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Tap any photo to set it as your listing cover. Videos are optional.</p>
@@ -840,7 +837,7 @@ export default function VendorAddListing() {
                 <div className="w-full h-40 bg-empty-bg flex items-center justify-center text-gray-400 text-xs">No photo added</div>
               )}
               <div className="p-3">
-                <p className="text-[14px] font-bold text-dark">{name || `${category} Listing`}</p>
+                <p className="text-[14px] font-bold text-dark">{effectiveName}</p>
                 <p className="text-[10px] text-gray-400 mt-0.5">{vendorProfile?.area}</p>
                 {(() => {
                   if (category === 'Venue') {
@@ -1042,7 +1039,7 @@ export default function VendorAddListing() {
             <div className="flex gap-2">
               <button onClick={() => setStep(reviewStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
               <button onClick={handlePublish} disabled={publishing} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-50">
-                {publishing ? 'Publishing...' : 'Publish listing'}
+                {publishing ? (isFirstListing ? 'Going live...' : 'Publishing...') : (isFirstListing ? '🎉 Go live' : 'Publish listing')}
               </button>
             </div>
           </div>

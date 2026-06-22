@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal, makePublicCode } from '@/lib/helpers'
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
@@ -455,7 +455,9 @@ export default function CategoryBoardPage() {
                       <DesignFeedCard
                         key={d.id}
                         design={d}
-                        vendorName={unlocked ? (mockVendors[d.vendorId]?.name || d.vendorId) : mockVendors[d.vendorId]?.code || d.vendorId}
+                        title={unlocked ? d.name : (pv?.publicCode || makePublicCode(category.label, pv?.id || d.vendorId))}
+                        unlocked={unlocked}
+                        vendorName={pv?.name || d.name}
                         specs={specs}
                         onAdd={() => { addDesignAsVendor(d); addToShortlist(ritualId!, categoryId!, d.id) }}
                         onTap={() => { addDesignAsVendor(d); setDetailVendorId(d.id) }}
@@ -978,7 +980,7 @@ function CompareTable({
   )
 }
 
-function DesignFeedCard({ design, vendorName, specs, onAdd, onTap }: { design: Design; vendorName: string; specs?: { label: string; value: string }[]; onAdd: () => void; onTap?: () => void }) {
+function DesignFeedCard({ design, title, unlocked, vendorName, specs, onAdd, onTap }: { design: Design; title: string; unlocked: boolean; vendorName: string; specs?: { label: string; value: string }[]; onAdd: () => void; onTap?: () => void }) {
   return (
     <div className="rounded-xl overflow-hidden border border-card-border bg-white cursor-pointer transition-shadow hover:shadow-md" onClick={onTap}>
       <div className="relative aspect-square" style={bgStyle(design.photo)}>
@@ -986,8 +988,8 @@ function DesignFeedCard({ design, vendorName, specs, onAdd, onTap }: { design: D
         <div className="relative z-10 h-full flex flex-col justify-between p-2">
           <span className="self-end bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full">★ {design.rating}</span>
           <div>
-            <p className="text-white font-semibold text-[11px] leading-tight truncate">{design.name}</p>
-            <p className="text-white/60 text-[8px] mt-0.5 truncate">by {vendorName}</p>
+            <p className="text-white font-semibold text-[11px] leading-tight truncate">{title}</p>
+            {unlocked && <p className="text-white/60 text-[8px] mt-0.5 truncate">by {vendorName}</p>}
             <p className="text-white font-bold text-sm mt-0.5">{formatINR(design.price)}</p>
           </div>
         </div>

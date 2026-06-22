@@ -189,14 +189,17 @@ function AppRoutes() {
   const { role, onboardingComplete } = useStore()
   const { vendorOnboardingComplete } = useVendorStore()
 
-  // DEV-only quick entry: visiting any demo route with `?skip` jumps straight
-  // into the couple app, bypassing role-select + onboarding (uses the mock
-  // boards already in the initial store state). Stripped from production builds.
+  // DEV-only quick entry, stripped from production builds:
+  //   ?skip         → couple app, past role-select + onboarding
+  //   ?skip=vendor  → vendor flow at role 'vendor' (lands on vendor onboarding)
   useEffect(() => {
     if (!import.meta.env.DEV) return
-    if (!new URLSearchParams(window.location.search).has('skip')) return
+    const skip = new URLSearchParams(window.location.search).get('skip')
+    if (skip === null) return
     const s = useStore.getState()
-    if (s.role !== 'user' || !s.onboardingComplete) {
+    if (skip === 'vendor') {
+      if (s.role !== 'vendor') useStore.setState({ role: 'vendor' })
+    } else if (s.role !== 'user' || !s.onboardingComplete) {
       useStore.setState({ role: 'user', onboardingComplete: true })
     }
   }, [])
