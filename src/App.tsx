@@ -30,6 +30,7 @@ import VendorAddListing from './pages/vendor/VendorAddListing'
 import VendorEditListing from './pages/vendor/VendorEditListing'
 import VendorBottomNav from './components/VendorBottomNav'
 import CoupleShell from './components/CoupleShell'
+import VendorShell from './components/VendorShell'
 
 export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
   const { pathname, search } = useLocation()
@@ -207,7 +208,7 @@ function AppRoutes() {
       )
     }
     return (
-      <div className="app-container">
+      <VendorShell>
         <Routes>
           <Route path="/vendor" element={<VendorDashboard />} />
           <Route path="/vendor/profile" element={<VendorProfile />} />
@@ -224,7 +225,7 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to="/vendor" />} />
         </Routes>
         <VendorBottomNav />
-      </div>
+      </VendorShell>
     )
   }
 
