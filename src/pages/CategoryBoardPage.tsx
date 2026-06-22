@@ -407,9 +407,9 @@ export default function CategoryBoardPage() {
           </div>
 
           {feedTab === 'explore' && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
               {exploreDesigns.length === 0 ? (
-                <p className="col-span-2 text-center text-gray-400 text-xs py-8">All listings are already shortlisted!</p>
+                <p className="col-span-full text-center text-gray-400 text-xs py-8">All listings are already shortlisted!</p>
               ) : (
                 exploreDesigns.map((d) => (
                   <DesignFeedCard
@@ -425,9 +425,9 @@ export default function CategoryBoardPage() {
           )}
 
           {feedTab === 'suggestions' && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
               {suggestedVendors.length === 0 ? (
-                <p className="col-span-2 text-center text-gray-400 text-xs py-8">No suggestions yet. Share this event board from the home screen to get family's picks.</p>
+                <p className="col-span-full text-center text-gray-400 text-xs py-8">No suggestions yet. Share this event board from the home screen to get family's picks.</p>
               ) : (
                 suggestedVendors.map((v) => {
                   const vendor = vendors[v.id] || v

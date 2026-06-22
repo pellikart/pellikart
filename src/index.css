@@ -52,17 +52,14 @@ body {
   grid-row: span 2;
 }
 
-/* Desktop: the explore/board grid fans out to more columns instead of
-   staying a 2-wide phone column. Mobile (<768px) is untouched. */
+/* Desktop: the explore/board grid tiles as many comfortably-sized columns
+   as fit, instead of stretching a fixed 2 columns across the full width.
+   Keeping each column ~200px preserves the card proportions from mobile —
+   wider screens just show more cards per row. Mobile (<768px) is untouched. */
 @media (min-width: 768px) {
   .masonry-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 10px;
-  }
-}
-@media (min-width: 1280px) {
-  .masonry-grid {
-    grid-template-columns: repeat(4, 1fr);
   }
 }
 
