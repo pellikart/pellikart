@@ -2,12 +2,17 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { type AppRole } from '@/lib/auth-context'
 
-type Step = 'role' | 'login'
+type Step = 'choice' | 'role' | 'login'
 
 export default function AuthPage() {
-  const [step, setStep] = useState<Step>('role')
+  const [step, setStep] = useState<Step>('choice')
   const [selectedRole, setSelectedRole] = useState<AppRole | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Returning users log in without picking a role — their role is already on
+  // their account. New users register and choose a role first.
+  function startLogin() { setSelectedRole(null); setError(null); setStep('login') }
+  function startRegister() { setSelectedRole(null); setError(null); setStep('role') }
 
   function handleRoleSelect(role: AppRole) {
     setSelectedRole(role)
@@ -18,9 +23,12 @@ export default function AuthPage() {
     if (!supabase) return
     setError(null)
 
-    // Store the picked role before redirect so we can apply it post-OAuth.
+    // Only stamp a pending role when registering; logins inherit the role
+    // stored on the existing account.
     if (selectedRole) {
       localStorage.setItem('pellikart_pending_role', selectedRole)
+    } else {
+      localStorage.removeItem('pellikart_pending_role')
     }
 
     const { error: err } = await supabase.auth.signInWithOAuth({
@@ -43,12 +51,39 @@ export default function AuthPage() {
     )
   }
 
-  // Step 1: Role selection
-  if (step === 'role') {
+  // Step 1: Log in or register
+  if (step === 'choice') {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center px-6 bg-white">
         <img src="/logo.png" alt="Pellikart" className="w-20 h-20 object-cover rounded-2xl mb-6" />
         <h1 className="text-[22px] font-bold text-dark text-center leading-tight">Welcome to Pellikart</h1>
+        <p className="text-[13px] text-gray-500 mt-2 text-center">Log in or create an account to continue</p>
+
+        <div className="w-full max-w-sm mt-8 space-y-3">
+          <button
+            onClick={startLogin}
+            className="w-full py-3.5 rounded-xl bg-magenta text-white font-semibold text-[15px] active:scale-[0.99] transition-transform"
+          >
+            Log in
+          </button>
+          <button
+            onClick={startRegister}
+            className="w-full py-3.5 rounded-xl border-2 border-card-border text-dark font-semibold text-[15px] active:bg-gray-50 transition-colors"
+          >
+            Create an account
+          </button>
+        </div>
+        <p className="text-[11px] text-gray-400 mt-6 text-center">Already a vendor or planning a wedding? Just log in.</p>
+      </div>
+    )
+  }
+
+  // Step 2 (register only): Role selection
+  if (step === 'role') {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center px-6 bg-white">
+        <img src="/logo.png" alt="Pellikart" className="w-20 h-20 object-cover rounded-2xl mb-6" />
+        <h1 className="text-[22px] font-bold text-dark text-center leading-tight">Create your account</h1>
         <p className="text-[13px] text-gray-500 mt-2 text-center">How would you like to use the app?</p>
 
         <div className="w-full max-w-sm mt-8 space-y-3">
@@ -78,18 +113,30 @@ export default function AuthPage() {
             </div>
           </button>
         </div>
+
+        <button
+          onClick={() => { setStep('choice'); setError(null) }}
+          className="mt-6 text-[13px] text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          ← Back
+        </button>
       </div>
     )
   }
 
-  // Step 2: Google sign-in
+  // Step 3: Google sign-in
+  const registering = selectedRole !== null
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center px-6 bg-white">
       <img src="/logo.png" alt="Pellikart" className="w-16 h-16 object-cover rounded-2xl mb-5" />
 
-      <h1 className="text-[20px] font-bold text-dark text-center leading-tight">Sign in to continue</h1>
+      <h1 className="text-[20px] font-bold text-dark text-center leading-tight">
+        {registering ? 'Create your account' : 'Welcome back'}
+      </h1>
       <p className="text-[13px] text-gray-500 mt-2 text-center">
-        Signing in as {selectedRole === 'couple' ? 'a couple' : 'a vendor'}
+        {registering
+          ? `Signing up as ${selectedRole === 'couple' ? 'a couple' : 'a vendor'}`
+          : 'Log in to your account'}
       </p>
 
       <div className="w-full max-w-sm mt-8">
@@ -107,10 +154,10 @@ export default function AuthPage() {
         </button>
 
         <button
-          onClick={() => { setStep('role'); setError(null) }}
+          onClick={() => { setStep(registering ? 'role' : 'choice'); setError(null) }}
           className="w-full mt-4 text-[13px] text-gray-400 hover:text-gray-600 transition-colors"
         >
-          ← Change role
+          ← Back
         </button>
 
         {error && (
