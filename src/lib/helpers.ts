@@ -238,7 +238,7 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
 
 export function bgStyle(photo: string): { background: string } {
   if (!photo) return { background: '#f3f4f6' }
-  const val = photo.startsWith('url(') ? photo : `url(${photo})`
+  const val = photo.startsWith('url(') ? photo : `url("${photo}")`
   return { background: `${val} center/cover no-repeat` };
 }
 
