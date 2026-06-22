@@ -51,7 +51,7 @@ export default function VendorBottomNav() {
     : tabs
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white border-t border-card-border z-40">
+    <nav className="md:hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white border-t border-card-border z-40">
       <div className="flex items-center justify-around py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
         {visibleTabs.map((tab) => {
           const active = pathname === tab.href
