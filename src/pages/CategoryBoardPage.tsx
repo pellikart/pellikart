@@ -448,7 +448,9 @@ export default function CategoryBoardPage() {
                 ) : (
                   filteredExplore.map((d) => {
                     const pv = getExploreVendor(d)
-                    const specs = cardSpecFields.map((f) => ({ label: f.label, value: formatSpec(f.key, pv?.categoryFields?.[f.key]) }))
+                    const specs = cardSpecFields
+                      .map((f) => ({ label: f.label, value: formatSpec(f.key, pv?.categoryFields?.[f.key]) }))
+                      .filter((s) => s.value !== '—')
                     return (
                       <DesignFeedCard
                         key={d.id}
