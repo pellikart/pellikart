@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import type { Vendor } from '@/lib/types'
-import { getListingConfig } from '@/lib/vendor-category-config'
+import { getListingConfig, type SelectField } from '@/lib/vendor-category-config'
 import { formatINR } from '@/lib/helpers'
 
 /* ------------------------------------------------------------------ *
  * Filter definitions — derived from each category's LISTING_CONFIG.
- * "Smart subset": price + rating always, plus the first few category
- * fields that at least one vendor actually filled in, plus inclusions.
+ * `primary` = price + rating always, plus the first few category fields
+ * vendors actually filled, plus inclusions (shown as chips). `more` = every
+ * remaining parameter, surfaced via the "Other filters" button.
  * ------------------------------------------------------------------ */
 
 export type FilterDef =
@@ -18,7 +19,8 @@ export type FilterDef =
 
 export type FilterValues = Record<string, unknown>
 
-const MAX_CATEGORY_FILTERS = 4
+/** How many category-specific parameters appear as default chips. */
+const DEFAULT_CATEGORY_FILTERS = 5
 
 function hasValue(v: Vendor | undefined, key: string): boolean {
   const val = v?.categoryFields?.[key]
@@ -36,35 +38,39 @@ function distinctValues(vendors: Vendor[], key: string): string[] {
   return [...seen]
 }
 
-export function buildFilterDefs(categoryLabel: string, vendors: Vendor[]): FilterDef[] {
+export function buildFilterDefs(categoryLabel: string, vendors: Vendor[]): { primary: FilterDef[]; more: FilterDef[] } {
   const config = getListingConfig(categoryLabel)
-  const defs: FilterDef[] = [
-    { kind: 'price', key: 'price', label: 'Price', min: config.priceRange.min, max: config.priceRange.max, step: config.priceRange.step },
-    { kind: 'rating', key: 'rating', label: 'Rating' },
-  ]
+  const allFields = config.steps.flatMap((s) => s.fields)
+  const usefulMain = allFields.filter((f) => !f.visibleWhen && vendors.some((v) => hasValue(v, f.key)))
+  const usefulConditional = allFields.filter((f) => f.visibleWhen && vendors.some((v) => hasValue(v, f.key)))
 
-  // Category-specific fields: only those at least one vendor filled, skip
-  // conditional (visibleWhen) fields, cap at MAX_CATEGORY_FILTERS.
-  const fields = config.steps
-    .flatMap((s) => s.fields)
-    .filter((f) => !f.visibleWhen && vendors.some((v) => hasValue(v, f.key)))
-    .slice(0, MAX_CATEGORY_FILTERS)
-
-  for (const f of fields) {
+  const toDef = (f: SelectField): FilterDef | null => {
     if (f.type === 'single' || f.type === 'multi') {
       const options = f.options?.length ? f.options : distinctValues(vendors, f.key)
-      if (options.length) defs.push({ kind: 'options', key: f.key, label: f.label, options, multiValue: f.type === 'multi' })
-    } else if (f.type === 'slider') {
-      defs.push({ kind: 'range', key: f.key, label: f.label, min: f.sliderMin ?? 0, max: f.sliderMax ?? 1000, step: f.sliderStep ?? 1, unit: f.sliderUnit })
-    } else if (f.type === 'number') {
-      defs.push({ kind: 'range', key: f.key, label: f.label, min: f.numberMin ?? 0, max: f.numberMax ?? 1000, step: f.numberStep ?? 1, unit: f.numberUnit })
+      return options.length ? { kind: 'options', key: f.key, label: f.label, options, multiValue: f.type === 'multi' } : null
     }
+    if (f.type === 'slider') return { kind: 'range', key: f.key, label: f.label, min: f.sliderMin ?? 0, max: f.sliderMax ?? 1000, step: f.sliderStep ?? 1, unit: f.sliderUnit }
+    if (f.type === 'number') return { kind: 'range', key: f.key, label: f.label, min: f.numberMin ?? 0, max: f.numberMax ?? 1000, step: f.numberStep ?? 1, unit: f.numberUnit }
+    return null
   }
 
-  const usefulInclusions = config.inclusions.filter((inc) => vendors.some((v) => v.includes?.includes(inc)))
-  if (usefulInclusions.length) defs.push({ kind: 'inclusions', key: '__inclusions', label: 'Inclusions', options: usefulInclusions })
+  const primaryFields = usefulMain.slice(0, DEFAULT_CATEGORY_FILTERS)
+  const moreFields = [...usefulMain.slice(DEFAULT_CATEGORY_FILTERS), ...usefulConditional]
 
-  return defs
+  const primary: FilterDef[] = [
+    { kind: 'price', key: 'price', label: 'Price', min: config.priceRange.min, max: config.priceRange.max, step: config.priceRange.step },
+    { kind: 'rating', key: 'rating', label: 'Rating' },
+    ...(primaryFields.map(toDef).filter(Boolean) as FilterDef[]),
+  ]
+  const usefulInclusions = config.inclusions.filter((inc) => vendors.some((v) => v.includes?.includes(inc)))
+  if (usefulInclusions.length) primary.push({ kind: 'inclusions', key: '__inclusions', label: 'Inclusions', options: usefulInclusions })
+
+  const more: FilterDef[] = moreFields.map(toDef).filter(Boolean) as FilterDef[]
+  // Style is a generic parameter on every category — surface it under "Other".
+  const usefulStyles = config.styles.filter((st) => vendors.some((v) => v.style === st))
+  if (usefulStyles.length) more.unshift({ kind: 'options', key: '__style', label: 'Style', options: usefulStyles, multiValue: false })
+
+  return { primary, more }
 }
 
 /* ------------------------------------------------------------------ *
@@ -92,12 +98,16 @@ export function applyExploreFilters<T extends ExploreItem>(
       } else if (def.kind === 'options') {
         const selected = (val as string[]) || []
         if (selected.length) {
-          const vv = v?.categoryFields?.[def.key]
-          if (def.multiValue) {
-            const arr = Array.isArray(vv) ? vv : vv ? [vv] : []
-            if (!selected.some((s) => arr.includes(s))) return false
-          } else if (!vv || !selected.includes(String(vv))) {
-            return false
+          if (def.key === '__style') {
+            if (!v?.style || !selected.includes(v.style)) return false
+          } else {
+            const vv = v?.categoryFields?.[def.key]
+            if (def.multiValue) {
+              const arr = Array.isArray(vv) ? vv : vv ? [vv] : []
+              if (!selected.some((s) => arr.includes(s))) return false
+            } else if (!vv || !selected.includes(String(vv))) {
+              return false
+            }
           }
         }
       } else if (def.kind === 'range') {
@@ -135,10 +145,13 @@ function isActive(val: unknown, def: FilterDef): boolean {
  * Inline filter bar UI.
  * ------------------------------------------------------------------ */
 
+const MORE_KEY = '__more'
+
 export default function ExploreFilterBar({
-  defs, values, onChange,
+  defs, moreDefs = [], values, onChange,
 }: {
   defs: FilterDef[]
+  moreDefs?: FilterDef[]
   values: FilterValues
   onChange: (next: FilterValues) => void
 }) {
@@ -147,8 +160,10 @@ export default function ExploreFilterBar({
 
   const setValue = (key: string, v: unknown) => onChange({ ...values, [key]: v })
   const clearAll = () => { onChange({}); setOpenKey(null) }
-  const totalActive = activeFilterCount(values, defs)
-  const openDef = defs.find((d) => d.key === openKey) || null
+  const allDefs = [...defs, ...moreDefs]
+  const totalActive = activeFilterCount(values, allDefs)
+  const moreActive = activeFilterCount(values, moreDefs)
+  const openDef = openKey && openKey !== MORE_KEY ? defs.find((d) => d.key === openKey) || null : null
 
   return (
     <div className="relative border-b border-card-border">
@@ -160,9 +175,7 @@ export default function ExploreFilterBar({
               key={def.key}
               onClick={() => setOpenKey(openKey === def.key ? null : def.key)}
               className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
-                active || openKey === def.key
-                  ? 'bg-magenta text-white border-magenta'
-                  : 'bg-white text-gray-600 border-card-border'
+                active || openKey === def.key ? 'bg-magenta text-white border-magenta' : 'bg-white text-gray-600 border-card-border'
               }`}
             >
               {def.label}
@@ -173,6 +186,20 @@ export default function ExploreFilterBar({
             </button>
           )
         })}
+
+        {moreDefs.length > 0 && (
+          <button
+            onClick={() => setOpenKey(openKey === MORE_KEY ? null : MORE_KEY)}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
+              moreActive > 0 || openKey === MORE_KEY ? 'bg-magenta text-white border-magenta' : 'bg-white text-magenta border-magenta/40'
+            }`}
+          >
+            <span className="text-[11px] leading-none">⋯</span>
+            Other filters
+            {moreActive > 0 && <span className="text-[9px]">({moreActive})</span>}
+          </button>
+        )}
+
         {totalActive > 0 && (
           <button onClick={clearAll} className="shrink-0 px-2.5 py-1.5 text-[11px] font-medium text-magenta">
             Clear all
@@ -180,12 +207,35 @@ export default function ExploreFilterBar({
         )}
       </div>
 
+      {/* Single-chip dropdown */}
       {openDef && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpenKey(null)} />
           <div className="absolute left-0 right-0 top-full z-50 px-4">
             <div className="bg-white rounded-xl border border-card-border shadow-lg p-3 w-full max-w-[320px]">
               <FilterPanel def={openDef} value={values[openDef.key]} onChange={(v) => setValue(openDef.key, v)} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* "Other filters" panel — every remaining parameter, stacked */}
+      {openKey === MORE_KEY && moreDefs.length > 0 && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpenKey(null)} />
+          <div className="absolute left-0 right-0 top-full z-50 px-4">
+            <div className="bg-white rounded-xl border border-card-border shadow-lg w-full max-w-[360px] max-h-[70vh] overflow-y-auto no-scrollbar">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-card-border sticky top-0 bg-white">
+                <p className="text-[12px] font-bold text-dark">Other filters</p>
+                <button onClick={() => setOpenKey(null)} className="text-[11px] font-medium text-magenta">Done</button>
+              </div>
+              <div className="p-3 space-y-3">
+                {moreDefs.map((def) => (
+                  <div key={def.key} className="pb-3 border-b border-card-border last:border-0 last:pb-0">
+                    <FilterPanel def={def} value={values[def.key]} onChange={(v) => setValue(def.key, v)} />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </>

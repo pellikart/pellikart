@@ -112,8 +112,8 @@ export default function CategoryBoardPage() {
     const cands = [vendors[d.id], mockVendors[d.vendorId], vendors[d.vendorId], mockVendors[d.id]]
     return cands.find((c) => c && (c.categoryFields || c.includes)) || cands.find(Boolean)
   }
-  const exploreFilterDefs = buildFilterDefs(category.label, exploreDesigns.map(getExploreVendor).filter(Boolean) as Vendor[])
-  const filteredExplore = applyExploreFilters(exploreDesigns, filterValues, exploreFilterDefs, getExploreVendor)
+  const { primary: exploreFilterDefs, more: exploreMoreDefs } = buildFilterDefs(category.label, exploreDesigns.map(getExploreVendor).filter(Boolean) as Vendor[])
+  const filteredExplore = applyExploreFilters(exploreDesigns, filterValues, [...exploreFilterDefs, ...exploreMoreDefs], getExploreVendor)
   // Customization (couple briefs vendors → bids) is currently only meaningful for Decor.
   // Other categories have predefined listings; couples just pick from the explore feed.
   const supportsCustomize = category.label === 'Decor'
@@ -425,7 +425,7 @@ export default function CategoryBoardPage() {
             <>
               {exploreDesigns.length > 0 && (
                 <div className="-mx-4 mb-3">
-                  <ExploreFilterBar defs={exploreFilterDefs} values={filterValues} onChange={setFilterValues} />
+                  <ExploreFilterBar defs={exploreFilterDefs} moreDefs={exploreMoreDefs} values={filterValues} onChange={setFilterValues} />
                 </div>
               )}
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
