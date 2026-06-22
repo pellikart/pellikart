@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
-import { getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from "./helpers";
+import { getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
 import {
   fetchCouple, upsertCouple,
   fetchRitualBoards, insertRitualBoard,
@@ -48,6 +48,8 @@ export function buildLiveVendorMap(
   const vendorMap: Record<string, Vendor> = {}
   const lvMap: Record<string, string> = {}
   const categoryCounts: Record<string, number> = {}
+  // Per-vendor listing counter, for the listing number in the public code.
+  const vendorListingCounts: Record<string, number> = {}
 
   // Build availability lookup: vendorId → blocked dates
   const blockedByVendor: Record<string, string[]> = {}
@@ -57,6 +59,27 @@ export function buildLiveVendorMap(
     blockedByVendor[vid].push(a.date as string)
   }
 
+  // Portfolio = each vendor's profile portfolio photos PLUS every photo across
+  // all their listings, de-duplicated. So vendors don't upload portfolio photos
+  // separately — and already-onboarded vendors get their listing photos folded
+  // in automatically.
+  const portfolioPhotosByVendor: Record<string, string[]> = {}
+  const portfolioVideosByVendor: Record<string, string[]> = {}
+  for (const v of liveVendors) {
+    const vid = v.id as string
+    portfolioPhotosByVendor[vid] = [...((v.portfolio_photos as string[]) || [])]
+    portfolioVideosByVendor[vid] = [...((v.portfolio_videos as string[]) || [])]
+  }
+  for (const l of listings) {
+    const vid = l.vendor_id as string
+    if (!portfolioPhotosByVendor[vid]) portfolioPhotosByVendor[vid] = []
+    if (!portfolioVideosByVendor[vid]) portfolioVideosByVendor[vid] = []
+    portfolioPhotosByVendor[vid].push(...((l.photos as string[]) || []))
+    portfolioVideosByVendor[vid].push(...((l.videos as string[]) || []))
+  }
+  for (const vid of Object.keys(portfolioPhotosByVendor)) portfolioPhotosByVendor[vid] = [...new Set(portfolioPhotosByVendor[vid])]
+  for (const vid of Object.keys(portfolioVideosByVendor)) portfolioVideosByVendor[vid] = [...new Set(portfolioVideosByVendor[vid])]
+
   for (const l of listings) {
     const parentVendor = liveVendors.find((v) => v.id === l.vendor_id)
     const cat = (l.category as string) || ''
@@ -64,10 +87,14 @@ export function buildLiveVendorMap(
     const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
     const vendorDbId = l.vendor_id as string
     if (vendorDbId) lvMap[l.id as string] = vendorDbId
+    // Anonymous public code (PK-CAT-vendor-listing) shown before unlock.
+    vendorListingCounts[vendorDbId] = (vendorListingCounts[vendorDbId] || 0) + 1
+    const publicCode = makePublicCode(cat, vendorDbId || (l.id as string), vendorListingCounts[vendorDbId])
 
     vendorMap[l.id as string] = {
       id: l.id as string,
       code,
+      publicCode,
       name: (parentVendor?.business_name as string) || (l.name as string),
       photo: (() => {
         const photos = (l.photos as string[]) || []
@@ -84,8 +111,8 @@ export function buildLiveVendorMap(
       amountPaid: 0,
       // Extended fields
       description: (parentVendor?.description as string) || '',
-      portfolioPhotos: (parentVendor?.portfolio_photos as string[]) || [],
-      portfolioVideos: (parentVendor?.portfolio_videos as string[]) || [],
+      portfolioPhotos: portfolioPhotosByVendor[vendorDbId] || (parentVendor?.portfolio_photos as string[]) || [],
+      portfolioVideos: portfolioVideosByVendor[vendorDbId] || (parentVendor?.portfolio_videos as string[]) || [],
       listingPhotos: (l.photos as string[]) || [],
       listingVideos: (l.videos as string[]) || [],
       categoryFields: (l.category_fields as Record<string, string | string[]>) || {},

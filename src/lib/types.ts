@@ -15,6 +15,8 @@ export interface OnboardingData {
 export interface Vendor {
   id: string;
   code: string;
+  /** Anonymous public code shown to couples before unlock (e.g. "PK-PHO-0042-1"). */
+  publicCode?: string;
   name: string;
   photo: string;
   style: string;

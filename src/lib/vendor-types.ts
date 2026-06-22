@@ -262,7 +262,7 @@ export interface VendorState {
   vendorAnalytics: VendorAnalytics
 
   // Actions
-  completeVendorOnboarding: (profile: VendorProfile, packages: VendorPackage[]) => void | Promise<void>
+  completeVendorOnboarding: (profile: VendorProfile, packages: VendorPackage[], markComplete?: boolean) => void | Promise<void>
   toggleDateBlock: (date: string, listingIds: string[], blockedRanges: BlockedTimeRange[]) => void
   submitBid: (bidId: string, price: number, note: string) => void
   scheduleTrial: (trialId: string, date: string) => void

@@ -10,6 +10,7 @@ import MakeupPricingEditor from '@/components/MakeupPricingEditor'
 import MakeupAddonsEditor from '@/components/MakeupAddonsEditor'
 import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
 import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
+import VendorAddListing from './VendorAddListing'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
@@ -62,6 +63,9 @@ export default function VendorOnboarding() {
   // so a refresh / mobile memory-reload resumes instead of starting over.
   const draft = loadDraft()
   const [step, setStep] = useState<number>(() => (draft.step as number) ?? 1)
+  // 'profile' = the onboarding questions; 'listing' = the embedded first-listing
+  // wizard (multi-listing categories) shown before onboarding is marked complete.
+  const [phase, setPhase] = useState<'profile' | 'listing'>('profile')
   const [businessName, setBusinessName] = useState((draft.businessName as string) ?? '')
   const [category, setCategory] = useState((draft.category as string) ?? '')
   const [area, setArea] = useState((draft.area as string) ?? '')
@@ -123,7 +127,10 @@ export default function VendorOnboarding() {
   const sareeAddonStep = isMakeup ? _s++ : -1          // Makeup only
   const hairAddonStep = isMakeup ? _s++ : -1           // Makeup only
   const mehendiAddonStep = isMakeup ? _s++ : -1        // Makeup only
-  const portfolioStep = _s++                           // photos & videos — always, near the end
+  // Photos step only for single-listing categories (it IS their listing's photos).
+  // Multi-listing categories add photos in the listing wizard instead, and their
+  // portfolio is the aggregate of all listing photos — so no separate upload here.
+  const portfolioStep = isSingleListing ? _s++ : -1
   const totalSteps = _s                                // Ready
 
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
@@ -185,7 +192,10 @@ export default function VendorOnboarding() {
       rating: 0,
     }
     const defaultPackages: VendorPackage[] = []
-    await completeVendorOnboarding(profile, defaultPackages)
+    // For multi-listing categories we DEFER marking onboarding complete — the
+    // vendor record is created (so we have a DB id for uploads) but onboarding
+    // stays "in progress" so the embedded first-listing step is still shown.
+    await completeVendorOnboarding(profile, defaultPackages, isSingleListing)
 
     // Now that completeVendorOnboarding has run upsertVendor, _vendorDbId
     // is populated. Upload photos/videos and persist their public URLs.
@@ -253,8 +263,30 @@ export default function VendorOnboarding() {
     }
 
     setUploading(false)
+    if (isSingleListing) {
+      // Single-listing categories already authored their one listing above and
+      // onboarding is marked complete — go to the dashboard.
+      try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+      navigate('/vendor')
+    } else {
+      // Every other category continues — in the same onboarding flow — into the
+      // embedded first-listing wizard. Onboarding finishes only once it publishes.
+      setPhase('listing')
+    }
+  }
+
+  // Called by the embedded listing wizard once the first listing is published:
+  // mark onboarding complete and head to the dashboard.
+  function finishFirstListing() {
     try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+    useVendorStore.setState({ vendorOnboardingComplete: true })
     navigate('/vendor')
+  }
+
+  // Multi-listing categories: the first listing is created inside onboarding,
+  // via the full listing wizard, before onboarding is marked complete.
+  if (phase === 'listing') {
+    return <VendorAddListing embedded onPublished={finishFirstListing} />
   }
 
   return (
@@ -554,7 +586,7 @@ export default function VendorOnboarding() {
           <div className="animate-fadeIn text-center">
             <div className="text-4xl mb-4">🎉</div>
             <h1 className="text-[22px] font-bold text-dark leading-tight">Your profile is ready!</h1>
-            <p className="text-[12px] text-gray-400 mt-2 max-w-[260px] mx-auto">You can add photos, packages, pricing, and manage availability from your profile later.</p>
+            <p className="text-[12px] text-gray-400 mt-2 max-w-[280px] mx-auto">{isSingleListing ? 'You can add photos, packages, pricing, and manage availability from your profile later.' : 'Now let’s add your first listing so couples can discover and book you.'}</p>
             <div className="mt-5 p-4 rounded-2xl border border-card-border bg-empty-bg text-left">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -575,6 +607,21 @@ export default function VendorOnboarding() {
                 </div>
               </div>
             </div>
+
+            {/* Multi-listing: explain what a listing is before sending them in */}
+            {!isSingleListing && (
+              <div className="mt-4 p-4 rounded-2xl bg-mustard-light/40 border border-mustard/20 text-left">
+                <p className="text-[12px] font-bold text-dark mb-1.5">What's a listing?</p>
+                <p className="text-[11px] text-gray-600 leading-relaxed">
+                  A listing is one <span className="font-medium text-dark">package or service</span> couples can browse and book — like a specific photography package, a venue hall, or a décor theme.
+                </p>
+                <ul className="mt-2.5 space-y-1.5 text-[11px] text-gray-600">
+                  <li className="flex gap-2"><span className="text-mustard font-bold">•</span> Add a few photos, a price, and what's included.</li>
+                  <li className="flex gap-2"><span className="text-mustard font-bold">•</span> This is what couples see and shortlist you by.</li>
+                  <li className="flex gap-2"><span className="text-mustard font-bold">•</span> You can add more listings anytime — let's start with one.</li>
+                </ul>
+              </div>
+            )}
 
             {/* Transport & logistics — applied to the auto-created listing */}
             {isSingleListing && (
@@ -597,7 +644,7 @@ export default function VendorOnboarding() {
             )}
 
             <button onClick={handleGoLive} disabled={uploading} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform disabled:opacity-50">
-              {uploading ? 'Setting up...' : 'Go live'}
+              {uploading ? 'Setting up...' : (isSingleListing ? 'Go live' : 'Continue to your first listing')}
             </button>
           </div>
         )}

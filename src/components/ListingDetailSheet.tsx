@@ -360,9 +360,9 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               <span className="text-white text-sm">✕</span>
             </button>
             <div className="absolute bottom-3 left-4 right-4">
-              <p className="text-white font-bold text-lg">{unlocked ? vendor.name : vendor.code}</p>
+              <p className="text-white font-bold text-lg">{unlocked ? vendor.name : (vendor.publicCode || vendor.code)}</p>
               {parentVendor && (
-                <p className="text-white/70 text-[10px] mt-0.5">by {unlocked ? parentVendor.name : parentVendor.code}</p>
+                <p className="text-white/70 text-[10px] mt-0.5">by {unlocked ? parentVendor.name : (parentVendor.publicCode || parentVendor.code)}</p>
               )}
             </div>
           </div>

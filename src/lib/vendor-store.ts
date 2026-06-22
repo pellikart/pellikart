@@ -285,7 +285,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     // If no vendor record, user hasn't onboarded yet — state stays empty
   },
 
-  completeVendorOnboarding: async (profile, packages) => {
+  completeVendorOnboarding: async (profile, packages, markComplete = true) => {
     const { _liveMode, _userId } = get()
     console.log('[vendor-store] completeVendorOnboarding — liveMode:', _liveMode, 'userId:', _userId)
 
@@ -309,7 +309,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
 
       set({
         _packageIdMap: packageIdMap,
-        vendorOnboardingComplete: true,
+        vendorOnboardingComplete: markComplete,
         vendorProfile: profile,
         vendorPackages: packages,
         vendorListings: [],
@@ -325,10 +325,10 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       // Demo mode — use mock data
       const mockListings = getMockListingsForCategory(profile.category)
       set({
-        vendorOnboardingComplete: true,
+        vendorOnboardingComplete: markComplete,
         vendorProfile: profile,
         vendorPackages: packages,
-        vendorListings: mockListings,
+        vendorListings: markComplete ? mockListings : [],
         vendorAvailability: generateMockAvailability(),
         vendorBookings: mockVendorBookings,
         vendorTrials: mockVendorTrials,

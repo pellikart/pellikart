@@ -242,6 +242,29 @@ export function bgStyle(photo: string): { background: string } {
   return { background: `${val} center/cover no-repeat` };
 }
 
+/** Short category codes used in the anonymous public listing code. */
+const CATEGORY_CODE: Record<string, string> = {
+  Venue: 'VEN', Catering: 'CAT', Photography: 'PHO', Decor: 'DEC', Makeup: 'MUA',
+  Mehendi: 'MEH', 'DJ / Music': 'DJ', Pandit: 'PAN', Invitations: 'INV',
+  Banjantrilu: 'BAN', Reels: 'REL', 'Hair Stylist': 'HAR', 'Saree Draping': 'SAR',
+  'Live Stalls': 'STL', 'Hosts / Entertainers': 'HOST', 'Wedding Props': 'PRP',
+}
+
+/**
+ * Anonymous, paywall-safe public code for a listing — shown to couples before
+ * they unlock, so the vendor's name is never revealed. Format:
+ *   PK-<categoryCode>-<vendorNumber>-<listingNumber>   e.g. "PK-PHO-0042-1"
+ * The vendor number is a stable 4-digit hash of the vendor's id (same vendor →
+ * same number), so it's anonymous but consistent.
+ */
+export function makePublicCode(category: string, vendorSeed: string, listingNum = 1): string {
+  const cc = CATEGORY_CODE[category] || (category || 'GEN').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'GEN'
+  let h = 0
+  for (let i = 0; i < vendorSeed.length; i++) h = (h * 31 + vendorSeed.charCodeAt(i)) >>> 0
+  const vnum = String(h % 10000).padStart(4, '0')
+  return `PK-${cc}-${vnum}-${listingNum}`
+}
+
 export function formatINR(amount: number): string {
   // Indian number format: ₹12,34,567
   const str = amount.toString();
