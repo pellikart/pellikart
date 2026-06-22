@@ -68,7 +68,7 @@ export const ONBOARDING_CONFIG: Record<string, CategoryOnboardingConfig> = {
     subtitle: 'Let couples know your cuisine and service style.',
     fields: [
       { key: 'cuisineTypes', label: 'Cuisine speciality', type: 'multi', options: ['South Indian', 'North Indian', 'Mughlai', 'Rajasthani', 'Multi-Cuisine', 'Continental', 'Chinese', 'Fusion'] },
-      { key: 'foodType', label: 'Food type', type: 'single', options: ['Veg only', 'Non-veg', 'Both'] },
+      { key: 'foodType', label: 'Food type', type: 'single', options: ['Veg only', 'Non-veg', 'Veg & Non-veg'] },
       { key: 'minPlateCount', label: 'Minimum plate count', type: 'single', options: ['50', '100', '200', '300', '500', 'No minimum'] },
       { key: 'ownStaffCrockery', label: 'Own staff & crockery', type: 'single', options: ['Yes, included', 'Staff only', 'Crockery only', 'Not included'] },
     ],
@@ -270,7 +270,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         fields: [
           { key: 'servingStyle', label: 'Serving style', type: 'single', options: ['Buffet', 'Banti Bojanalu'] },
           { key: 'cuisineTypes', label: 'Cuisine', type: 'multi', options: ['Andhra Style', 'Godavari Style', 'Rayalaseema Style', 'Telangana Style', 'Hyderabadi', 'Pure-Veg Traditional', 'Others'] },
-          { key: 'foodType', label: 'Food type', type: 'single', options: ['Veg only', 'Non-veg', 'Both'] },
+          { key: 'foodType', label: 'Food type', type: 'single', options: ['Veg only', 'Non-veg', 'Veg & Non-veg'] },
           { key: 'menuItems', label: 'Items in menu', type: 'single', options: ['10', '15', '20', '25', '30+'] },
           { key: 'liveCounters', label: 'Live counters', type: 'single', options: ['None', '1', '2', '3', '4+'] },
         ],

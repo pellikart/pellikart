@@ -5,7 +5,7 @@ import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySele
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
-import ExploreFilterBar, { buildFilterDefs, applyExploreFilters, type FilterValues } from '@/components/ExploreFilterBar'
+import ExploreFilterBar, { buildFilterDefs, applyExploreFilters, getCardSpecFields, type FilterValues } from '@/components/ExploreFilterBar'
 import { trackEvent, trackImpressions, selectBidDb, createBids, fetchCoupleBids } from '@/lib/supabase-db'
 import { getListingConfig, type SelectField } from '@/lib/vendor-category-config'
 import { shouldShowBundlePopup, buildBundleEntries, planBundleApplication } from '@/lib/bundle'
@@ -112,8 +112,17 @@ export default function CategoryBoardPage() {
     const cands = [vendors[d.id], mockVendors[d.vendorId], vendors[d.vendorId], mockVendors[d.id]]
     return cands.find((c) => c && (c.categoryFields || c.includes)) || cands.find(Boolean)
   }
-  const { primary: exploreFilterDefs, more: exploreMoreDefs } = buildFilterDefs(category.label, exploreDesigns.map(getExploreVendor).filter(Boolean) as Vendor[])
+  const exploreVendors = exploreDesigns.map(getExploreVendor).filter(Boolean) as Vendor[]
+  const { primary: exploreFilterDefs, more: exploreMoreDefs } = buildFilterDefs(category.label, exploreVendors)
   const filteredExplore = applyExploreFilters(exploreDesigns, filterValues, [...exploreFilterDefs, ...exploreMoreDefs], getExploreVendor)
+  // Two key parameters to show as a compact spec box under each card's cover photo.
+  const cardSpecFields = getCardSpecFields(category.label, exploreVendors)
+  const formatSpec = (key: string, val: string | string[] | undefined): string => {
+    // Legacy data: "Both" for food type read as "Veg & Non-veg".
+    if (key === 'foodType' && val === 'Both') return 'Veg & Non-veg'
+    if (Array.isArray(val)) return val.length ? val.join(', ') : '—'
+    return val && String(val).trim() ? String(val) : '—'
+  }
   // Customization (couple briefs vendors → bids) is currently only meaningful for Decor.
   // Other categories have predefined listings; couples just pick from the explore feed.
   const supportsCustomize = category.label === 'Decor'
@@ -437,15 +446,20 @@ export default function CategoryBoardPage() {
                     <button onClick={() => setFilterValues({})} className="mt-2 text-magenta text-xs font-medium">Clear filters</button>
                   </div>
                 ) : (
-                  filteredExplore.map((d) => (
-                    <DesignFeedCard
-                      key={d.id}
-                      design={d}
-                      vendorName={unlocked ? (mockVendors[d.vendorId]?.name || d.vendorId) : mockVendors[d.vendorId]?.code || d.vendorId}
-                      onAdd={() => { addDesignAsVendor(d); addToShortlist(ritualId!, categoryId!, d.id) }}
-                      onTap={() => { addDesignAsVendor(d); setDetailVendorId(d.id) }}
-                    />
-                  ))
+                  filteredExplore.map((d) => {
+                    const pv = getExploreVendor(d)
+                    const specs = cardSpecFields.map((f) => ({ label: f.label, value: formatSpec(f.key, pv?.categoryFields?.[f.key]) }))
+                    return (
+                      <DesignFeedCard
+                        key={d.id}
+                        design={d}
+                        vendorName={unlocked ? (mockVendors[d.vendorId]?.name || d.vendorId) : mockVendors[d.vendorId]?.code || d.vendorId}
+                        specs={specs}
+                        onAdd={() => { addDesignAsVendor(d); addToShortlist(ritualId!, categoryId!, d.id) }}
+                        onTap={() => { addDesignAsVendor(d); setDetailVendorId(d.id) }}
+                      />
+                    )
+                  })
                 )}
               </div>
             </>
@@ -962,23 +976,38 @@ function CompareTable({
   )
 }
 
-function DesignFeedCard({ design, vendorName, onAdd, onTap }: { design: Design; vendorName: string; onAdd: () => void; onTap?: () => void }) {
+function DesignFeedCard({ design, vendorName, specs, onAdd, onTap }: { design: Design; vendorName: string; specs?: { label: string; value: string }[]; onAdd: () => void; onTap?: () => void }) {
   return (
-    <div className="rounded-xl overflow-hidden relative aspect-square cursor-pointer" style={bgStyle(design.photo)} onClick={onTap}>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-      <div className="relative z-10 h-full flex flex-col justify-between p-2">
-        <div className="flex items-start justify-end">
-          <span className="bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full">★ {design.rating}</span>
+    <div className="rounded-xl overflow-hidden border border-card-border bg-white cursor-pointer transition-shadow hover:shadow-md" onClick={onTap}>
+      <div className="relative aspect-square" style={bgStyle(design.photo)}>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+        <div className="relative z-10 h-full flex flex-col justify-between p-2">
+          <span className="self-end bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full">★ {design.rating}</span>
+          <div>
+            <p className="text-white font-semibold text-[11px] leading-tight truncate">{design.name}</p>
+            <p className="text-white/60 text-[8px] mt-0.5 truncate">by {vendorName}</p>
+            <p className="text-white font-bold text-sm mt-0.5">{formatINR(design.price)}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-white font-semibold text-[11px] leading-tight">{design.name}</p>
-          <p className="text-white/60 text-[8px] mt-0.5">by {vendorName}</p>
-          <p className="text-white/50 text-[8px] mt-0.5">{design.style}</p>
-          <p className="text-white font-bold text-xs mt-0.5">{formatINR(design.price)}</p>
-          <button onClick={(e) => { e.stopPropagation(); onAdd() }} className="mt-1.5 w-full bg-white text-magenta text-[10px] font-semibold py-1.5 rounded-lg active:scale-[0.97] transition-transform">
-            + Add design
-          </button>
-        </div>
+      </div>
+
+      <div className="p-2">
+        {specs && specs.length > 0 && (
+          <div className="grid grid-cols-2 gap-1.5">
+            {specs.map((s, i) => (
+              <div key={i} className="rounded-lg bg-gray-50 px-2 py-1.5 min-w-0">
+                <p className="text-[7.5px] text-gray-400 uppercase tracking-wide truncate">{s.label}</p>
+                <p className="text-[9px] font-semibold text-dark leading-tight line-clamp-2">{s.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); onAdd() }}
+          className="mt-2 w-full bg-magenta text-white text-[10px] font-semibold py-1.5 rounded-lg active:scale-[0.97] transition-transform"
+        >
+          + Add design
+        </button>
       </div>
     </div>
   )

@@ -78,6 +78,16 @@ export function buildFilterDefs(categoryLabel: string, vendors: Vendor[]): { pri
   return { primary, more }
 }
 
+/** The up-to-2 category parameters shown as a compact spec box on each explore
+ *  card. Prefers params vendors have actually filled, falling back to the first
+ *  config fields so a category always offers a consistent pair. */
+export function getCardSpecFields(categoryLabel: string, vendors: Vendor[]): { key: string; label: string }[] {
+  const fields = getListingConfig(categoryLabel).steps.flatMap((s) => s.fields).filter((f) => !f.visibleWhen)
+  const filled = fields.filter((f) => vendors.some((v) => hasValue(v, f.key)))
+  const ordered = filled.length >= 2 ? filled : [...filled, ...fields.filter((f) => !filled.includes(f))]
+  return ordered.slice(0, 4).map((f) => ({ key: f.key, label: f.label }))
+}
+
 /* ------------------------------------------------------------------ *
  * Filtering — applied to the explore items, joining to parent vendor.
  * ------------------------------------------------------------------ */
