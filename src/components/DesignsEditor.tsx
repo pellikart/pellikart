@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { formatINR } from '@/lib/helpers'
-import type { SizePrice } from '@/lib/vendor-types'
+import type { SizePrice, DesignDraft } from '@/lib/vendor-types'
+
+export type { DesignDraft } from '@/lib/vendor-types'
 
 /**
  * One size row with its own local string state so the input is always
@@ -82,22 +84,14 @@ function SizeRow({
   )
 }
 
-export interface DesignDraft {
-  id: string
-  name: string
-  photos: string[]   // blob URLs in demo, public URLs in live mode after upload
-  videos: string[]
-  price: number
-  /** Optional per-size price variants (width × height in ft, with a price each).
-   *  When non-empty the published listing's `price` is set to min(sizes.price). */
-  sizes?: SizePrice[]
-}
-
 interface Props {
   value: DesignDraft[]
   onChange: (next: DesignDraft[]) => void
   /** Called when raw File objects are added, so the parent can re-upload on publish in live mode. */
   onFilesAdded?: (designId: string, kind: 'photo' | 'video', files: File[]) => void
+  /** Whether to show the per-size price variants. Off for venue in-house decor
+   *  (the size is fixed by the venue, so each design just has one price). */
+  showSizes?: boolean
 }
 
 function newDesign(): DesignDraft {
@@ -110,7 +104,7 @@ function newDesign(): DesignDraft {
   }
 }
 
-export default function DesignsEditor({ value, onChange, onFilesAdded }: Props) {
+export default function DesignsEditor({ value, onChange, onFilesAdded, showSizes = true }: Props) {
   const [pendingFiles, setPendingFiles] = useState<Record<string, { photos: File[]; videos: File[] }>>({})
 
   function update(id: string, patch: Partial<DesignDraft>) {
@@ -206,8 +200,9 @@ export default function DesignsEditor({ value, onChange, onFilesAdded }: Props) 
 
           {/* Price — either a flat price OR per-size variants. If sizes are added,
               the flat input is hidden and we use the minimum size price as the
-              listing's "starting from" price. */}
-          {(design.sizes?.length || 0) === 0 && (
+              listing's "starting from" price. When sizes are disabled (in-house
+              decor), the flat price is always shown. */}
+          {(!showSizes || (design.sizes?.length || 0) === 0) && (
             <div>
               <label className="text-[10px] text-gray-500 block mb-1">Price</label>
               <div className="relative max-w-[200px]">
@@ -224,41 +219,43 @@ export default function DesignsEditor({ value, onChange, onFilesAdded }: Props) 
           )}
 
           {/* Sizes & pricing — like Amazon variants, each ft × ft size has its own price */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <div>
-                <label className="text-[10px] text-gray-500 block">Sizes &amp; pricing <span className="text-gray-400 font-normal">(optional)</span></label>
-                {(design.sizes?.length || 0) > 0 && (
-                  <p className="text-[9px] text-gray-400 mt-0.5">Couples see "from {formatINR(Math.min(...(design.sizes || []).map(s => s.price || 0).filter(p => p > 0)) || 0)}"</p>
-                )}
+          {showSizes && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div>
+                  <label className="text-[10px] text-gray-500 block">Sizes &amp; pricing <span className="text-gray-400 font-normal">(optional)</span></label>
+                  {(design.sizes?.length || 0) > 0 && (
+                    <p className="text-[9px] text-gray-400 mt-0.5">Couples see "from {formatINR(Math.min(...(design.sizes || []).map(s => s.price || 0).filter(p => p > 0)) || 0)}"</p>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {(design.sizes || []).map((sz, sizeIdx) => (
-              <SizeRow
-                key={`${design.id}-${sizeIdx}`}
-                row={sz}
-                onChange={(nextRow) => {
-                  const next = [...(design.sizes || [])]
-                  next[sizeIdx] = nextRow
+              {(design.sizes || []).map((sz, sizeIdx) => (
+                <SizeRow
+                  key={`${design.id}-${sizeIdx}`}
+                  row={sz}
+                  onChange={(nextRow) => {
+                    const next = [...(design.sizes || [])]
+                    next[sizeIdx] = nextRow
+                    update(design.id, { sizes: next })
+                  }}
+                  onRemove={() => {
+                    const next = (design.sizes || []).filter((_, i) => i !== sizeIdx)
+                    update(design.id, { sizes: next.length > 0 ? next : undefined })
+                  }}
+                />
+              ))}
+
+              <button
+                type="button"
+                onClick={() => {
+                  const next = [...(design.sizes || []), { widthFt: 0, heightFt: 0, price: 0 }]
                   update(design.id, { sizes: next })
                 }}
-                onRemove={() => {
-                  const next = (design.sizes || []).filter((_, i) => i !== sizeIdx)
-                  update(design.id, { sizes: next.length > 0 ? next : undefined })
-                }}
-              />
-            ))}
-
-            <button
-              type="button"
-              onClick={() => {
-                const next = [...(design.sizes || []), { widthFt: 0, heightFt: 0, price: 0 }]
-                update(design.id, { sizes: next })
-              }}
-              className="w-full py-2 rounded-xl border-2 border-dashed border-mustard/30 text-mustard text-[11px] font-semibold active:bg-mustard-light/20"
-            >+ Add size</button>
-          </div>
+                className="w-full py-2 rounded-xl border-2 border-dashed border-mustard/30 text-mustard text-[11px] font-semibold active:bg-mustard-light/20"
+              >+ Add size</button>
+            </div>
+          )}
 
           {/* Photos */}
           <div>

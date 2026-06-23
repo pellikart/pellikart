@@ -8,23 +8,22 @@ import { uploadPhotos } from '@/lib/supabase-db'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuBuilder from '@/components/MenuBuilder'
 import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
-import type { PaidRoom, MenuSection } from '@/lib/vendor-types'
+import type { PaidRoom, MenuSection, PlatePackage, VenuePricingModel, InHouseDecor, VenueLocation } from '@/lib/vendor-types'
 
 export default function VendorAddListing({ embedded = false, onPublished }: { embedded?: boolean; onPublished?: () => void } = {}) {
   const navigate = useNavigate()
   // First listing during onboarding — either embedded in the onboarding flow,
   // or (legacy) reached via the ?onboarding=1 route.
   const isFirstListing = embedded || new URLSearchParams(useLocation().search).get('onboarding') === '1'
-  const { vendorProfile, vendorListings, addListing, updateListing, _vendorDbId, _liveMode } = useVendorStore()
+  const { vendorProfile, vendorListings, addListing, updateListing, addNotification, _vendorDbId, _liveMode } = useVendorStore()
   const profileCategory = vendorProfile?.category || 'Photography'
   // Single-listing categories (Mehendi/Makeup/Saree Draping) are authored in onboarding — no manual add flow.
   useEffect(() => {
     if (!embedded && isSingleListingCategory(profileCategory)) navigate('/vendor/listings', { replace: true })
   }, [embedded, profileCategory, navigate])
-  // Venue vendors can also create in-house Catering / Decor listings.
-  const allowedCategories = useMemo(() =>
-    profileCategory === 'Venue' ? ['Venue', 'Catering', 'Decor'] : [profileCategory],
-  [profileCategory])
+  // Each vendor lists only within their own category. (Venue's in-house catering
+  // is now captured via per-plate packages; in-house décor is parked for later.)
+  const allowedCategories = useMemo(() => [profileCategory], [profileCategory])
 
   const [category, setCategory] = useState(profileCategory)
   const config = getListingConfig(category)
@@ -54,8 +53,28 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   // Decor/Catering-only (for Venue vendors): link this listing back to existing venues
   const [linkedVenueIds, setLinkedVenueIds] = useState<string[]>([])
   const [linkedVenueMandatory, setLinkedVenueMandatory] = useState(false)
-  // Venue-only: per-duration price tiers
+  // Venue-only: the venue's location (prefilled from the vendor's profile city/area)
+  const [venueLocation, setVenueLocation] = useState<VenueLocation>({
+    address: '', area: vendorProfile?.area || '', city: vendorProfile?.city || '', mapsLink: '',
+  })
+  // Venue-only: which pricing model(s) this venue offers — rent and/or per-plate
+  const [venuePricingModels, setVenuePricingModels] = useState<VenuePricingModel[]>([])
+  // Venue-only: per-duration rent tiers (used by the 'rent' model)
   const [hourlyPricing, setHourlyPricing] = useState<{ hours: number; price: number }[]>([])
+  // Venue-only: per-plate food packages (used by the 'perPlate' model)
+  const [platePackages, setPlatePackages] = useState<PlatePackage[]>([])
+  // Venue-only: which plate package's menu is currently being edited (catering-style sub-screen)
+  const [menuEditPkgId, setMenuEditPkgId] = useState<string | null>(null)
+  // Venue-only: in-house decor — is it compulsory, and (if so) its details
+  const [inHouseDecorCompulsory, setInHouseDecorCompulsory] = useState<boolean | null>(null)
+  // When compulsory: 'now' = add details in this flow, 'skip' = add later (reminder)
+  const [inHouseDecorMode, setInHouseDecorMode] = useState<'now' | 'skip' | null>(null)
+  // Whether the decor details form has been opened (via Continue) — gates the form reveal
+  const [decorFormOpen, setDecorFormOpen] = useState(false)
+  const [inHouseDecorFields, setInHouseDecorFields] = useState<Record<string, string | string[]>>({})
+  const [inHouseDecorDesigns, setInHouseDecorDesigns] = useState<DesignDraft[]>([])
+  // Per-design pending File uploads for in-house decor (live mode replaces blob URLs)
+  const [inHouseDecorFiles, setInHouseDecorFiles] = useState<Record<string, { photos: File[]; videos: File[] }>>({})
   // Venue-only: paid lodging rooms
   const [paidRooms, setPaidRooms] = useState<PaidRoom[]>([])
   // Per-room pending File uploads (live mode publish replaces blob URLs with public URLs)
@@ -83,7 +102,17 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setBundleMandatory(false)
     setLinkedVenueIds([])
     setLinkedVenueMandatory(false)
+    setVenueLocation({ address: '', area: vendorProfile?.area || '', city: vendorProfile?.city || '', mapsLink: '' })
+    setVenuePricingModels([])
     setHourlyPricing([])
+    setPlatePackages([])
+    setMenuEditPkgId(null)
+    setInHouseDecorCompulsory(null)
+    setInHouseDecorMode(null)
+    setDecorFormOpen(false)
+    setInHouseDecorFields({})
+    setInHouseDecorDesigns([])
+    setInHouseDecorFiles({})
     setPaidRooms([])
     setPaidRoomFiles({})
     setMenu([])
@@ -105,6 +134,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   // in-house catering/décor. The listing NAME step was removed — listings are
   // identified by their anonymous public code + photo/price/specs.
   const hasListingTypeStep = allowedCategories.length > 1
+  const hasLocationStep = category === 'Venue'
   const hasPhotosStep = category !== 'Decor'
   const hasStylePriceStep = category !== 'Venue' && category !== 'Decor'
   const hasPaidRoomsStep = category === 'Venue'
@@ -113,19 +143,25 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering'
 
   // Each category gets a contiguous run of steps. Decor skips Photos & Name, so its
-  // step indices start at 1 with Rituals.
+  // step indices start at 1 with Rituals. Venue leads with a Location step.
   const firstStep = hasListingTypeStep ? 1 : -1
-  const ritualsStep = hasListingTypeStep ? 2 : 1
+  const baseBeforeLocation = hasListingTypeStep ? 1 : 0
+  const locationStep = hasLocationStep ? baseBeforeLocation + 1 : -1
+  const ritualsStep = (hasLocationStep ? locationStep : baseBeforeLocation) + 1
   const categoryStepStart = ritualsStep + 1
 
   let nextStep = categoryStepStart + categoryStepCount
   let inclusionsStep = -1
   let paidRoomsStep = -1
+  let venuePricingStep = -1
+  let decorCompulsoryStep = -1
   let menuStep = -1
   let stylePriceStep = -1
   let designsStep = -1
   if (category === 'Venue') {
     if (hasInclusionsStep) inclusionsStep = nextStep++
+    venuePricingStep = nextStep++
+    decorCompulsoryStep = nextStep++
     if (hasPaidRoomsStep) paidRoomsStep = nextStep++
   } else if (category === 'Catering') {
     if (hasMenuStep) menuStep = nextStep++
@@ -143,6 +179,29 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const totalSteps = reviewStep
 
   const pr = config.priceRange
+
+  // Venue pricing model — derived helpers (used by publish, review preview & gating)
+  const venueOffersRent = venuePricingModels.includes('rent')
+  const venueOffersPerPlate = venuePricingModels.includes('perPlate')
+  const venueRentTier = hourlyPricing.find(t => t.hours === 24) || hourlyPricing[0]
+  const venueRentPrice = venueRentTier?.price || 0
+  const venuePlateFrom = platePackages.length > 0 ? Math.min(...platePackages.map(p => p.pricePerPlate)) : 0
+  // True once the venue has at least one model with valid pricing entered.
+  const venuePricingReady =
+    (venueOffersRent && venueRentPrice > 0) ||
+    (venueOffersPerPlate && venuePlateFrom > 0)
+  // Number of dishes (dish-bank + custom) configured in a plate package's menu.
+  const menuItemCount = (menu?: MenuSection[]) =>
+    (menu || []).reduce((s, sec) => s + sec.dishIds.length + (sec.customDishes?.length || 0), 0)
+  // Decor step is answerable once they pick No, choose to skip, or open the add-now form.
+  const decorStepReady =
+    inHouseDecorCompulsory === false ||
+    inHouseDecorMode === 'skip' ||
+    (inHouseDecorMode === 'now' && decorFormOpen)
+  // Decor detail fields reuse the Decor listing's first step ("Decor details").
+  const decorFieldDefs = getListingConfig('Decor').steps[0].fields
+  // Location step needs at least an address before continuing.
+  const venueLocationReady = venueLocation.address.trim().length > 0
 
   function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files) {
@@ -238,8 +297,10 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     // For Venue with hourly pricing, the base price defaults to the 24 hr tier
     // (so couples see that by default). For Decor there's no listing-level price
     // (couples use the Customize/bid flow). Other categories use the slider.
-    const effectivePrice = category === 'Venue' && hourlyPricing.length > 0
-      ? (hourlyPricing.find(t => t.hours === 24)?.price || hourlyPricing[0].price || price)
+    const effectivePrice = category === 'Venue'
+      ? (venueOffersRent && venueRentPrice > 0 ? venueRentPrice
+        : venueOffersPerPlate && venuePlateFrom > 0 ? venuePlateFrom
+        : price)
       : category === 'Decor' ? 0
       // Photography: the board price is the per-hour total for 1 of each offered role.
       : category === 'Photography' ? getRateCardBaseHourly(rateCard)
@@ -255,6 +316,36 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         // Replace the room's photos with uploaded URLs (drop the blob previews).
         return uploaded.length > 0 ? { ...room, photos: uploaded } : room
       }))
+    }
+
+    // In-house decor — upload design media in live mode, then build the payload object.
+    let inHouseDecorForPayload: InHouseDecor | undefined = undefined
+    if (category === 'Venue' && inHouseDecorCompulsory !== null) {
+      const addingNow = inHouseDecorCompulsory && inHouseDecorMode === 'now'
+      const pending = inHouseDecorCompulsory && inHouseDecorMode === 'skip'
+      let decorDesigns = inHouseDecorDesigns
+      if (addingNow && decorDesigns.length > 0 && _liveMode && _vendorDbId) {
+        decorDesigns = await Promise.all(decorDesigns.map(async d => {
+          const files = inHouseDecorFiles[d.id]
+          let photos = d.photos
+          let videos = d.videos
+          if (files?.photos.length) {
+            const up = await uploadPhotos(_vendorDbId, files.photos, 'listing')
+            if (up.length > 0) photos = up
+          }
+          if (files?.videos.length) {
+            const up = await uploadPhotos(_vendorDbId, files.videos, 'listing')
+            if (up.length > 0) videos = up
+          }
+          return { ...d, photos, videos }
+        }))
+      }
+      inHouseDecorForPayload = {
+        compulsory: inHouseDecorCompulsory,
+        pending: pending || undefined,
+        fields: addingNow && Object.keys(inHouseDecorFields).length > 0 ? inHouseDecorFields : undefined,
+        designs: addingNow && decorDesigns.length > 0 ? decorDesigns : undefined,
+      }
     }
 
     const createdAt = new Date().toISOString().split('T')[0]
@@ -344,14 +435,31 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       createdAt,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
-      hourlyPricing: category === 'Venue' && hourlyPricing.length > 0 ? hourlyPricing : undefined,
+      venueLocation: category === 'Venue' && venueLocation.address.trim() ? venueLocation : undefined,
+      venuePricingModels: category === 'Venue' && venuePricingModels.length > 0 ? venuePricingModels : undefined,
+      hourlyPricing: category === 'Venue' && venueOffersRent && hourlyPricing.length > 0 ? hourlyPricing : undefined,
+      platePackages: category === 'Venue' && venueOffersPerPlate && platePackages.length > 0 ? platePackages : undefined,
       rateCard: category === 'Photography' ? rateCard : undefined,
       availableHours: category === 'Photography' && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
+      inHouseDecor: category === 'Venue' ? inHouseDecorForPayload : undefined,
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
       ...transportFields,
     }
     addListing(listing)
+
+    // In-house decor was marked compulsory but details were skipped — remind the vendor.
+    if (category === 'Venue' && inHouseDecorForPayload?.pending) {
+      addNotification({
+        id: `n-${Date.now()}`,
+        type: 'decor_reminder',
+        title: 'Add your in-house decor details',
+        body: `Your venue "${effectiveName}" requires in-house decor. Add the decor designs and details so couples can see what's included.`,
+        timestamp: new Date().toISOString(),
+        read: false,
+        link: '/vendor/listings',
+      })
+    }
 
     // If this Catering listing was linked to any venues, append it to each
     // venue's bundle so the existing user-side mandatory-bundle popup picks it up.
@@ -439,6 +547,74 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
           </div>
         )}
 
+        {/* Location step (Venue only) — the first step of the venue flow */}
+        {step === locationStep && hasLocationStep && (
+          <div className="animate-fadeIn">
+            <div className="w-12 h-12 rounded-2xl bg-mustard-light flex items-center justify-center mb-3">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 21s-6-5.3-6-10a6 6 0 0112 0c0 4.7-6 10-6 10z" /><circle cx="12" cy="11" r="2.2" />
+              </svg>
+            </div>
+            <h1 className="text-[20px] font-bold text-dark">Where is your venue?</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Add the venue's location so couples can find it.</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[12px] font-medium text-dark block mb-1.5">Address</label>
+                <textarea
+                  value={venueLocation.address}
+                  onChange={(e) => setVenueLocation(prev => ({ ...prev, address: e.target.value }))}
+                  rows={3}
+                  placeholder="Building, street, landmark…"
+                  className="w-full px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard resize-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-[12px] font-medium text-dark block mb-1.5">Area</label>
+                  <input
+                    type="text"
+                    value={venueLocation.area || ''}
+                    onChange={(e) => setVenueLocation(prev => ({ ...prev, area: e.target.value }))}
+                    placeholder="Area / locality"
+                    className="w-full px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[12px] font-medium text-dark block mb-1.5">City</label>
+                  <input
+                    type="text"
+                    value={venueLocation.city || ''}
+                    onChange={(e) => setVenueLocation(prev => ({ ...prev, city: e.target.value }))}
+                    placeholder="City"
+                    className="w-full px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[12px] font-medium text-dark block mb-1.5">Google Maps link <span className="text-[10px] text-gray-400 font-normal">(optional)</span></label>
+                <input
+                  type="url"
+                  value={venueLocation.mapsLink || ''}
+                  onChange={(e) => setVenueLocation(prev => ({ ...prev, mapsLink: e.target.value }))}
+                  placeholder="https://maps.google.com/…"
+                  className="w-full px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard"
+                />
+                <p className="text-[9px] text-gray-400 mt-1">Paste your venue's Google Maps link so couples can open directions.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => navigate('/vendor/listings')} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
+              <button
+                onClick={() => setStep(locationStep + 1)}
+                disabled={!venueLocationReady}
+                className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-40"
+              >Next</button>
+            </div>
+          </div>
+        )}
+
         {/* Rituals / Events step */}
         {step === ritualsStep && (
           <div className="animate-fadeIn">
@@ -514,6 +690,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
             <div className="flex gap-2 mt-6">
               {hasListingTypeStep ? (
                 <button onClick={() => setStep(firstStep)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              ) : hasLocationStep ? (
+                <button onClick={() => setStep(locationStep)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
               ) : (
                 <button onClick={() => navigate('/vendor/listings')} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
               )}
@@ -582,7 +760,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         {step === menuStep && hasMenuStep && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">Build your menu</h1>
-            <p className="text-[11px] text-gray-400 mt-1 mb-5">Tap a section to expand. Pick the dishes you offer and set how many the couple can choose from each section.</p>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Create your own categories and add the dishes you offer under each. Set how many the couple can pick per category.</p>
             <MenuBuilder
               value={menu}
               foodType={categoryFields.foodType as string | undefined}
@@ -593,6 +771,417 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
               <button onClick={() => setStep(menuStep + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
             </div>
           </div>
+        )}
+
+        {/* Pricing model step → per-package menu sub-screen (catering-style flow) */}
+        {step === venuePricingStep && category === 'Venue' && menuEditPkgId && (() => {
+          const pkg = platePackages.find(p => p.id === menuEditPkgId)
+          if (!pkg) { setMenuEditPkgId(null); return null }
+          return (
+            <div className="animate-fadeIn">
+              <button onClick={() => setMenuEditPkgId(null)} className="text-[12px] text-mustard font-medium mb-2">← Back to packages</button>
+              <h1 className="text-[20px] font-bold text-dark">{pkg.name.trim() || 'Package'} menu</h1>
+              <p className="text-[11px] text-gray-400 mt-1 mb-5">Create categories and add the dishes included in this package. Set how many the couple can pick per category.</p>
+              <MenuBuilder
+                value={pkg.menu || []}
+                foodType={categoryFields.foodPolicy as string | undefined}
+                onChange={(next) => setPlatePackages(prev => prev.map(p => p.id === pkg.id ? { ...p, menu: next } : p))}
+              />
+              <button
+                onClick={() => setMenuEditPkgId(null)}
+                className="mt-6 w-full py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform"
+              >Done · {menuItemCount(pkg.menu)} {menuItemCount(pkg.menu) === 1 ? 'item' : 'items'}</button>
+            </div>
+          )
+        })()}
+
+        {/* Pricing model step (Venue only) — rent and/or per-plate */}
+        {step === venuePricingStep && category === 'Venue' && !menuEditPkgId && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">How do you price this venue?</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Pick one or both. Couples will see each option clearly when comparing venues.</p>
+
+            {/* Model selector */}
+            <div className="flex flex-col gap-2.5 mb-5">
+              {([
+                { key: 'rent' as const, title: 'Venue rent', desc: 'You charge rent for the venue. Food is arranged separately.' },
+                { key: 'perPlate' as const, title: 'Per-plate (food included)', desc: 'Rent is free — couples take food from your venue, charged per plate.' },
+              ]).map(m => {
+                const selected = venuePricingModels.includes(m.key)
+                return (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => setVenuePricingModels(prev => prev.includes(m.key) ? prev.filter(x => x !== m.key) : [...prev, m.key])}
+                    className={`w-full text-left p-3.5 rounded-xl border transition-all ${selected ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border bg-white'}`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <span className={`w-4 h-4 mt-0.5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${selected ? 'border-mustard bg-mustard' : 'border-gray-300 bg-white'}`}>
+                        {selected && <span className="text-white text-[10px] leading-none">✓</span>}
+                      </span>
+                      <div>
+                        <p className="text-[13px] font-semibold text-dark">{m.title}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">{m.desc}</p>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Rent model — per-duration hourly tiers */}
+            {venueOffersRent && (
+              <div className="mb-4 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <p className="text-[12px] font-semibold text-dark mb-0.5">Venue rent</p>
+                <p className="text-[10px] text-gray-500 mb-2">Tap each duration you offer and set its price. Couples see the 24 hr price by default.</p>
+
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {[12, 24].map(h => {
+                    const selected = hourlyPricing.some(t => t.hours === h)
+                    return (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => setHourlyPricing(prev =>
+                          selected ? prev.filter(t => t.hours !== h) : [...prev, { hours: h, price: 0 }]
+                        )}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-medium transition-all ${selected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 border border-card-border'}`}
+                      >
+                        {selected && <span className="mr-0.5">✓ </span>}{h} hr
+                      </button>
+                    )
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setHourlyPricing(prev => [...prev, { hours: 6, price: 0 }])}
+                    className="px-3 py-1.5 rounded-full text-[10px] font-medium bg-empty-bg text-dark border border-card-border active:bg-mustard-light/40"
+                  >
+                    + Custom
+                  </button>
+                </div>
+
+                {hourlyPricing.length > 0 && (
+                  <div className="space-y-2">
+                    {hourlyPricing.map((tier, i) => {
+                      const isPreset = tier.hours === 12 || tier.hours === 24
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          {isPreset ? (
+                            <span className="px-2.5 py-2 rounded-lg bg-white border border-card-border text-[11px] font-medium text-dark min-w-[60px] text-center">
+                              {tier.hours} hr
+                            </span>
+                          ) : (
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min={1}
+                                value={tier.hours || ''}
+                                onChange={(e) => {
+                                  const h = parseInt(e.target.value) || 0
+                                  setHourlyPricing(prev => prev.map((t, idx) => idx === i ? { ...t, hours: h } : t))
+                                }}
+                                className="w-16 pl-2 pr-7 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
+                                placeholder="6"
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">hr</span>
+                            </div>
+                          )}
+                          <div className="relative flex-1">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1000}
+                              value={tier.price || ''}
+                              onChange={(e) => {
+                                const p = parseInt(e.target.value) || 0
+                                setHourlyPricing(prev => prev.map((t, idx) => idx === i ? { ...t, price: p } : t))
+                              }}
+                              className="w-full pl-6 pr-2 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
+                              placeholder="Price"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setHourlyPricing(prev => prev.filter((_, idx) => idx !== i))}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Per-plate model — food packages/tiers */}
+            {venueOffersPerPlate && (
+              <div className="mb-4 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <p className="text-[12px] font-semibold text-dark mb-0.5">Per-plate packages</p>
+                <p className="text-[10px] text-gray-500 mb-2">Add menu tiers (e.g. Veg Silver, Non-veg Gold), each with its own per-plate price. Couples see the lowest as the "from" price.</p>
+
+                {platePackages.length > 0 && (
+                  <div className="space-y-2 mb-2">
+                    {platePackages.map((pkg, i) => {
+                      const items = menuItemCount(pkg.menu)
+                      return (
+                        <div key={pkg.id} className="p-2 rounded-lg bg-white border border-card-border">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={pkg.name}
+                              onChange={(e) => setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, name: e.target.value } : p))}
+                              className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
+                              placeholder="Tier name"
+                            />
+                            <div className="relative w-[110px] shrink-0">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={50}
+                                value={pkg.pricePerPlate || ''}
+                                onChange={(e) => {
+                                  const v = parseInt(e.target.value) || 0
+                                  setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, pricePerPlate: v } : p))
+                                }}
+                                className="w-full pl-6 pr-10 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
+                                placeholder="0"
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">/plate</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setPlatePackages(prev => prev.filter((_, idx) => idx !== i))}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100"
+                            >
+                              ×
+                            </button>
+                          </div>
+                          {/* Menu — opens the catering-style dish picker for this package */}
+                          <button
+                            type="button"
+                            onClick={() => setMenuEditPkgId(pkg.id)}
+                            className={`mt-2 w-full flex items-center justify-between py-2 px-2.5 rounded-lg text-[11px] font-medium transition-all ${items > 0 ? 'bg-mustard-light/50 text-dark border border-mustard/30' : 'bg-empty-bg text-gray-600 border border-card-border'}`}
+                          >
+                            <span>{items > 0 ? `Menu · ${items} ${items === 1 ? 'item' : 'items'}` : '+ Add menu items'}</span>
+                            <span className="text-gray-400">›</span>
+                          </button>
+
+                          {/* Time slots — vendor names slots and sets hours so couples know the timing */}
+                          <div className="mt-2">
+                            <p className="text-[10px] text-gray-500 mb-1.5">Time slots <span className="text-gray-400">(optional)</span></p>
+                            {(pkg.slots && pkg.slots.length > 0) && (
+                              <div className="space-y-1.5 mb-1.5">
+                                {pkg.slots.map((slot, si) => (
+                                  <div key={slot.id} className="rounded-lg border border-card-border p-2.5 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="text"
+                                        value={slot.name}
+                                        onChange={(e) => setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, slots: (p.slots || []).map((s, sj) => sj === si ? { ...s, name: e.target.value } : s) } : p))}
+                                        className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
+                                        placeholder="e.g. Morning"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, slots: (p.slots || []).filter((_, sj) => sj !== si) } : p))}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-medium text-gray-500 w-8 shrink-0">From</span>
+                                      <TimePicker
+                                        value={slot.from}
+                                        onChange={(val) => setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, slots: (p.slots || []).map((s, sj) => sj === si ? { ...s, from: val } : s) } : p))}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-medium text-gray-500 w-8 shrink-0">To</span>
+                                      <TimePicker
+                                        value={slot.to}
+                                        onChange={(val) => setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, slots: (p.slots || []).map((s, sj) => sj === si ? { ...s, to: val } : s) } : p))}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, slots: [...(p.slots || []), { id: `sl-${Date.now()}-${(p.slots || []).length}`, name: '', from: '', to: '' }] } : p))}
+                              className="px-3 py-1.5 rounded-full text-[10px] font-medium bg-empty-bg text-dark border border-card-border active:bg-mustard-light/40"
+                            >
+                              + Add slot
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setPlatePackages(prev => [...prev, { id: `pp-${Date.now()}-${prev.length}`, name: '', pricePerPlate: 0 }])}
+                  className="px-3 py-1.5 rounded-full text-[10px] font-medium bg-empty-bg text-dark border border-card-border active:bg-mustard-light/40"
+                >
+                  + Add package
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setStep(venuePricingStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              <button
+                onClick={() => setStep(venuePricingStep + 1)}
+                disabled={!venuePricingReady}
+                className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-40"
+              >Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* In-house decor step (Venue only) — compulsory question, then the decor form */}
+        {step === decorCompulsoryStep && category === 'Venue' && (
+          inHouseDecorMode === 'now' && decorFormOpen ? (
+            /* ── Decor details form (shown only after Continue) ── */
+            <div className="animate-fadeIn">
+              <h1 className="text-[20px] font-bold text-dark">In-house decor details</h1>
+              <p className="text-[11px] text-gray-400 mt-1 mb-5">Add your decor style and designs. Couples booking this venue will see these.</p>
+
+              <div className="space-y-5">
+                {/* Decor detail fields (reused from the Decor listing flow) */}
+                <div className="space-y-5">
+                  {decorFieldDefs.map(field => (
+                    <FieldRenderer
+                      key={field.key}
+                      field={field}
+                      value={inHouseDecorFields[field.key]}
+                      onChange={(val) => setInHouseDecorFields(prev => ({ ...prev, [field.key]: val }))}
+                      onToggleMulti={(val) => setInHouseDecorFields(prev => {
+                        const cur = (prev[field.key] as string[]) || []
+                        return { ...prev, [field.key]: cur.includes(val) ? cur.filter(v => v !== val) : [...cur, val] }
+                      })}
+                    />
+                  ))}
+                </div>
+
+                {/* Designs — each with its own photos & price */}
+                <div>
+                  <p className="text-[12px] font-semibold text-dark mb-1">Decor designs</p>
+                  <p className="text-[10px] text-gray-500 mb-2">Add each decor design with its own photos and price.</p>
+                  <DesignsEditor
+                    value={inHouseDecorDesigns}
+                    onChange={setInHouseDecorDesigns}
+                    showSizes={false}
+                    onFilesAdded={(designId, kind, files) =>
+                      setInHouseDecorFiles(prev => {
+                        const entry = prev[designId] || { photos: [], videos: [] }
+                        return {
+                          ...prev,
+                          [designId]: kind === 'photo'
+                            ? { ...entry, photos: [...entry.photos, ...files] }
+                            : { ...entry, videos: [...entry.videos, ...files] },
+                        }
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <button onClick={() => setDecorFormOpen(false)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+                <button
+                  onClick={() => setStep(decorCompulsoryStep + 1)}
+                  className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform"
+                >Next</button>
+              </div>
+            </div>
+          ) : (
+            /* ── Compulsory question ── */
+            <div className="animate-fadeIn">
+              {/* Decorative header icon */}
+              <div className="w-12 h-12 rounded-2xl bg-mustard-light flex items-center justify-center mb-3">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3l2.3 4.7 5.2.8-3.8 3.7.9 5.1L12 15.6 7.4 17l.9-5.1L4.5 8.5l5.2-.8z" />
+                </svg>
+              </div>
+              <h1 className="text-[20px] font-bold text-dark">Is in-house decor compulsory?</h1>
+              <p className="text-[11px] text-gray-400 mt-1 mb-5">Do couples booking this venue have to take your in-house decor?</p>
+
+              <div className="flex flex-col gap-2.5 mb-5">
+                {([
+                  { val: true, title: 'Yes, compulsory', desc: 'Couples must take your in-house decor with the venue.' },
+                  { val: false, title: 'No', desc: 'Couples can bring their own decor or arrange it elsewhere.' },
+                ] as const).map(opt => {
+                  const selected = inHouseDecorCompulsory === opt.val
+                  return (
+                    <button
+                      key={String(opt.val)}
+                      type="button"
+                      onClick={() => { setInHouseDecorCompulsory(opt.val); setInHouseDecorMode(opt.val ? 'now' : null); setDecorFormOpen(false) }}
+                      className={`w-full text-left p-3.5 rounded-xl border transition-all ${selected ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border bg-white'}`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <span className={`w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selected ? 'border-mustard' : 'border-gray-300'}`}>
+                          {selected && <span className="w-2 h-2 rounded-full bg-mustard" />}
+                        </span>
+                        <div>
+                          <p className="text-[13px] font-semibold text-dark">{opt.title}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {inHouseDecorCompulsory === true && (
+                <div className="animate-fadeIn">
+                  {inHouseDecorMode === 'skip' ? (
+                    <div className="p-3 rounded-xl bg-mustard-light/50 border border-mustard/30">
+                      <p className="text-[11px] text-mustard font-semibold">You'll add decor details later</p>
+                      <p className="text-[10px] text-gray-600 mt-0.5">Couples will see this venue requires in-house decor; the designs appear once you add them. We'll remind you with a notification and a banner on this listing.</p>
+                      <button
+                        type="button"
+                        onClick={() => { setInHouseDecorMode('now'); setDecorFormOpen(true) }}
+                        className="mt-2 text-[11px] text-mustard font-semibold active:opacity-70"
+                      >+ Add decor details now</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setDecorFormOpen(true)}
+                        className="w-full py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform"
+                      >Continue to decor details</button>
+                      <button
+                        type="button"
+                        onClick={() => setInHouseDecorMode('skip')}
+                        className="block mx-auto mt-3 text-[10px] text-mustard/90 underline underline-offset-2 active:opacity-70"
+                      >
+                        Can't add these now? Skip for now — we'll remind you later.
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-2 mt-6">
+                <button onClick={() => setStep(decorCompulsoryStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+                <button
+                  onClick={() => setStep(decorCompulsoryStep + 1)}
+                  disabled={!decorStepReady}
+                  className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-40"
+                >Next</button>
+              </div>
+            </div>
+          )
         )}
 
         {/* Paid rooms step (Venue only) */}
@@ -841,9 +1430,17 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                 <p className="text-[10px] text-gray-400 mt-0.5">{vendorProfile?.area}</p>
                 {(() => {
                   if (category === 'Venue') {
-                    const tier = hourlyPricing.find(t => t.hours === 24) || hourlyPricing[0]
-                    if (!tier || !tier.price) return <p className="text-[12px] text-gray-400 italic mt-1">Price not set</p>
-                    return <p className="text-[16px] font-bold text-mustard mt-1">{formatINR(tier.price)} <span className="text-[10px] font-normal text-gray-400">/ {tier.hours} hr</span></p>
+                    if (!venuePricingReady) return <p className="text-[12px] text-gray-400 italic mt-1">Price not set</p>
+                    return (
+                      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                        {venueOffersRent && venueRentPrice > 0 && (
+                          <p className="text-[16px] font-bold text-mustard">{formatINR(venueRentTier!.price)} <span className="text-[10px] font-normal text-gray-400">/ {venueRentTier!.hours} hr rent</span></p>
+                        )}
+                        {venueOffersPerPlate && venuePlateFrom > 0 && (
+                          <p className="text-[16px] font-bold text-mustard">{formatINR(venuePlateFrom)} <span className="text-[10px] font-normal text-gray-400">/ plate{platePackages.length > 1 ? ' (from)' : ''}</span></p>
+                        )}
+                      </div>
+                    )
                   }
                   if (category === 'Decor') {
                     return <p className="text-[12px] text-gray-400 italic mt-1">Couples request a quote via Customize</p>
@@ -892,103 +1489,91 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
             </div>
             )}
 
-            {/* Transport & logistics — asked for every category */}
-            <div className="mb-4 p-3 rounded-xl bg-empty-bg border border-card-border">
-              <p className="text-[12px] font-semibold text-dark mb-1">Transport &amp; logistics included?</p>
-              <div className="flex gap-1.5 mb-2">
-                <button
-                  type="button"
-                  onClick={() => setTransportIncluded(true)}
-                  className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === true ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
-                >Yes</button>
-                <button
-                  type="button"
-                  onClick={() => setTransportIncluded(false)}
-                  className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === false ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
-                >No</button>
-              </div>
-              <p className="text-[9px] text-gray-400">Just lets couples know if travel is bundled — no amount, since it varies by distance.</p>
-            </div>
-
-            {/* Venue-only: per-duration hourly pricing tiers */}
-            {category === 'Venue' && (
-              <div className="mb-4 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
-                <p className="text-[12px] font-semibold text-dark mb-0.5">Hourly pricing</p>
-                <p className="text-[10px] text-gray-500 mb-2">Tap each duration you offer and set its price. Couples see the 24 hr price by default.</p>
-
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {[12, 24].map(h => {
-                    const selected = hourlyPricing.some(t => t.hours === h)
-                    return (
-                      <button
-                        key={h}
-                        type="button"
-                        onClick={() => setHourlyPricing(prev =>
-                          selected ? prev.filter(t => t.hours !== h) : [...prev, { hours: h, price: 0 }]
-                        )}
-                        className={`px-3 py-1.5 rounded-full text-[10px] font-medium transition-all ${selected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 border border-card-border'}`}
-                      >
-                        {selected && <span className="mr-0.5">✓ </span>}{h} hr
-                      </button>
-                    )
-                  })}
+            {/* Transport & logistics — asked for every category except Venue (a venue is a fixed location) */}
+            {category !== 'Venue' && (
+              <div className="mb-4 p-3 rounded-xl bg-empty-bg border border-card-border">
+                <p className="text-[12px] font-semibold text-dark mb-1">Transport &amp; logistics included?</p>
+                <div className="flex gap-1.5 mb-2">
                   <button
                     type="button"
-                    onClick={() => setHourlyPricing(prev => [...prev, { hours: 6, price: 0 }])}
-                    className="px-3 py-1.5 rounded-full text-[10px] font-medium bg-empty-bg text-dark border border-card-border active:bg-mustard-light/40"
-                  >
-                    + Custom
-                  </button>
+                    onClick={() => setTransportIncluded(true)}
+                    className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === true ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+                  >Yes</button>
+                  <button
+                    type="button"
+                    onClick={() => setTransportIncluded(false)}
+                    className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${transportIncluded === false ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}
+                  >No</button>
                 </div>
+                <p className="text-[9px] text-gray-400">Just lets couples know if travel is bundled — no amount, since it varies by distance.</p>
+              </div>
+            )}
 
-                {hourlyPricing.length > 0 && (
-                  <div className="space-y-2">
-                    {hourlyPricing.map((tier, i) => {
-                      const isPreset = tier.hours === 12 || tier.hours === 24
+            {/* Venue-only: location summary */}
+            {category === 'Venue' && venueLocation.address.trim() && (
+              <div className="mb-4 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[12px] font-semibold text-dark">Location</p>
+                  <button onClick={() => setStep(locationStep)} className="text-[10px] font-medium text-mustard">Edit</button>
+                </div>
+                <p className="text-[11px] text-dark">{venueLocation.address}</p>
+                {(venueLocation.area || venueLocation.city) && (
+                  <p className="text-[10px] text-gray-500 mt-0.5">{[venueLocation.area, venueLocation.city].filter(Boolean).join(', ')}</p>
+                )}
+                {venueLocation.mapsLink && <p className="text-[10px] text-mustard mt-0.5 truncate">📍 Map link added</p>}
+              </div>
+            )}
+
+            {/* Venue-only: pricing model summary (edit in the Pricing model step) */}
+            {category === 'Venue' && venuePricingModels.length > 0 && (
+              <div className="mb-4 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[12px] font-semibold text-dark">Pricing</p>
+                  <button onClick={() => setStep(venuePricingStep)} className="text-[10px] font-medium text-mustard">Edit</button>
+                </div>
+                <div className="space-y-1.5">
+                  {venueOffersRent && hourlyPricing.filter(t => t.price > 0).map((tier, i) => (
+                    <div key={`r-${i}`} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5">
+                      <span className="text-[11px] text-dark">Rent · {tier.hours} hr</span>
+                      <span className="text-[11px] font-semibold text-mustard">{formatINR(tier.price)}</span>
+                    </div>
+                  ))}
+                  {venueOffersPerPlate && platePackages.filter(p => p.pricePerPlate > 0).map((pkg) => {
+                    const items = menuItemCount(pkg.menu)
+                    return (
+                      <div key={pkg.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5">
+                        <span className="text-[11px] text-dark truncate">
+                          {pkg.name.trim() || 'Per plate'}
+                          {items > 0 ? <span className="text-[9px] text-gray-400 font-normal"> · {items} {items === 1 ? 'item' : 'items'}</span> : null}
+                        </span>
+                        <span className="text-[11px] font-semibold text-mustard">{formatINR(pkg.pricePerPlate)} <span className="text-[9px] font-normal text-gray-400">/plate</span></span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Venue-only: in-house decor summary */}
+            {category === 'Venue' && inHouseDecorCompulsory !== null && (
+              <div className="mb-4 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[12px] font-semibold text-dark">In-house decor</p>
+                  <button onClick={() => setStep(decorCompulsoryStep)} className="text-[10px] font-medium text-mustard">Edit</button>
+                </div>
+                {inHouseDecorCompulsory === false ? (
+                  <p className="text-[10px] text-gray-500">Not compulsory.</p>
+                ) : inHouseDecorMode === 'skip' ? (
+                  <p className="text-[10px] text-gray-500">Compulsory · details to be added later (you'll be reminded).</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-gray-500">Compulsory · {inHouseDecorDesigns.length} {inHouseDecorDesigns.length === 1 ? 'design' : 'designs'}</p>
+                    {inHouseDecorDesigns.filter(d => d.price > 0 || (d.sizes?.length || 0) > 0).map((d) => {
+                      const from = (d.sizes?.length || 0) > 0 ? Math.min(...(d.sizes || []).map(s => s.price).filter(p => p > 0)) : d.price
                       return (
-                        <div key={i} className="flex items-center gap-2">
-                          {isPreset ? (
-                            <span className="px-2.5 py-2 rounded-lg bg-white border border-card-border text-[11px] font-medium text-dark min-w-[60px] text-center">
-                              {tier.hours} hr
-                            </span>
-                          ) : (
-                            <div className="relative">
-                              <input
-                                type="number"
-                                min={1}
-                                value={tier.hours || ''}
-                                onChange={(e) => {
-                                  const h = parseInt(e.target.value) || 0
-                                  setHourlyPricing(prev => prev.map((t, idx) => idx === i ? { ...t, hours: h } : t))
-                                }}
-                                className="w-16 pl-2 pr-7 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
-                                placeholder="6"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">hr</span>
-                            </div>
-                          )}
-                          <div className="relative flex-1">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
-                            <input
-                              type="number"
-                              min={0}
-                              step={1000}
-                              value={tier.price || ''}
-                              onChange={(e) => {
-                                const p = parseInt(e.target.value) || 0
-                                setHourlyPricing(prev => prev.map((t, idx) => idx === i ? { ...t, price: p } : t))
-                              }}
-                              className="w-full pl-6 pr-2 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
-                              placeholder="Price"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setHourlyPricing(prev => prev.filter((_, idx) => idx !== i))}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100"
-                          >
-                            ×
-                          </button>
+                        <div key={d.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5">
+                          <span className="text-[11px] text-dark truncate">{d.name.trim() || 'Design'}</span>
+                          <span className="text-[11px] font-semibold text-mustard">{from > 0 ? formatINR(from) : '—'}</span>
                         </div>
                       )
                     })}
@@ -1045,6 +1630,55 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Compact 12-hour time picker (hour / minute / AM-PM). Stores 'HH:MM' (24h). */
+function TimePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+  const hasVal = /^\d{1,2}:\d{2}$/.test(value)
+  let hour12 = '', minute = '00', period: 'AM' | 'PM' = 'AM'
+  if (hasVal) {
+    const [h, m] = value.split(':').map(Number)
+    period = h < 12 ? 'AM' : 'PM'
+    hour12 = String(h % 12 === 0 ? 12 : h % 12)
+    minute = String(m).padStart(2, '0')
+  }
+  const compose = (hr: string, min: string, per: 'AM' | 'PM') => {
+    if (!hr) return ''
+    let h = parseInt(hr) % 12
+    if (per === 'PM') h += 12
+    return `${String(h).padStart(2, '0')}:${min}`
+  }
+  const selCls = 'rounded-lg border border-card-border text-[11px] py-2 px-1.5 outline-none focus:border-mustard bg-white text-dark cursor-pointer disabled:opacity-50'
+  return (
+    <div className="flex items-center gap-1.5 flex-1">
+      <select
+        value={hour12}
+        onChange={(e) => onChange(compose(e.target.value, minute, period))}
+        className={`${selCls} flex-1 ${hour12 ? '' : 'text-gray-400'}`}
+      >
+        <option value="" disabled>Hr</option>
+        {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => <option key={h} value={h}>{h}</option>)}
+      </select>
+      <span className="text-gray-400 text-[12px]">:</span>
+      <select
+        value={minute}
+        disabled={!hour12}
+        onChange={(e) => onChange(compose(hour12, e.target.value, period))}
+        className={`${selCls} flex-1`}
+      >
+        {['00', '15', '30', '45'].map(m => <option key={m} value={m}>{m}</option>)}
+      </select>
+      <select
+        value={period}
+        disabled={!hour12}
+        onChange={(e) => onChange(compose(hour12, minute, e.target.value as 'AM' | 'PM'))}
+        className={`${selCls} w-[56px]`}
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
     </div>
   )
 }

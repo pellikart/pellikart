@@ -56,6 +56,19 @@ export default function VendorListings() {
                   <div className="w-full h-32 bg-empty-bg flex items-center justify-center text-gray-400 text-xs">No photo</div>
                 )}
                 <div className="p-3">
+                  {l.inHouseDecor?.pending && (
+                    <button
+                      onClick={() => navigate(`/vendor/listings/edit/${l.id}`)}
+                      className="w-full mb-2 flex items-center gap-2 text-left px-2.5 py-2 rounded-lg bg-mustard-light/60 border border-mustard/30 active:scale-[0.99] transition-transform"
+                    >
+                      <span className="text-[13px]">🎨</span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[10px] font-semibold text-dark">Add your in-house decor details</span>
+                        <span className="block text-[9px] text-gray-500">This venue requires in-house decor — add the designs so couples can see them.</span>
+                      </span>
+                      <span className="text-mustard text-[12px]">›</span>
+                    </button>
+                  )}
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-[12px] font-semibold text-dark">{l.name}</p>

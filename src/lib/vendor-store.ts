@@ -458,6 +458,10 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     if (_liveMode && _userId) markAllNotificationsReadDb(_userId)
   },
 
+  addNotification: (notification) => {
+    set((s) => ({ vendorNotifications: [notification, ...s.vendorNotifications] }))
+  },
+
   addListing: (listing) => {
     const { _liveMode, _vendorDbId } = get()
 

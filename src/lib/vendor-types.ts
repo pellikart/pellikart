@@ -13,6 +13,29 @@ export interface SizePrice {
   price: number
 }
 
+/** A single design entry (used by the Decor designs flow and venue in-house decor). */
+export interface DesignDraft {
+  id: string
+  name: string
+  photos: string[]   // blob URLs in demo, public URLs in live mode after upload
+  videos: string[]
+  price: number
+  /** Optional per-size price variants. When non-empty, the "from" price is min(sizes.price). */
+  sizes?: SizePrice[]
+}
+
+/** Venue-only: in-house decor offering attached to a venue listing. */
+export interface InHouseDecor {
+  /** Whether couples booking this venue must take the in-house decor. */
+  compulsory: boolean
+  /** True when compulsory but the vendor skipped adding details (reminder pending). */
+  pending?: boolean
+  /** Decor detail field values (reuses the Decor listing's detail fields). */
+  fields?: Record<string, string | string[]>
+  /** Per-design entries, each separately priced. */
+  designs?: DesignDraft[]
+}
+
 /** Catering-only: one section of the curated menu. */
 export interface MenuSection {
   /** Section name, matches one of MENU_SECTIONS from dish-bank.ts */
@@ -23,6 +46,50 @@ export interface MenuSection {
   customDishes?: string[]
   /** How many dishes the couple can pick from this section (0 = section disabled) */
   pickLimit: number
+}
+
+/** Venue-only: the venue's physical location. */
+export interface VenueLocation {
+  /** Full street address of the venue. */
+  address: string
+  /** Locality / area. */
+  area?: string
+  /** City. */
+  city?: string
+  /** Optional Google Maps link/pin the vendor pastes. */
+  mapsLink?: string
+}
+
+/** Venue-only: which pricing model(s) a venue offers. */
+export type VenuePricingModel = 'rent' | 'perPlate'
+
+/** Venue-only: a named service time slot for a per-plate package (e.g. "Morning · 9 AM–1 PM"). */
+export interface PlateSlot {
+  /** Stable per-slot id. */
+  id: string
+  /** Slot name the vendor chooses, e.g. "Morning", "Evening". */
+  name: string
+  /** Start time, 'HH:MM' (24h). */
+  from: string
+  /** End time, 'HH:MM' (24h). */
+  to: string
+}
+
+/** Venue-only: a per-plate food package/tier for the rent-free (per-plate) model. */
+export interface PlatePackage {
+  /** Stable per-package id (so we can edit/remove individual tiers). */
+  id: string
+  /** Tier name, e.g. "Veg Silver", "Non-veg Gold". */
+  name: string
+  /** Price charged per plate in ₹. */
+  pricePerPlate: number
+  /** Optional minimum plate count for this tier. */
+  minPlates?: number
+  /** Service time slots offered for this package (e.g. Morning 4 hrs, Evening 5 hrs). */
+  slots?: PlateSlot[]
+  /** Menu the couple gets in this package — same structure as a Catering menu
+   *  (sections of dish-bank picks + custom dishes + per-section pick limits). */
+  menu?: MenuSection[]
 }
 
 export interface PaidRoom {
@@ -100,10 +167,18 @@ export interface VendorListing {
   name: string
   photos: string[]
   videos?: string[]
+  /** Venue-only: the venue's physical location. */
+  venueLocation?: VenueLocation
+  /** Venue-only: which pricing model(s) this venue offers (rent and/or per-plate). */
+  venuePricingModels?: VenuePricingModel[]
   /** Venue-only: per-duration price tiers, e.g. [{ hours: 12, price: 500000 }, ...] */
   hourlyPricing?: { hours: number; price: number }[]
+  /** Venue-only: per-plate food packages (the rent-free / per-plate model). */
+  platePackages?: PlatePackage[]
   /** Venue-only: paid lodging rooms the venue offers, grouped by sharing capacity. */
   paidRooms?: PaidRoom[]
+  /** Venue-only: in-house decor offering (whether compulsory + its details/designs). */
+  inHouseDecor?: InHouseDecor
   /** Catering-only: curated menu sections (dish bank picks + per-section pick limits). */
   menu?: MenuSection[]
   /** Photography-only: per-hour rate card keyed by role (candidPhotographer, drone, …).
@@ -270,6 +345,7 @@ export interface VendorState {
   declineTrial: (trialId: string, reason: string) => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
+  addNotification: (notification: VendorNotification) => void
   addListing: (listing: VendorListing) => void
   updateListing: (listing: VendorListing) => void
   deleteListing: (listingId: string) => void

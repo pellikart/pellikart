@@ -236,6 +236,16 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
   return parts.length ? parts.reduce((a, b) => a + b, 0) : null
 }
 
+/**
+ * The "from" price for a venue's per-plate model — the cheapest plate package.
+ * Returns 0 when the venue has no plate packages.
+ */
+export function getVenuePlateFromPrice(packages?: import('./vendor-types').PlatePackage[]): number {
+  if (!packages || packages.length === 0) return 0
+  const prices = packages.map(p => p.pricePerPlate).filter(v => v > 0)
+  return prices.length ? Math.min(...prices) : 0
+}
+
 export function bgStyle(photo: string): { background: string } {
   if (!photo) return { background: '#f3f4f6' }
   const val = photo.startsWith('url(') ? photo : `url("${photo}")`

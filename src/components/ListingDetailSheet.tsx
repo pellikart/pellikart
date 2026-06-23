@@ -2,12 +2,23 @@ import { useState } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getVenuePlateFromPrice, getRateCardTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal } from '@/lib/helpers'
 import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
+
+/** Format a 'HH:MM' (24h) time string as a 12-hour label, e.g. '09:00' → '9:00 AM'. */
+function fmtTime(t?: string): string {
+  if (!t) return ''
+  const [hStr, mStr] = t.split(':')
+  const h = parseInt(hStr)
+  if (Number.isNaN(h)) return t
+  const ampm = h < 12 ? 'AM' : 'PM'
+  const hr = h % 12 === 0 ? 12 : h % 12
+  return `${hr}:${(mStr ?? '00').padStart(2, '0')} ${ampm}`
+}
 
 /** Editable number display for a +/− stepper — lets users type a value directly
  *  instead of only tapping the buttons. Shows blank with a "0" placeholder when
@@ -793,7 +804,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             )}
             {!vendor.rateCard && vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
               <p className="text-[10px] text-gray-400">
-                {selectedTierHours ? `For ${selectedTierHours} hr rental` : `Default rate`}
+                {selectedTierHours ? `For ${selectedTierHours} hr rental` : `Default venue rent`}
+              </p>
+            )}
+            {vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.hourlyPricing && (
+              <p className="text-[10px] text-gray-400">
+                Per plate{(vendor.platePackages?.length ?? 0) > 1 ? ' · from' : ''}
               </p>
             )}
             {vendor.sizes && vendor.sizes.length > 0 && (
@@ -862,6 +878,92 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                     )
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Per-plate packages (Venue per-plate model) */}
+            {vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && vendor.platePackages && vendor.platePackages.length > 0 && (
+              <div className="mb-4 p-2.5 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Per-plate packages</p>
+                <div className="flex flex-col gap-1.5">
+                  {vendor.platePackages.map((pkg) => (
+                    <div key={pkg.id} className="w-full rounded-lg bg-white border border-card-border overflow-hidden">
+                      <div className="flex items-center justify-between py-2 px-3">
+                        <span className="text-[12px] font-medium text-dark">
+                          {pkg.name?.trim() || 'Per plate'}
+                          {pkg.minPlates ? <span className="text-[10px] text-gray-400 font-normal"> · min {pkg.minPlates}</span> : null}
+                        </span>
+                        <span className="text-[12px] font-semibold text-magenta">{formatINR(pkg.pricePerPlate)} <span className="text-[10px] font-normal text-gray-400">/plate</span></span>
+                      </div>
+                      {pkg.slots && pkg.slots.length > 0 && (
+                        <div className="flex flex-wrap gap-1 px-3 pb-2">
+                          {pkg.slots.map((s) => {
+                            const range = s.from && s.to ? `${fmtTime(s.from)}–${fmtTime(s.to)}` : (s.from ? fmtTime(s.from) : '')
+                            return (
+                              <span key={s.id} className="bg-empty-bg text-[9px] text-gray-600 px-2 py-0.5 rounded-full">
+                                {s.name?.trim() || 'Slot'}{range ? ` · ${range}` : ''}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {pkg.menu && pkg.menu.length > 0 && (
+                        <details className="border-t border-card-border">
+                          <summary className="px-3 py-1.5 text-[10px] font-medium text-mustard cursor-pointer select-none">View menu</summary>
+                          <div className="px-2.5 pb-2.5"><MenuPicker menu={pkg.menu} /></div>
+                        </details>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Venue location */}
+            {vendor.category === 'Venue' && vendor.venueLocation?.address && (
+              <div className="mb-4 p-3 rounded-xl bg-empty-bg border border-card-border">
+                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1">Location</p>
+                <p className="text-[11px] text-gray-700 leading-relaxed">{vendor.venueLocation.address}</p>
+                {(vendor.venueLocation.area || vendor.venueLocation.city) && (
+                  <p className="text-[10px] text-gray-500 mt-0.5">{[vendor.venueLocation.area, vendor.venueLocation.city].filter(Boolean).join(', ')}</p>
+                )}
+                {vendor.venueLocation.mapsLink && (
+                  <a
+                    href={vendor.venueLocation.mapsLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 mt-2 text-[11px] font-semibold text-magenta active:opacity-70"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-6-5.3-6-10a6 6 0 0112 0c0 4.7-6 10-6 10z" /><circle cx="12" cy="11" r="2.2" /></svg>
+                    View on map
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* In-house decor (Venue) — required, priced separately */}
+            {vendor.category === 'Venue' && vendor.inHouseDecor?.compulsory && (
+              <div className="mb-4 p-3 rounded-xl bg-magenta-light/40 border border-magenta/20">
+                <p className="text-[11px] font-semibold text-dark">In-house decor — required</p>
+                <p className="text-[10px] text-gray-600 mb-2">This venue requires its in-house decor, priced separately from the venue.</p>
+                {vendor.inHouseDecor.designs && vendor.inHouseDecor.designs.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {vendor.inHouseDecor.designs.map((d) => {
+                      const from = (d.sizes?.length || 0) > 0
+                        ? Math.min(...(d.sizes || []).map(s => s.price).filter(p => p > 0))
+                        : d.price
+                      return (
+                        <div key={d.id} className="flex items-center gap-2.5 bg-white rounded-lg px-2.5 py-1.5">
+                          {d.photos[0] && <img src={d.photos[0]} alt="" className="w-9 h-9 rounded-md object-cover shrink-0" />}
+                          <span className="text-[11px] font-medium text-dark truncate flex-1">{d.name?.trim() || 'Decor design'}</span>
+                          <span className="text-[11px] font-semibold text-magenta shrink-0">{from > 0 ? formatINR(from) : '—'}{(d.sizes?.length || 0) > 0 ? <span className="text-[9px] font-normal text-gray-400"> from</span> : null}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-gray-500 italic">Decor details coming soon.</p>
+                )}
               </div>
             )}
 

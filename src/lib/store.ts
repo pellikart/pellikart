@@ -128,7 +128,19 @@ export function buildLiveVendorMap(
       category: cat,
       bundledListings: (l.bundled_listings as string[]) || [],
       bundleMandatory: (l.bundle_mandatory as boolean) || false,
+      venueLocation: (() => {
+        const v = l.venue_location as import('./vendor-types').VenueLocation | null
+        return v && v.address ? v : undefined
+      })(),
+      venuePricingModels: (() => {
+        const m = l.venue_pricing_models as import('./vendor-types').VenuePricingModel[] | null
+        return Array.isArray(m) && m.length > 0 ? m : undefined
+      })(),
       hourlyPricing: (l.hourly_pricing as { hours: number; price: number }[]) || undefined,
+      platePackages: (() => {
+        const pp = l.plate_packages as import('./vendor-types').PlatePackage[] | null
+        return Array.isArray(pp) && pp.length > 0 ? pp : undefined
+      })(),
       sizes: (() => {
         const raw = l.sizes
         return Array.isArray(raw) && raw.length > 0
@@ -136,6 +148,10 @@ export function buildLiveVendorMap(
           : undefined
       })(),
       paidRooms: (l.paid_rooms as import('./vendor-types').PaidRoom[]) || undefined,
+      inHouseDecor: (() => {
+        const d = l.in_house_decor as import('./vendor-types').InHouseDecor | null
+        return d && typeof d.compulsory === 'boolean' ? d : undefined
+      })(),
       menu: (l.menu as import('./vendor-types').MenuSection[]) || undefined,
       rateCard: (() => {
         const rc = l.rate_card as import('./vendor-category-config').PhotographyRateCard | null
@@ -474,7 +490,9 @@ export const useStore = create<AppState & LiveModeState & {
               category: parentVendor?.category || (parentVendor?.code as string | undefined)?.split(' ')[0],
               bundledListings: parentVendor?.bundledListings,
               bundleMandatory: parentVendor?.bundleMandatory,
+              venuePricingModels: parentVendor?.venuePricingModels,
               hourlyPricing: parentVendor?.hourlyPricing,
+              platePackages: parentVendor?.platePackages,
               rateCard: parentVendor?.rateCard,
               availableHours: parentVendor?.availableHours,
               mehendiPricing: parentVendor?.mehendiPricing,
@@ -1116,7 +1134,9 @@ export const useStore = create<AppState & LiveModeState & {
             category: parentVendor?.category || (parentVendor?.code as string | undefined)?.split(' ')[0],
             bundledListings: parentVendor?.bundledListings,
             bundleMandatory: parentVendor?.bundleMandatory,
+            venuePricingModels: parentVendor?.venuePricingModels,
             hourlyPricing: parentVendor?.hourlyPricing,
+            platePackages: parentVendor?.platePackages,
             paidRooms: parentVendor?.paidRooms,
             includes: parentVendor?.includes,
             transportIncluded: parentVendor?.transportIncluded,

@@ -62,7 +62,7 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
           {(() => {
             const photoSel = getCategorySelectionTotal(vendor, category)
             if (photoSel != null) return <p className="text-white font-bold text-xs">{formatINR(photoSel)}</p>
-            return <p className="text-white font-bold text-xs">{formatINR(vendor.price)}{vendor.rateCard ? <span className="font-normal text-[10px]">/hr</span> : ''}</p>
+            return <p className="text-white font-bold text-xs">{formatINR(vendor.price)}{vendor.rateCard ? <span className="font-normal text-[10px]">/hr</span> : vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
           })()}
         </button>
       </div>

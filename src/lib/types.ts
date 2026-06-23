@@ -34,10 +34,18 @@ export interface Vendor {
   portfolioVideos?: string[];
   listingPhotos?: string[];
   listingVideos?: string[];
+  /** Venue-only: the venue's physical location. */
+  venueLocation?: import('./vendor-types').VenueLocation;
+  /** Venue-only: which pricing model(s) this venue offers (rent and/or per-plate). */
+  venuePricingModels?: import('./vendor-types').VenuePricingModel[];
   hourlyPricing?: { hours: number; price: number }[];
+  /** Venue-only: per-plate food packages (the rent-free / per-plate model). */
+  platePackages?: import('./vendor-types').PlatePackage[];
   /** Decor-only: per-size price variants. When set, `price` is the min (starting price). */
   sizes?: import('./vendor-types').SizePrice[];
   paidRooms?: import('./vendor-types').PaidRoom[];
+  /** Venue-only: in-house decor offering (compulsory flag + details/designs). */
+  inHouseDecor?: import('./vendor-types').InHouseDecor;
   menu?: import('./vendor-types').MenuSection[];
   /** Photography-only: per-hour rate card keyed by role. When set, `price` is the
    *  per-hour total for 1 of each offered role (the "₹X/hr" board figure). */
