@@ -89,7 +89,6 @@ export default function MenuPicker({ menu }: Props) {
                         type="button"
                         onClick={() => togglePick(sec.section, d.id, sec.pickLimit)}
                         disabled={disabled}
-                        title={d.description}
                         className={`py-1 px-2.5 rounded-full text-[10px] font-medium transition-all ${sel ? 'bg-mustard text-white' : disabled ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-empty-bg text-gray-700 border border-card-border active:bg-mustard-light/40'}`}
                       >
                         {sel && <span className="mr-0.5">✓ </span>}{d.name}

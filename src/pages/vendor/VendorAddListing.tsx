@@ -786,7 +786,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         {step === menuStep && hasMenuStep && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">Build your menu</h1>
-            <p className="text-[11px] text-gray-400 mt-1 mb-5">Create your own categories and add the dishes you offer under each. Set how many the couple can pick per category.</p>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Pick a category, then tick the dishes you offer from the list — or add your own. Set how many the couple can pick per category.</p>
             <MenuBuilder
               value={menu}
               foodType={categoryFields.foodType as string | undefined}
@@ -807,7 +807,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
             <div className="animate-fadeIn">
               <button onClick={() => setMenuEditPkgId(null)} className="text-[12px] text-mustard font-medium mb-2">← Back to packages</button>
               <h1 className="text-[20px] font-bold text-dark">{pkg.name.trim() || 'Package'} menu</h1>
-              <p className="text-[11px] text-gray-400 mt-1 mb-5">Create categories and add the dishes included in this package. Set how many the couple can pick per category.</p>
+              <p className="text-[11px] text-gray-400 mt-1 mb-5">Pick a category, then tick the dishes included in this package — or add your own. Set how many the couple can pick per category.</p>
               <MenuBuilder
                 value={pkg.menu || []}
                 foodType={categoryFields.foodPolicy as string | undefined}
