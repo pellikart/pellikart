@@ -741,6 +741,46 @@ export type PhotographyRateCard = Partial<Record<PhotographyRoleKey, number>>
  *  picks their coverage hours from whichever of these the vendor selects. */
 export const PHOTOGRAPHY_HOUR_OPTIONS = [2, 4, 6, 8, 10] as const
 
+// ─── PHOTOGRAPHY GUEST-BASED PACKAGES ───────
+
+/**
+ * Photographers price one of two ways (like a venue's rent vs per-plate choice) —
+ * they can offer either or both:
+ *   - 'hourly'     → the per-role rate card above.
+ *   - 'guestBased' → flat all-inclusive packages priced by guest count × coverage
+ *                    hours. Each (guest bucket × hours) cell is one flat price.
+ * The couple picks whichever model the vendor offers.
+ */
+export type PhotographyPricingModel = 'hourly' | 'guestBased'
+
+/** Guest-count buckets a guest-based photography package is priced against.
+ *  Stored as stable keys; use photographyGuestBucketLabel() for display. */
+export const PHOTOGRAPHY_GUEST_BUCKETS = ['<200', '200-500', '500-1000', '1000+'] as const
+export type PhotographyGuestBucket = typeof PHOTOGRAPHY_GUEST_BUCKETS[number]
+
+const PHOTOGRAPHY_GUEST_BUCKET_LABELS: Record<string, string> = {
+  '<200': 'Less than 200',
+  '200-500': '200–500',
+  '500-1000': '500–1,000',
+  '1000+': '1,000+',
+}
+/** Display label for a guest bucket (the stored key differs from the shown text). */
+export function photographyGuestBucketLabel(bucket: string): string {
+  return PHOTOGRAPHY_GUEST_BUCKET_LABELS[bucket] || bucket
+}
+
+/** Coverage-hour options offered within each guest bucket of a guest-based package. */
+export const PHOTOGRAPHY_PACKAGE_HOURS = [4, 6, 8, 10] as const
+
+/** guest bucket → hours (as a string key) → flat price (₹).
+ *  A missing/0 cell means that guest×hours combo isn't offered. */
+export type PhotographyGuestPackages = Record<string, Record<string, number>>
+
+/** A fresh, empty guest-based packages object. */
+export function emptyPhotographyGuestPackages(): PhotographyGuestPackages {
+  return {}
+}
+
 // ─── MEHENDI PRICING ────────────────────────
 
 /**

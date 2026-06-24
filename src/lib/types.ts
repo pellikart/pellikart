@@ -52,6 +52,16 @@ export interface Vendor {
   rateCard?: import('./vendor-category-config').PhotographyRateCard;
   /** Photography-only: hour blocks the vendor is willing to work (e.g. [4, 6, 8, 10]). */
   availableHours?: number[];
+  /** Photography-only: which pricing model(s) this photographer offers (hourly rate
+   *  card and/or guest-based packages). Mirrors venue's venuePricingModels. */
+  photographyPricingModels?: import('./vendor-category-config').PhotographyPricingModel[];
+  /** Photography-only: guest-based packages — guest bucket × hours → flat price. */
+  guestPackages?: import('./vendor-category-config').PhotographyGuestPackages;
+  /** Photography guest-based: photographers present per guest bucket (informational —
+   *  shown to couples, doesn't change the flat package price). */
+  guestPackagePhotographers?: Record<string, number>;
+  /** Photography guest-based: videographers present per guest bucket (informational). */
+  guestPackageVideographers?: Record<string, number>;
   /** Mehendi-only: bridal coverage×design matrix + groom/guest pricing. */
   mehendiPricing?: import('./vendor-category-config').MehendiPricing;
   /** Makeup-only: bridal per-event per-look pricing + groom/guest. */
@@ -125,6 +135,9 @@ export interface Category {
   /** Photography-only: the couple's rate-card selection for the selected vendor —
    *  how many people per role + shared coverage hours. Drives the live total. */
   photographyTeam?: { counts: Record<string, number>; hours: number };
+  /** Photography guest-based model: the couple's picked guest bucket + coverage hours.
+   *  Mutually exclusive with photographyTeam (the hourly model). */
+  photographyPackage?: { bucket: string; hours: number };
   /** Mehendi-only: the couple's selection — bridal coverage + design, groom, guests. */
   mehendiSelection?: { coverage?: string; design?: string; groom?: boolean; guests?: number };
   /** Makeup-only: the couple's selection — bridal looks per category, groom, guests, add-ons. */
@@ -185,6 +198,7 @@ export interface AppState {
   selectVendor: (ritualId: string, categoryId: string, vendorId: string) => void;
   selectVendorTier: (ritualId: string, categoryId: string, tierHours: number | undefined) => void;
   selectPhotographyTeam: (ritualId: string, categoryId: string, counts: Record<string, number>, hours: number) => void;
+  selectPhotographyPackage: (ritualId: string, categoryId: string, bucket: string, hours: number) => void;
   selectMehendiOptions: (ritualId: string, categoryId: string, selection: { coverage?: string; design?: string; groom?: boolean; guests?: number }) => void;
   selectMakeupOptions: (ritualId: string, categoryId: string, selection: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] }) => void;
   selectSareeOptions: (ritualId: string, categoryId: string, selection: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number }) => void;

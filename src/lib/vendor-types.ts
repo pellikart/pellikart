@@ -188,6 +188,15 @@ export interface VendorListing {
   /** Photography-only: the hour blocks the vendor is willing to work (e.g. [4, 6, 8, 10]).
    *  Couples pick their coverage hours from this set. */
   availableHours?: number[]
+  /** Photography-only: which pricing model(s) this photographer offers — hourly rate
+   *  card and/or guest-based packages. Mirrors venuePricingModels. */
+  photographyPricingModels?: import('./vendor-category-config').PhotographyPricingModel[]
+  /** Photography-only: guest-based packages — guest bucket × hours → flat price. */
+  guestPackages?: import('./vendor-category-config').PhotographyGuestPackages
+  /** Photography guest-based: photographers present per guest bucket (informational). */
+  guestPackagePhotographers?: Record<string, number>
+  /** Photography guest-based: videographers present per guest bucket (informational). */
+  guestPackageVideographers?: Record<string, number>
   /** Mehendi-only: bridal coverage×design matrix + groom/guest pricing.
    *  Authored in onboarding; `price` holds the cheapest bridal "from" price. */
   mehendiPricing?: import('./vendor-category-config').MehendiPricing

@@ -1,5 +1,5 @@
 import type { Vendor, Category } from './types'
-import { PHOTOGRAPHY_RATE_ROLES, type PhotographyRateCard, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
+import { PHOTOGRAPHY_RATE_ROLES, type PhotographyRateCard, type PhotographyGuestPackages, type PhotographyPricingModel, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
 
 /**
  * Per-hour total for a Photography rate card assuming 1 person in every offered
@@ -64,6 +64,61 @@ export function getPhotographySelectionTotal(
   const picked = Object.values(team.counts).reduce((s, n) => s + Math.max(0, n || 0), 0)
   if (picked <= 0) return null
   return getRateCardTotal(vendor.rateCard, team.counts, team.hours)
+}
+
+/**
+ * The "from" price for a Photography guest-based listing — the cheapest filled cell
+ * across all guest buckets × hours. Returns 0 when no cells are priced.
+ */
+export function getPhotographyGuestFromPrice(packages?: PhotographyGuestPackages): number {
+  if (!packages) return 0
+  let min = Infinity
+  for (const byHours of Object.values(packages)) {
+    for (const price of Object.values(byHours)) {
+      if (price > 0 && price < min) min = price
+    }
+  }
+  return min === Infinity ? 0 : min
+}
+
+/** The flat price for a specific guest bucket × hours cell (0 when not offered). */
+export function getPhotographyPackagePrice(
+  packages: PhotographyGuestPackages | undefined,
+  bucket: string,
+  hours: number,
+): number {
+  if (!packages) return 0
+  return packages[bucket]?.[String(hours)] ?? 0
+}
+
+/**
+ * The couple's selected total for a Photography guest-based package. Returns null
+ * when the vendor has no guest packages or the picked cell isn't priced.
+ */
+export function getPhotographyPackageSelectionTotal(
+  vendor: Vendor | undefined,
+  sel: { bucket: string; hours: number } | undefined,
+): number | null {
+  if (!vendor?.guestPackages || !sel) return null
+  const price = getPhotographyPackagePrice(vendor.guestPackages, sel.bucket, sel.hours)
+  return price > 0 ? price : null
+}
+
+/**
+ * Which pricing model(s) a photographer offers. Prefers the explicit
+ * `photographyPricingModels` field, but falls back to inferring from the presence
+ * of a rate card / guest packages for back-compat with listings authored before
+ * the model selector existed.
+ */
+export function getPhotographyModels(vendor: Vendor | undefined): PhotographyPricingModel[] {
+  if (!vendor) return []
+  if (vendor.photographyPricingModels && vendor.photographyPricingModels.length > 0) {
+    return vendor.photographyPricingModels
+  }
+  const models: PhotographyPricingModel[] = []
+  if (getRateCardBaseHourly(vendor.rateCard) > 0) models.push('hourly')
+  if (getPhotographyGuestFromPrice(vendor.guestPackages) > 0) models.push('guestBased')
+  return models
 }
 
 /**
@@ -227,7 +282,10 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
   // Most categories are exclusive, but a Makeup artist can also offer Saree
   // Draping and Hair Styling as add-ons — sum whatever the couple configured.
   const parts = [
-    getPhotographySelectionTotal(vendor, category.photographyTeam),
+    // Photography is one model at a time: a guest-based package (if picked) takes
+    // precedence over the hourly rate-card team so the two never double-count.
+    getPhotographyPackageSelectionTotal(vendor, category.photographyPackage)
+      ?? getPhotographySelectionTotal(vendor, category.photographyTeam),
     getMehendiSelectionTotal(vendor, category.mehendiSelection),
     getMakeupSelectionTotal(vendor, category.makeupSelection),
     getSareeSelectionTotal(vendor, category.sareeSelection),

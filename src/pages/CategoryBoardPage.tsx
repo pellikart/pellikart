@@ -485,7 +485,7 @@ export default function CategoryBoardPage() {
                           <span className="bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full self-end">★ {vendor.rating}</span>
                           <div>
                             <p className="text-white/80 text-[9px]">{unlocked ? vendor.name : vendor.code}</p>
-                            <p className="text-white font-bold text-xs">{formatINR(vendor.price)}{vendor.rateCard ? <span className="font-normal text-[10px]">/hr</span> : vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
+                            <p className="text-white font-bold text-xs">{vendor.guestPackages && !vendor.rateCard ? <span className="font-normal text-[10px]">from </span> : ''}{formatINR(vendor.price)}{vendor.rateCard ? <span className="font-normal text-[10px]">/hr</span> : vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
                             <button onClick={(e) => { e.stopPropagation(); addToShortlist(ritualId!, categoryId!, v.id) }} className="mt-1.5 w-full bg-white text-magenta text-[10px] font-semibold py-1.5 rounded-lg active:scale-[0.97] transition-transform">+ Add</button>
                           </div>
                         </div>
@@ -782,7 +782,7 @@ function VisualGridCard({
           {selectionTotal != null ? (
             <p className="text-white font-bold text-xs">{formatINR(selectionTotal)}</p>
           ) : (
-            <p className="text-white font-bold text-xs">{formatINR(v.price)}{v.rateCard ? <span className="font-normal text-[10px]">/hr</span> : v.category === 'Venue' && v.venuePricingModels?.includes('perPlate') && !v.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
+            <p className="text-white font-bold text-xs">{v.guestPackages && !v.rateCard ? <span className="font-normal text-[10px]">from </span> : ''}{formatINR(v.price)}{v.rateCard ? <span className="font-normal text-[10px]">/hr</span> : v.category === 'Venue' && v.venuePricingModels?.includes('perPlate') && !v.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
           )}
           {v.includes && v.includes.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">

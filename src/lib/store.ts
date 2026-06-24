@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
-import { getRateCardBaseHourly, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
+import { getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
 import {
   fetchCouple, upsertCouple,
   fetchRitualBoards, insertRitualBoard,
@@ -160,6 +160,22 @@ export function buildLiveVendorMap(
       availableHours: (() => {
         const ah = l.available_hours as number[] | null
         return Array.isArray(ah) && ah.length > 0 ? ah : undefined
+      })(),
+      photographyPricingModels: (() => {
+        const m = l.photography_pricing_models as import('./vendor-category-config').PhotographyPricingModel[] | null
+        return Array.isArray(m) && m.length > 0 ? m : undefined
+      })(),
+      guestPackages: (() => {
+        const gp = l.guest_packages as import('./vendor-category-config').PhotographyGuestPackages | null
+        return gp && Object.keys(gp).length > 0 ? gp : undefined
+      })(),
+      guestPackagePhotographers: (() => {
+        const gpp = l.guest_package_photographers as Record<string, number> | null
+        return gpp && Object.keys(gpp).length > 0 ? gpp : undefined
+      })(),
+      guestPackageVideographers: (() => {
+        const gpv = l.guest_package_videographers as Record<string, number> | null
+        return gpv && Object.keys(gpv).length > 0 ? gpv : undefined
       })(),
       mehendiPricing: (() => {
         const mp = l.mehendi_pricing as import('./vendor-category-config').MehendiPricing | null
@@ -483,7 +499,7 @@ export const useStore = create<AppState & LiveModeState & {
               area: parentVendor?.area || '', capacity: parentVendor?.capacity,
               // Photography/Mehendi/Makeup/Saree/Hair price from their own pricing model —
               // use the parent's board figure instead of the fixed design price.
-              price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
+              price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.guestPackages ? getPhotographyGuestFromPrice(parentVendor.guestPackages) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
               packageTier: design.description, likes: [], booked: false, amountPaid: 0,
               // Inherit category-specific fields so the Compare table shows real detail for design listings
               categoryFields: parentVendor?.categoryFields,
@@ -495,6 +511,10 @@ export const useStore = create<AppState & LiveModeState & {
               platePackages: parentVendor?.platePackages,
               rateCard: parentVendor?.rateCard,
               availableHours: parentVendor?.availableHours,
+              photographyPricingModels: parentVendor?.photographyPricingModels,
+              guestPackages: parentVendor?.guestPackages,
+              guestPackagePhotographers: parentVendor?.guestPackagePhotographers,
+              guestPackageVideographers: parentVendor?.guestPackageVideographers,
               mehendiPricing: parentVendor?.mehendiPricing,
               makeupPricing: parentVendor?.makeupPricing,
               sareeDrapingPricing: parentVendor?.sareeDrapingPricing,
@@ -541,7 +561,7 @@ export const useStore = create<AppState & LiveModeState & {
           area: parentVendor?.area || '', capacity: parentVendor?.capacity,
           // Photography/Mehendi/Makeup/Saree/Hair price from their own pricing model —
           // use the parent's board figure instead of the fixed design price.
-          price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
+          price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.guestPackages ? getPhotographyGuestFromPrice(parentVendor.guestPackages) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
           packageTier: design.description, likes: [], booked: false, amountPaid: 0,
           // Inherit category-specific fields so the Compare table shows real detail for design listings
           categoryFields: parentVendor?.categoryFields,
@@ -551,6 +571,10 @@ export const useStore = create<AppState & LiveModeState & {
           hourlyPricing: parentVendor?.hourlyPricing,
           rateCard: parentVendor?.rateCard,
           availableHours: parentVendor?.availableHours,
+          photographyPricingModels: parentVendor?.photographyPricingModels,
+          guestPackages: parentVendor?.guestPackages,
+          guestPackagePhotographers: parentVendor?.guestPackagePhotographers,
+          guestPackageVideographers: parentVendor?.guestPackageVideographers,
           mehendiPricing: parentVendor?.mehendiPricing,
           makeupPricing: parentVendor?.makeupPricing,
           sareeDrapingPricing: parentVendor?.sareeDrapingPricing,
@@ -622,12 +646,29 @@ export const useStore = create<AppState & LiveModeState & {
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyTeam } : c) }
+          // Picking the hourly model clears any guest-based package so the two never coexist.
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyTeam, photographyPackage: undefined } : c) }
           : b
       ),
     }))
     if (_liveMode) {
-      updateBoardCategory(categoryId, { photographyTeam })
+      updateBoardCategory(categoryId, { photographyTeam, photographyPackage: undefined })
+    }
+  },
+
+  selectPhotographyPackage: (ritualId, categoryId, bucket, hours) => {
+    const { _liveMode } = get()
+    const photographyPackage = { bucket, hours }
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          // Picking the guest-based model clears any hourly team selection.
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyPackage, photographyTeam: undefined } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { photographyPackage, photographyTeam: undefined })
     }
   },
 

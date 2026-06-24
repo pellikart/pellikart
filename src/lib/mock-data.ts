@@ -263,6 +263,16 @@ export const mockVendors: Record<string, Vendor> = {
     rating: 4.2, packageTier: "Standard (2 days)", likes: [], booked: false, amountPaid: 0,
     rateCard: { candidPhotographer: 2800, traditionalPhotographer: 2500 },
     availableHours: [4, 6, 8],
+    // Offers both pricing models: hourly rate card (above) + flat guest-based packages.
+    photographyPricingModels: ["hourly", "guestBased"],
+    guestPackages: {
+      "<200": { "4": 40000, "6": 55000, "8": 70000 },
+      "200-500": { "6": 75000, "8": 95000, "10": 120000 },
+      "500-1000": { "8": 140000, "10": 175000 },
+      "1000+": { "10": 220000 },
+    },
+    guestPackagePhotographers: { "<200": 2, "200-500": 3, "500-1000": 4, "1000+": 6 },
+    guestPackageVideographers: { "<200": 1, "200-500": 2, "500-1000": 3, "1000+": 4 },
     categoryFields: { liveCoverage: "Not available", editedPhotos: "500", highlightReel: "Not included", cinematicTrailer: "Not available", fullVideo: "No", sameDayEdit: "No", deliveryFormat: "USB Drive", deliveryDays: "45 days", albums: "1", albumSheets: "20" },
   },
   "v-photo-3": {

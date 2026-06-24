@@ -114,6 +114,10 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       sizes: listing.sizes || [],
       rate_card: listing.rateCard || {},
       available_hours: listing.availableHours || [],
+      photography_pricing_models: listing.photographyPricingModels || [],
+      guest_packages: listing.guestPackages || {},
+      guest_package_photographers: listing.guestPackagePhotographers || {},
+      guest_package_videographers: listing.guestPackageVideographers || {},
       mehendi_pricing: listing.mehendiPricing || {},
       makeup_pricing: listing.makeupPricing || {},
       saree_draping_pricing: listing.sareeDrapingPricing || {},
@@ -154,6 +158,10 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
       sizes: listing.sizes || [],
       rate_card: listing.rateCard || {},
       available_hours: listing.availableHours || [],
+      photography_pricing_models: listing.photographyPricingModels || [],
+      guest_packages: listing.guestPackages || {},
+      guest_package_photographers: listing.guestPackagePhotographers || {},
+      guest_package_videographers: listing.guestPackageVideographers || {},
       mehendi_pricing: listing.mehendiPricing || {},
       makeup_pricing: listing.makeupPricing || {},
       saree_draping_pricing: listing.sareeDrapingPricing || {},
@@ -406,6 +414,7 @@ export async function fetchRitualBoards(coupleId: string) {
         decorBrief: c.decor_brief || null,
         selectedTierHours: c.selected_tier_hours ?? undefined,
         photographyTeam: (c.photography_team as { counts: Record<string, number>; hours: number } | null) ?? undefined,
+        photographyPackage: (c.photography_package as { bucket: string; hours: number } | null) ?? undefined,
         mehendiSelection: (c.mehendi_selection as { coverage?: string; design?: string; groom?: boolean; guests?: number } | null) ?? undefined,
         makeupSelection: (c.makeup_selection as { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] } | null) ?? undefined,
         sareeSelection: (c.saree_selection as { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number } | null) ?? undefined,
@@ -485,7 +494,11 @@ export async function updateBoardCategory(categoryId: string, updates: Partial<C
   if (updates.suggestedVendors !== undefined) mapped.suggested_vendors = updates.suggestedVendors
   if (updates.removed !== undefined) mapped.is_removed = updates.removed
   if (updates.selectedTierHours !== undefined) mapped.selected_tier_hours = updates.selectedTierHours ?? null
-  if (updates.photographyTeam !== undefined) mapped.photography_team = updates.photographyTeam ?? null
+  // Photography fields use an `in` check (not !== undefined) so a model switch that
+  // passes `photographyPackage: undefined` / `photographyTeam: undefined` actively
+  // clears the sibling column rather than silently leaving it set.
+  if ('photographyTeam' in updates) mapped.photography_team = updates.photographyTeam ?? null
+  if ('photographyPackage' in updates) mapped.photography_package = updates.photographyPackage ?? null
   if (updates.mehendiSelection !== undefined) mapped.mehendi_selection = updates.mehendiSelection ?? null
   if (updates.makeupSelection !== undefined) mapped.makeup_selection = updates.makeupSelection ?? null
   if (updates.sareeSelection !== undefined) mapped.saree_selection = updates.sareeSelection ?? null
