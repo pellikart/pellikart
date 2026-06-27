@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
+import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
@@ -13,7 +14,7 @@ import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
 export default function VendorEditListing() {
   const { listingId } = useParams<{ listingId: string }>()
   const navigate = useNavigate()
-  const { vendorListings, vendorProfile, updateListing } = useVendorStore()
+  const { vendorListings, vendorProfile, updateListing, _liveMode, _vendorDbId } = useVendorStore()
 
   const listing = vendorListings.find((l) => l.id === listingId)
   const category = listing?.category || vendorProfile?.category || 'Photography'
@@ -22,6 +23,10 @@ export default function VendorEditListing() {
 
   const [name, setName] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
+  // Newly-added photos are blob: previews; keep their File so we can upload them
+  // on save (otherwise the un-loadable blob URL gets persisted).
+  const [photoFiles, setPhotoFiles] = useState<Record<string, File>>({})
+  const [saving, setSaving] = useState(false)
   const [style, setStyle] = useState('')
   const [price, setPrice] = useState(pr.min)
   const [rateCard, setRateCard] = useState<PhotographyRateCard>({})
@@ -97,8 +102,14 @@ export default function VendorEditListing() {
 
   function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files) {
-      const newPhotos = Array.from(e.target.files).map((f) => URL.createObjectURL(f))
+      const fileMap: Record<string, File> = {}
+      const newPhotos = Array.from(e.target.files).map((f) => {
+        const url = URL.createObjectURL(f)
+        fileMap[url] = f
+        return url
+      })
       setPhotos((prev) => [...prev, ...newPhotos].slice(0, 10))
+      setPhotoFiles((prev) => ({ ...prev, ...fileMap }))
     }
   }
 
@@ -155,8 +166,21 @@ export default function VendorEditListing() {
   const photoHourlyBase = getRateCardBaseHourly(rateCard)
   const photoGuestFrom = getPhotographyGuestFromPrice(guestPackages)
 
-  function handleSave() {
-    if (!listing) return
+  async function handleSave() {
+    if (!listing || saving) return
+    setSaving(true)
+    // Upload any newly-added photos (blob: previews) to storage and swap in the
+    // real public URLs. Without this the listing persists un-loadable blob URLs
+    // that break on the vendor side AND for couples.
+    let finalPhotos = photos
+    if (_liveMode && _vendorDbId) {
+      const existing = photos.filter((p) => !p.startsWith('blob:'))
+      const newFiles = photos.filter((p) => p.startsWith('blob:')).map((p) => photoFiles[p]).filter(Boolean)
+      const uploaded = newFiles.length > 0 ? await uploadPhotos(_vendorDbId, newFiles, 'listing') : []
+      // Drop any leftover blobs (e.g. a failed upload) so we never save them.
+      finalPhotos = [...existing, ...uploaded]
+    }
+    const safeCover = Math.min(coverIndex, Math.max(0, finalPhotos.length - 1))
     // Photography: prefer the hourly "₹X/hr" board figure; fall back to the cheapest
     // guest-package cell when only guest-based pricing is offered.
     const effectivePrice = category === 'Photography'
@@ -168,7 +192,7 @@ export default function VendorEditListing() {
       : price
     updateListing({
       ...listing,
-      name, photos, coverPhotoIndex: coverIndex, style, price: effectivePrice, rituals, includes, categoryFields,
+      name, photos: finalPhotos, coverPhotoIndex: safeCover, style, price: effectivePrice, rituals, includes, categoryFields,
       rateCard: category === 'Photography' && photoOffersHourly ? rateCard : undefined,
       availableHours: category === 'Photography' && photoOffersHourly && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
       photographyPricingModels: category === 'Photography' && photographyPricingModels.length > 0 ? photographyPricingModels : undefined,
@@ -201,7 +225,7 @@ export default function VendorEditListing() {
           <button onClick={() => navigate('/vendor/listings')} className="text-sm">←</button>
           <p className="text-[14px] font-bold text-dark">Edit Listing</p>
         </div>
-        <button onClick={handleSave} className="bg-mustard text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg">Save</button>
+        <button onClick={handleSave} disabled={saving} className="bg-mustard text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
       </div>
 
       <div className="flex-1 px-5 py-5 overflow-y-auto space-y-5">
