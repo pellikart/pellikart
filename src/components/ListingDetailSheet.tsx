@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
@@ -184,6 +184,8 @@ interface Props {
 
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
+  // Photo lightbox: index into `gallery`, or null when closed.
+  const [lightbox, setLightbox] = useState<number | null>(null)
   const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectPhotographyPackage, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
@@ -366,6 +368,18 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const gallery = (vendor.listingPhotos || []).filter(Boolean)
   const videos = (vendor.listingVideos || []).filter(Boolean)
 
+  // Lightbox keyboard nav: ← / → to move, Esc to close.
+  useEffect(() => {
+    if (lightbox === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(null)
+      else if (e.key === 'ArrowRight' && gallery.length > 1) setLightbox((i) => (i === null ? i : (i + 1) % gallery.length))
+      else if (e.key === 'ArrowLeft' && gallery.length > 1) setLightbox((i) => (i === null ? i : (i - 1 + gallery.length) % gallery.length))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox, gallery.length])
+
   const likeNames = vendor.likes.map((l) => l.name)
 
   // Category-specific fields to display, paired with proper labels from the listing config.
@@ -408,12 +422,16 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center md:items-stretch md:justify-end" onClick={onClose}>
-        <div className="bg-white rounded-t-2xl w-full max-w-[480px] max-h-[85vh] overflow-y-auto md:rounded-t-none md:rounded-l-2xl md:max-w-[560px] md:max-h-none md:h-dvh" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center md:items-center md:p-6" onClick={onClose}>
+        <div className="bg-white rounded-t-2xl w-full max-w-[480px] max-h-[85vh] overflow-y-auto md:rounded-2xl md:max-w-[880px] md:max-h-[88vh]" onClick={(e) => e.stopPropagation()}>
           {/* Hero */}
-          <div className="h-44 relative" style={bgStyle(vendor.photo)}>
+          <div
+            className={`h-44 md:h-60 relative ${gallery.length > 0 ? 'cursor-pointer' : ''}`}
+            style={bgStyle(vendor.photo)}
+            onClick={() => { if (gallery.length > 0) setLightbox(Math.max(0, gallery.indexOf(vendor.photo))) }}
+          >
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-            <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/30 flex items-center justify-center backdrop-blur-sm">
+            <button onClick={(e) => { e.stopPropagation(); onClose() }} className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/30 flex items-center justify-center backdrop-blur-sm">
               <span className="text-white text-sm">✕</span>
             </button>
             <div className="absolute bottom-3 left-4 right-4">
@@ -1248,9 +1266,14 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Gallery</p>
                 <div className="grid grid-cols-3 gap-1.5 mb-4">
                   {gallery.slice(0, 9).map((src, i) => (
-                    <div key={i} className="aspect-square rounded-lg overflow-hidden">
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setLightbox(i)}
+                      className="aspect-square rounded-lg overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+                    >
                       <img src={src} alt="" className="w-full h-full object-cover" />
-                    </div>
+                    </button>
                   ))}
                 </div>
               </>
@@ -1405,6 +1428,49 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
           }}
           liveListings={siblingListings.length > 0 ? siblingListings : undefined}
         />
+      )}
+
+      {/* Photo lightbox — tap a gallery photo to expand, arrows / ← → to browse */}
+      {lightbox !== null && gallery.length > 0 && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center select-none"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-white text-lg flex items-center justify-center backdrop-blur-sm"
+            aria-label="Close"
+          >✕</button>
+
+          {gallery.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightbox((lightbox - 1 + gallery.length) % gallery.length) }}
+              className="absolute left-3 md:left-6 w-11 h-11 rounded-full bg-white/15 text-white text-2xl flex items-center justify-center backdrop-blur-sm active:scale-95"
+              aria-label="Previous photo"
+            >‹</button>
+          )}
+
+          <img
+            src={gallery[lightbox]}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[88vh] max-w-[92vw] object-contain rounded-lg"
+          />
+
+          {gallery.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightbox((lightbox + 1) % gallery.length) }}
+              className="absolute right-3 md:right-6 w-11 h-11 rounded-full bg-white/15 text-white text-2xl flex items-center justify-center backdrop-blur-sm active:scale-95"
+              aria-label="Next photo"
+            >›</button>
+          )}
+
+          {gallery.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-[12px] bg-black/40 px-3 py-1 rounded-full">
+              {lightbox + 1} / {gallery.length}
+            </div>
+          )}
+        </div>
       )}
     </>
   )
