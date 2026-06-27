@@ -199,6 +199,59 @@ export function buildLiveVendorMap(
     }
   }
 
+  // ── Live vendors with NO listing row ──────────────────────────────────────
+  // A vendor can finish onboarding (vendors row, is_live=true) without ever
+  // landing a vendor_listings row — e.g. for a multi-listing category the
+  // listing write failed after the profile was already saved. Surface them in
+  // explore as a minimal profile card so couples can still discover and contact
+  // them. They carry no price, so they are intentionally left OUT of the
+  // budget-based board auto-pick (which reads the raw `listings` array, not this
+  // map) — they only show in the explore feed until they add real pricing.
+  const vendorsWithListing = new Set(listings.map((l) => l.vendor_id as string))
+  for (const v of liveVendors) {
+    const vid = v.id as string
+    if (!vid || vendorsWithListing.has(vid)) continue
+    const cat = (v.category as string) || ''
+    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+    const photos = portfolioPhotosByVendor[vid] || []
+    // Skip profiles with no imagery at all — abandoned/test signups (e.g. the
+    // default "My Business" accounts) would otherwise show couples a blank card.
+    // A genuine failed-insert vendor whose photos survived in storage still shows.
+    if (photos.length === 0) continue
+    const code = `${cat} ${String(categoryCounts[cat]).padStart(3, '0')}`
+    vendorMap[vid] = {
+      id: vid,
+      code,
+      publicCode: makePublicCode(cat, vid, 1),
+      name: (v.business_name as string) || '',
+      photo: photos[0] || '',
+      style: '',
+      area: (v.area as string) || '',
+      price: 0,
+      rating: (v.rating as number) || 0,
+      packageTier: '',
+      likes: [],
+      booked: false,
+      amountPaid: 0,
+      description: (v.description as string) || '',
+      portfolioPhotos: photos,
+      portfolioVideos: portfolioVideosByVendor[vid] || [],
+      listingPhotos: photos,
+      listingVideos: [],
+      categoryFields: {},
+      includes: [],
+      phone: (v.phone as string) || '',
+      secondaryPhone: (v.secondary_phone as string) || undefined,
+      whatsapp: (v.whatsapp as string) || '',
+      email: (v.email as string) || '',
+      instagram: (v.instagram as string) || '',
+      experience: parseInt((v.years_experience as string) || '0') || 0,
+      teamSize: (v.team_size as string) || '',
+      blockedDates: blockedByVendor[vid] || [],
+      category: cat,
+    }
+  }
+
   return { vendorMap, lvMap }
 }
 

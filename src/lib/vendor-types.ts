@@ -355,7 +355,7 @@ export interface VendorState {
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
   addNotification: (notification: VendorNotification) => void
-  addListing: (listing: VendorListing) => void
+  addListing: (listing: VendorListing) => Promise<boolean>
   updateListing: (listing: VendorListing) => void
   deleteListing: (listingId: string) => void
   updateVendorProfile: (profile: Partial<VendorProfile>) => void

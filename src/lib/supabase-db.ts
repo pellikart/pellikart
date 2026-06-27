@@ -43,13 +43,28 @@ export async function upsertVendor(userId: string, profile: VendorProfile, isLiv
       portfolio_photos: profile.portfolioPhotos || [],
       portfolio_videos: profile.portfolioVideos || [],
       is_live: isLive,
-      onboarding_complete: true,
+      // A vendor is only "done" once they're discoverable. For multi-listing
+      // categories isLive starts false and is flipped true (along with this
+      // flag) by setVendorLive() once their first listing row is confirmed.
+      onboarding_complete: isLive,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
     .select()
     .maybeSingle()
   if (error) console.error('[db] upsertVendor failed:', error.message, error.details, error.hint)
   return data
+}
+
+/** Flip a vendor live + onboarding-complete once their first listing row is
+ *  confirmed saved. Keeps `is_live` truthful: a vendor is never advertised to
+ *  couples until at least one listing actually exists in the DB. */
+export async function setVendorLive(userId: string) {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('vendors')
+    .update({ is_live: true, onboarding_complete: true, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+  if (error) console.error('[db] setVendorLive failed:', error.message)
 }
 
 export async function updateVendorFields(userId: string, updates: Partial<VendorProfile>) {

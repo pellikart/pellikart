@@ -781,8 +781,10 @@ function VisualGridCard({
           </p>
           {selectionTotal != null ? (
             <p className="text-white font-bold text-xs">{formatINR(selectionTotal)}</p>
-          ) : (
+          ) : v.price > 0 ? (
             <p className="text-white font-bold text-xs">{v.guestPackages && !v.rateCard ? <span className="font-normal text-[10px]">from </span> : ''}{formatINR(v.price)}{v.rateCard ? <span className="font-normal text-[10px]">/hr</span> : v.category === 'Venue' && v.venuePricingModels?.includes('perPlate') && !v.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
+          ) : (
+            <p className="text-white font-bold text-[11px]">Pricing on request</p>
           )}
           {v.includes && v.includes.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
@@ -990,7 +992,7 @@ function DesignFeedCard({ design, title, unlocked, vendorName, specs, onAdd, onT
           <div>
             <p className="text-white font-semibold text-[11px] leading-tight truncate">{title}</p>
             {unlocked && <p className="text-white/60 text-[8px] mt-0.5 truncate">by {vendorName}</p>}
-            <p className="text-white font-bold text-sm mt-0.5">{formatINR(design.price)}</p>
+            <p className="text-white font-bold text-sm mt-0.5">{design.price > 0 ? formatINR(design.price) : <span className="text-[11px] font-medium">Pricing on request</span>}</p>
           </div>
         </div>
       </div>

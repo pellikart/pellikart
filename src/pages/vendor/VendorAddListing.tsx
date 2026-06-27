@@ -57,6 +57,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
   const [coverIndex, setCoverIndex] = useState(0)
   const [publishing, setPublishing] = useState(false)
+  const [publishError, setPublishError] = useState<string | null>(null)
   // Venue-only: bundle other listings with this one
   const [bundledListings, setBundledListings] = useState<string[]>([])
   const [bundleMandatory, setBundleMandatory] = useState(false)
@@ -299,6 +300,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
 
   async function handlePublish() {
     setPublishing(true)
+    setPublishError(null)
 
     // Upload photos to Supabase Storage if in live mode
     let photoUrls = photoPreviews
@@ -418,7 +420,13 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
           ...transportFields,
         }
       }))
-      for (const l of designListings) addListing(l)
+      let allOk = true
+      for (const l of designListings) { if (!(await addListing(l))) allOk = false }
+      if (!allOk) {
+        setPublishing(false)
+        setPublishError("We couldn't save one or more of your designs. Please check your connection and try again.")
+        return
+      }
 
       // Apply Decor → venue links to each newly-created design listing
       if (linkedVenueIds.length > 0) {
@@ -472,7 +480,12 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
       ...transportFields,
     }
-    addListing(listing)
+    const published = await addListing(listing)
+    if (!published) {
+      setPublishing(false)
+      setPublishError("We couldn't publish your listing. Your details are still here — please check your connection and try again.")
+      return
+    }
 
     // In-house decor was marked compulsory but details were skipped — remind the vendor.
     if (category === 'Venue' && inHouseDecorForPayload?.pending) {
@@ -1701,6 +1714,9 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
               )
             })()}
 
+            {publishError && (
+              <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">{publishError}</p>
+            )}
             <div className="flex gap-2">
               <button onClick={() => setStep(reviewStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
               <button onClick={handlePublish} disabled={publishing} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-50">

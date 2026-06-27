@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
-import { uploadPhotos, updateVendorFields } from '@/lib/supabase-db'
+import { uploadPhotos, updateVendorFields, setVendorLive } from '@/lib/supabase-db'
 import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
@@ -83,6 +83,7 @@ export default function VendorOnboarding() {
   const [videoFiles, setVideoFiles] = useState<File[]>([])
   const [videoPreviews, setVideoPreviews] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [goLiveError, setGoLiveError] = useState<string | null>(null)
   // Single-listing categories (Mehendi, Makeup) author their pricing here in
   // onboarding and auto-create one listing on go-live.
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(() => (draft.mehendiPricing as MehendiPricing) ?? emptyMehendiPricing())
@@ -168,6 +169,7 @@ export default function VendorOnboarding() {
 
   async function handleGoLive() {
     setUploading(true)
+    setGoLiveError(null)
 
     // Initial profile carries empty media arrays. We need the vendor row to
     // exist (and hand back its DB id) before we can scope storage uploads
@@ -259,7 +261,18 @@ export default function VendorOnboarding() {
         : isSaree
         ? { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
         : { ...base, name: `${profile.businessName} — Hair Stylist`, category: 'Hair Stylist', price: getHairStylingFromPrice(hairPricing), hairStylingPricing: hairPricing, rituals: [] }
-      useVendorStore.getState().addListing(listing)
+      const ok = await useVendorStore.getState().addListing(listing)
+      if (!ok) {
+        // The listing row didn't save — don't leave the vendor stranded as
+        // "live" with nothing for couples to see. Surface the error so they can
+        // retry; the vendor stays not-live until a listing actually lands.
+        setUploading(false)
+        setGoLiveError("We couldn't publish your listing. Please check your connection and try again.")
+        return
+      }
+      // Listing confirmed — now it's safe to flip the vendor live.
+      const { _liveMode: lm, _userId: uid } = useVendorStore.getState()
+      if (lm && uid) await setVendorLive(uid)
     }
 
     setUploading(false)
@@ -277,7 +290,11 @@ export default function VendorOnboarding() {
 
   // Called by the embedded listing wizard once the first listing is published:
   // mark onboarding complete and head to the dashboard.
-  function finishFirstListing() {
+  async function finishFirstListing() {
+    // The embedded wizard only calls this after a listing was confirmed saved,
+    // so it's now safe to flip the vendor live + onboarding-complete in the DB.
+    const { _liveMode: lm, _userId: uid } = useVendorStore.getState()
+    if (lm && uid) await setVendorLive(uid)
     try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
     useVendorStore.setState({ vendorOnboardingComplete: true })
     navigate('/vendor')
@@ -643,6 +660,9 @@ export default function VendorOnboarding() {
               </div>
             )}
 
+            {goLiveError && (
+              <p className="mt-4 text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{goLiveError}</p>
+            )}
             <button onClick={handleGoLive} disabled={uploading} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform disabled:opacity-50">
               {uploading ? 'Setting up...' : (isSingleListing ? 'Go live' : 'Continue to your first listing')}
             </button>

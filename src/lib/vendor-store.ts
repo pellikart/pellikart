@@ -290,8 +290,11 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     console.log('[vendor-store] completeVendorOnboarding — liveMode:', _liveMode, 'userId:', _userId)
 
     if (_liveMode && _userId) {
-      // Save vendor to Supabase FIRST so we have the DB ID for photo uploads
-      const vendorData = await upsertVendor(_userId, profile, true)
+      // Save vendor to Supabase FIRST so we have the DB ID for photo uploads.
+      // Start NOT live: the vendor is only flipped live (via setVendorLive) once
+      // their first listing row is confirmed saved — so we never advertise a
+      // vendor to couples before a discoverable listing actually exists.
+      const vendorData = await upsertVendor(_userId, profile, false)
       console.log('[vendor-store] upsertVendor result:', vendorData?.id || 'FAILED')
       if (vendorData) {
         set({ _vendorDbId: vendorData.id })
@@ -462,24 +465,35 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     set((s) => ({ vendorNotifications: [notification, ...s.vendorNotifications] }))
   },
 
-  addListing: (listing) => {
+  addListing: async (listing) => {
     const { _liveMode, _vendorDbId } = get()
 
-    // Update local state immediately
+    // Optimistically add to local state so the UI updates immediately.
     set((s) => ({
       vendorListings: [...s.vendorListings, listing],
     }))
 
-    // Persist in background
-    if (_liveMode && _vendorDbId) {
-      insertListing(_vendorDbId, listing).then(data => {
-        if (data) {
-          set(s => ({
-            _listingIdMap: { ...s._listingIdMap, [listing.id]: data.id },
-          }))
-        }
-      })
+    if (_liveMode) {
+      // Live mode: the listing only counts once the DB row is confirmed. If the
+      // write fails (or there's no vendor DB id), roll back the optimistic add
+      // and report failure so the caller can surface an error instead of
+      // silently stranding the vendor as "live" with no discoverable listing.
+      if (!_vendorDbId) {
+        set((s) => ({ vendorListings: s.vendorListings.filter((l) => l.id !== listing.id) }))
+        console.error('[vendor-store] addListing: no _vendorDbId in live mode')
+        return false
+      }
+      const data = await insertListing(_vendorDbId, listing)
+      if (!data) {
+        set((s) => ({ vendorListings: s.vendorListings.filter((l) => l.id !== listing.id) }))
+        return false
+      }
+      set((s) => ({
+        _listingIdMap: { ...s._listingIdMap, [listing.id]: data.id },
+      }))
     }
+
+    return true
   },
 
   updateListing: (listing) => {
