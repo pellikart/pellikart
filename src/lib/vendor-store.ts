@@ -8,7 +8,7 @@ import {
   mockVendorAnalytics, generateMockAvailability,
 } from './vendor-mock-data'
 import {
-  fetchVendor, upsertVendor, updateVendorFields,
+  fetchVendor, upsertVendor, updateVendorFields, setVendorLiveById,
   fetchVendorListings, insertListing, updateListingDb, deleteListingDb,
   fetchVendorAvailability, upsertAvailability,
   fetchVendorTrials as fetchVendorTrialsDb, acceptTrialDb, proposeNewTrialTimeDb, declineTrialDb,
@@ -491,6 +491,11 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       set((s) => ({
         _listingIdMap: { ...s._listingIdMap, [listing.id]: data.id },
       }))
+      // A confirmed listing means the vendor is discoverable — flip them live
+      // right here so visibility never depends on a later setVendorLive landing.
+      // Best-effort: the listing is already saved, so we still report success
+      // even if this flip fails (it's retried by the onboarding flow too).
+      await setVendorLiveById(_vendorDbId)
     }
 
     return true

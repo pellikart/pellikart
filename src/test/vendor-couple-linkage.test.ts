@@ -165,9 +165,11 @@ describe('Vendor → Couple Data Linkage', () => {
       expect(vendorMap['listing-uuid-3'].teamSize).toBe('10+')
     })
 
-    it('portfolioPhotos comes from parent vendor', () => {
-      expect(vendorMap['listing-uuid-1'].portfolioPhotos).toHaveLength(3)
-      expect(vendorMap['listing-uuid-3'].portfolioPhotos).toHaveLength(1)
+    it('portfolioPhotos aggregates the parent vendor photos + all their listing photos', () => {
+      // vendor-uuid-1: 3 profile portfolio + 2 (listing-1) + 1 (listing-2) = 6
+      expect(vendorMap['listing-uuid-1'].portfolioPhotos).toHaveLength(6)
+      // vendor-uuid-2: 1 profile portfolio + 3 (listing-3) = 4
+      expect(vendorMap['listing-uuid-3'].portfolioPhotos).toHaveLength(4)
     })
   })
 

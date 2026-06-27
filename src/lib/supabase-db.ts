@@ -67,6 +67,19 @@ export async function setVendorLive(userId: string) {
   if (error) console.error('[db] setVendorLive failed:', error.message)
 }
 
+/** Same as setVendorLive but keyed by the vendor's DB id. Called right after a
+ *  listing insert succeeds, so "has a saved listing ⇒ discoverable" holds no
+ *  matter which flow created the listing or whether the onboarding-level
+ *  setVendorLive call lands. Idempotent — a no-op for already-live vendors. */
+export async function setVendorLiveById(vendorId: string) {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('vendors')
+    .update({ is_live: true, onboarding_complete: true, updated_at: new Date().toISOString() })
+    .eq('id', vendorId)
+  if (error) console.error('[db] setVendorLiveById failed:', error.message)
+}
+
 export async function updateVendorFields(userId: string, updates: Partial<VendorProfile>) {
   if (!supabase) return
   const mapped: Record<string, unknown> = { updated_at: new Date().toISOString() }
