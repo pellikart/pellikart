@@ -16,6 +16,16 @@ export default function VendorDashboard() {
   const pricingListing = singleCategory
     ? vendorListings.find((l) => l.category === singleCategory)
     : undefined
+  // Safety net: surface vendors couples can't actually find/book.
+  //  • no listing at all → invisible.
+  //  • a listing with no usable price (e.g. a recovered/legacy row like Aruna's)
+  //    → shows couples "Pricing on request". Decor is excluded (intentionally
+  //    price-less; couples bid). Single-listing categories already get the
+  //    "Edit your pricing" shortcut below, so we don't double up.
+  const noListings = vendorListings.length === 0
+  const pricelessListing = singleCategory
+    ? undefined
+    : vendorListings.find((l) => l.category !== 'Decor' && (!l.price || l.price <= 0))
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [bookingTab, setBookingTab] = useState<'active' | 'completed' | 'cancelled'>('active')
 
@@ -48,6 +58,31 @@ export default function VendorDashboard() {
       </div>
 
       <div className="px-4 mt-3">
+        {/* Discoverability safety net — only one shows at a time */}
+        {noListings ? (
+          <button
+            onClick={() => navigate('/vendor/listings/new')}
+            className="w-full mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center justify-between text-left active:scale-[0.99] transition-transform"
+          >
+            <div>
+              <p className="text-[12px] font-semibold text-red-700">⚠ Couples can’t find you yet</p>
+              <p className="text-[10px] text-red-600/80 mt-0.5">You have no listings. Add one so couples can discover and book you.</p>
+            </div>
+            <span className="text-red-400 text-[18px]">›</span>
+          </button>
+        ) : pricelessListing ? (
+          <button
+            onClick={() => navigate(`/vendor/listings/edit/${pricelessListing.id}`)}
+            className="w-full mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-left active:scale-[0.99] transition-transform"
+          >
+            <div>
+              <p className="text-[12px] font-semibold text-amber-800">Add a price to get booked</p>
+              <p className="text-[10px] text-amber-700/80 mt-0.5">“{pricelessListing.name}” has no price set — couples currently see “Pricing on request”.</p>
+            </div>
+            <span className="text-amber-500 text-[18px]">›</span>
+          </button>
+        ) : null}
+
         {/* Single-listing categories: edit pricing shortcut */}
         {pricingListing && (
           <button
