@@ -537,6 +537,39 @@ export async function updateBoardDatesDb(boardId: string, dateStart: string, dat
  * Returns the public URL, or null on failure.
  * Path: vendor-photos/{vendorId}/{type}/{timestamp}-{filename}
  */
+/** Cap the longest edge of uploaded images. Phone originals can be 60+ MP /
+ *  tens of MB, which exceed browser image-decode limits — they upload fine but
+ *  then render as "can't load this content" for couples. We downscale + re-encode
+ *  to JPEG before upload. Falls back to the original on any error or for
+ *  non-images (e.g. videos, which also flow through this function). */
+const MAX_IMAGE_DIM = 2000
+async function downscaleImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file
+  if (typeof document === 'undefined' || typeof createImageBitmap !== 'function') return file
+  try {
+    const bitmap = await createImageBitmap(file)
+    const { width, height } = bitmap
+    const scale = Math.min(1, MAX_IMAGE_DIM / Math.max(width, height))
+    // Already within limits and not heavy — leave it untouched.
+    if (scale >= 1 && file.size < 1_500_000) { bitmap.close?.(); return file }
+    const w = Math.max(1, Math.round(width * scale))
+    const h = Math.max(1, Math.round(height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) { bitmap.close?.(); return file }
+    ctx.drawImage(bitmap, 0, 0, w, h)
+    bitmap.close?.()
+    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.82))
+    if (!blob) return file
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' })
+  } catch (e) {
+    console.warn('[storage] downscale failed, uploading original:', e)
+    return file
+  }
+}
+
 export async function uploadPhoto(
   vendorId: string,
   file: File,
@@ -544,12 +577,13 @@ export async function uploadPhoto(
 ): Promise<string | null> {
   if (!supabase) return null
 
-  const ext = file.name.split('.').pop() || 'jpg'
+  const f = await downscaleImage(file)
+  const ext = f.name.split('.').pop() || 'jpg'
   const path = `${vendorId}/${type}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
   const { error } = await supabase.storage
     .from('vendor-photos')
-    .upload(path, file, {
+    .upload(path, f, {
       cacheControl: '3600',
       upsert: false,
     })
