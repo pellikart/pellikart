@@ -101,9 +101,16 @@ function LiveApp() {
   // null = not yet checked; we block store init until this resolves so a
   // returning vendor never sees the role-select / couple flow flicker.
   const [hasCompletedVendor, setHasCompletedVendor] = useState<boolean | null>(null)
+  // Becomes true only once initStore/initVendorStore have run (i.e. role + live
+  // mode are set). We hold the splash until then so AppRoutes never renders with
+  // the default role 'none' — otherwise RoleSelectPage flashes and tapping
+  // "vendor" on it sets the role WITHOUT putting the vendor store in live mode,
+  // silently dropping the whole session into demo mode (nothing persists).
+  const [initialized, setInitialized] = useState(false)
 
   // One-shot lookup: does this auth user already own a completed vendor row?
   useEffect(() => {
+    setInitialized(false)
     if (!user) {
       setHasCompletedVendor(null)
       return
@@ -156,12 +163,14 @@ function LiveApp() {
     if (effectiveRole === 'vendor') {
       initVendorStore(user.id)
     }
+    // Stores now carry the real role + live mode — safe to render the app.
+    setInitialized(true)
   }, [user, profile, hasCompletedVendor, updateRole, initStore, initVendorStore])
 
   // Keep showing the splash while we resolve who this user is — both auth
   // load AND the vendor lookup must finish, otherwise AppRoutes briefly
   // renders RoleSelectPage before the stores initialize.
-  if (loading || (user && hasCompletedVendor === null)) {
+  if (loading || (user && (hasCompletedVendor === null || !initialized))) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">
