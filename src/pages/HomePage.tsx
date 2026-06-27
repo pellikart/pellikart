@@ -5,6 +5,7 @@ import GrandTotalBar from '@/components/GrandTotalBar'
 import UnlockBanner from '@/components/UnlockBanner'
 import TrialsBanner from '@/components/TrialsBanner'
 import RitualBoard from '@/components/RitualBoard'
+import SignOutButton from '@/components/SignOutButton'
 
 export default function HomePage() {
   const { ritualBoards, vendors, addRitualBoard, activeBoardId, setActiveBoardId } = useStore()
@@ -107,6 +108,11 @@ export default function HomePage() {
             <p className="text-[10px] text-gray-400">Create a board for your first event</p>
           </button>
         )}
+      </div>
+
+      {/* Account */}
+      <div className="px-4 mt-8 mb-2 max-w-[480px] mx-auto">
+        <SignOutButton />
       </div>
 
       {/* Add board bottom sheet */}

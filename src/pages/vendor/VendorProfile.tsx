@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos, deletePhoto } from '@/lib/supabase-db'
 import type { VendorProfile as VendorProfileType } from '@/lib/vendor-types'
+import SignOutButton from '@/components/SignOutButton'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props', 'Other']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
@@ -248,6 +249,11 @@ export default function VendorProfile() {
             </svg>
           </button>
         ))}
+      </div>
+
+      {/* Account */}
+      <div className="px-4 mt-6 mb-2">
+        <SignOutButton />
       </div>
 
       {/* Edit Business Details Sheet */}
