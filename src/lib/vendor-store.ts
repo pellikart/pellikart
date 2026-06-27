@@ -94,6 +94,12 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       const listings: VendorListing[] = dbListings.map((l: Record<string, unknown>) => {
         const localId = `vl-${l.id}`
         listingIdMap[localId] = l.id as string
+        // Empty jsonb defaults ({} / []) must come back as undefined so the
+        // editors fall back to their `empty*()` shapes rather than a malformed
+        // empty object.
+        const obj = (v: unknown): unknown =>
+          v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length > 0 ? v : undefined
+        const arr = (v: unknown): unknown => (Array.isArray(v) && v.length > 0 ? v : undefined)
         const rawSizes = l.sizes
         const sizes = Array.isArray(rawSizes) && rawSizes.length > 0
           ? (rawSizes as Array<{ widthFt: number; heightFt: number; price: number }>)
@@ -102,6 +108,8 @@ export const useVendorStore = create<VendorState & LiveModeState & {
           id: localId,
           name: l.name as string,
           photos: (l.photos as string[]) || [],
+          videos: arr(l.videos) as string[] | undefined,
+          coverPhotoIndex: (l.cover_photo_index as number) ?? 0,
           category: l.category as string,
           price: l.price as number,
           sizes,
@@ -112,6 +120,27 @@ export const useVendorStore = create<VendorState & LiveModeState & {
           createdAt: (l.created_at as string)?.split('T')[0] || '',
           bundledListings: (l.bundled_listings as string[]) || [],
           bundleMandatory: (l.bundle_mandatory as boolean) || false,
+          // Category-specific data — must round-trip or the vendor loses their
+          // pricing on refresh (and a later save would blank it in the DB).
+          venueLocation: (() => { const v = l.venue_location as import('./vendor-types').VenueLocation | null; return v && v.address ? v : undefined })(),
+          venuePricingModels: arr(l.venue_pricing_models) as import('./vendor-types').VenuePricingModel[] | undefined,
+          hourlyPricing: arr(l.hourly_pricing) as { hours: number; price: number }[] | undefined,
+          platePackages: arr(l.plate_packages) as import('./vendor-types').PlatePackage[] | undefined,
+          paidRooms: arr(l.paid_rooms) as import('./vendor-types').PaidRoom[] | undefined,
+          inHouseDecor: (() => { const d = l.in_house_decor as import('./vendor-types').InHouseDecor | null; return d && typeof d.compulsory === 'boolean' ? d : undefined })(),
+          menu: arr(l.menu) as import('./vendor-types').MenuSection[] | undefined,
+          rateCard: obj(l.rate_card) as import('./vendor-category-config').PhotographyRateCard | undefined,
+          availableHours: arr(l.available_hours) as number[] | undefined,
+          photographyPricingModels: arr(l.photography_pricing_models) as import('./vendor-category-config').PhotographyPricingModel[] | undefined,
+          guestPackages: obj(l.guest_packages) as import('./vendor-category-config').PhotographyGuestPackages | undefined,
+          guestPackagePhotographers: obj(l.guest_package_photographers) as Record<string, number> | undefined,
+          guestPackageVideographers: obj(l.guest_package_videographers) as Record<string, number> | undefined,
+          mehendiPricing: obj(l.mehendi_pricing) as import('./vendor-category-config').MehendiPricing | undefined,
+          makeupPricing: obj(l.makeup_pricing) as import('./vendor-category-config').MakeupPricing | undefined,
+          sareeDrapingPricing: obj(l.saree_draping_pricing) as import('./vendor-category-config').SareeDrapingPricing | undefined,
+          hairStylingPricing: obj(l.hair_styling_pricing) as import('./vendor-category-config').HairStylingPricing | undefined,
+          transportIncluded: (l.transport_included as boolean | null) ?? undefined,
+          transportExtra: (l.transport_extra as number | null) ?? undefined,
         }
       })
 
