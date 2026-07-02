@@ -252,7 +252,7 @@ function AdminGate() {
   return (
     <Routes>
       <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/vendor/:id" element={<AdminVendorEditor />} />
+      <Route path="/admin/vendor/:id/*" element={<AdminVendorEditor />} />
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
   )

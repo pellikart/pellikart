@@ -37,7 +37,7 @@ function calcCompleteness(p: VendorProfileType): number {
 
 export default function VendorProfile() {
   const navigate = useNavigate()
-  const { vendorProfile, vendorReviews, updateVendorProfile, _vendorDbId, _liveMode } = useVendorStore()
+  const { vendorProfile, vendorReviews, updateVendorProfile, _vendorDbId, _liveMode, _adminMode } = useVendorStore()
   const [editSheet, setEditSheet] = useState(false)
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const p = vendorProfile
@@ -234,33 +234,38 @@ export default function VendorProfile() {
         </div>
       </div>
 
-      {/* Other sections */}
-      <div className="px-4">
-        {sections.map((s, i) => (
-          <button
-            key={i}
-            onClick={() => navigate(s.link)}
-            className="w-full flex items-center justify-between py-3 border-b border-card-border/50 text-left"
-          >
-            <div>
-              <p className="text-[12px] font-medium text-dark">{s.label}</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">{s.desc}</p>
-            </div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        ))}
-      </div>
-
-      {/* Account */}
-      <div className="px-4 mt-6 mb-2 space-y-3">
-        <AdminLink />
-        <div className="text-[12px] text-gray-400">
-          Planning your own wedding? <RoleSwitch to="couple" />
+      {/* Other sections — vendor-only (analytics/reviews/etc. don't apply to a
+          vendor an admin is building on their behalf). */}
+      {!_adminMode && (
+        <div className="px-4">
+          {sections.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => navigate(s.link)}
+              className="w-full flex items-center justify-between py-3 border-b border-card-border/50 text-left"
+            >
+              <div>
+                <p className="text-[12px] font-medium text-dark">{s.label}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{s.desc}</p>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          ))}
         </div>
-        <SignOutButton />
-      </div>
+      )}
+
+      {/* Account — hidden in admin mode (it's the admin's session, not the vendor's). */}
+      {!_adminMode && (
+        <div className="px-4 mt-6 mb-2 space-y-3">
+          <AdminLink />
+          <div className="text-[12px] text-gray-400">
+            Planning your own wedding? <RoleSwitch to="couple" />
+          </div>
+          <SignOutButton />
+        </div>
+      )}
 
       {/* Edit Business Details Sheet */}
       {editSheet && (

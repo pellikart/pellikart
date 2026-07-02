@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
+import { useVendorBase } from '@/lib/vendor-nav'
 import { formatINR } from '@/lib/helpers'
 import { isSingleListingCategory } from '@/lib/vendor-category-config'
 
 export default function VendorListings() {
   const navigate = useNavigate()
-  const { vendorListings, vendorProfile, deleteListing } = useVendorStore()
+  const base = useVendorBase()
+  const { vendorListings, vendorProfile, deleteListing, _adminMode } = useVendorStore()
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   // Single-listing categories (Mehendi, Makeup, Saree Draping, Hair Stylist) have no
   // Listings page — they author + edit their one listing from onboarding + the dashboard.
+  // (In admin mode there's no dashboard, so we keep the list visible.)
   const singleListing = isSingleListingCategory(vendorProfile?.category)
   useEffect(() => {
-    if (singleListing) navigate('/vendor', { replace: true })
-  }, [singleListing, navigate])
+    if (singleListing && !_adminMode) navigate('/vendor', { replace: true })
+  }, [singleListing, _adminMode, navigate])
 
   return (
     <div className="min-h-dvh bg-white pb-20 page-enter">
@@ -21,7 +24,7 @@ export default function VendorListings() {
         <p className="text-[14px] font-bold text-dark">{singleListing ? 'My Listing' : 'My Listings'}</p>
         {!singleListing && (
           <button
-            onClick={() => navigate('/vendor/listings/new')}
+            onClick={() => navigate(`${base}/listings/new`)}
             className="bg-mustard text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg active:scale-[0.97] transition-transform"
           >
             + Add listing
@@ -40,7 +43,7 @@ export default function VendorListings() {
               Add your first listing so couples can discover your services.
             </p>
             <button
-              onClick={() => navigate('/vendor/listings/new')}
+              onClick={() => navigate(`${base}/listings/new`)}
               className="mt-4 bg-mustard text-white text-[12px] font-semibold px-5 py-2.5 rounded-xl active:scale-[0.97] transition-transform"
             >
               Create your first listing
@@ -58,7 +61,7 @@ export default function VendorListings() {
                 <div className="p-3">
                   {l.inHouseDecor?.pending && (
                     <button
-                      onClick={() => navigate(`/vendor/listings/edit/${l.id}`)}
+                      onClick={() => navigate(`${base}/listings/edit/${l.id}`)}
                       className="w-full mb-2 flex items-center gap-2 text-left px-2.5 py-2 rounded-lg bg-mustard-light/60 border border-mustard/30 active:scale-[0.99] transition-transform"
                     >
                       <span className="text-[13px]">🎨</span>
@@ -86,7 +89,7 @@ export default function VendorListings() {
                   )}
                   <div className="flex gap-2 mt-2">
                     <button
-                      onClick={() => navigate(`/vendor/listings/edit/${l.id}`)}
+                      onClick={() => navigate(`${base}/listings/edit/${l.id}`)}
                       className="flex-1 py-1.5 rounded-lg border border-mustard text-mustard text-[10px] font-medium active:bg-mustard-light transition-colors"
                     >
                       {singleListing ? 'Edit pricing' : 'Edit listing'}

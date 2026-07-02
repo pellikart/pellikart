@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice } from '@/lib/helpers'
@@ -13,6 +14,7 @@ import type { PaidRoom, MenuSection, PlatePackage, VenuePricingModel, InHouseDec
 
 export default function VendorAddListing({ embedded = false, onPublished }: { embedded?: boolean; onPublished?: () => void } = {}) {
   const navigate = useNavigate()
+  const base = useVendorBase()
   // First listing during onboarding — either embedded in the onboarding flow,
   // or (legacy) reached via the ?onboarding=1 route.
   const isFirstListing = embedded || new URLSearchParams(useLocation().search).get('onboarding') === '1'
@@ -446,7 +448,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       }
 
       setPublishing(false)
-      navigate('/vendor/listings')
+      navigate(`${base}/listings`)
       return
     }
 
@@ -518,7 +520,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setPublishing(false)
     // Embedded in onboarding — hand control back so onboarding can finish.
     if (embedded && onPublished) { onPublished(); return }
-    navigate('/vendor/listings')
+    navigate(`${base}/listings`)
   }
 
 
@@ -543,7 +545,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       {/* Header */}
       <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          {!isFirstListing && <button onClick={() => navigate('/vendor/listings')} className="text-sm">←</button>}
+          {!isFirstListing && <button onClick={() => navigate(`${base}/listings`)} className="text-sm">←</button>}
           <p className="text-[14px] font-bold text-dark">{isFirstListing ? 'Your first listing' : 'New Listing'}</p>
         </div>
         <span className="text-[10px] text-gray-400">Step {step}/{totalSteps}</span>
@@ -644,7 +646,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
             </div>
 
             <div className="flex gap-2 mt-6">
-              <button onClick={() => navigate('/vendor/listings')} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
+              <button onClick={() => navigate(`${base}/listings`)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
               <button
                 onClick={() => setStep(locationStep + 1)}
                 disabled={!venueLocationReady}
@@ -732,7 +734,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
               ) : hasLocationStep ? (
                 <button onClick={() => setStep(locationStep)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
               ) : (
-                <button onClick={() => navigate('/vendor/listings')} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
+                <button onClick={() => navigate(`${base}/listings`)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
               )}
               <button onClick={() => setStep(categoryStepStart)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
             </div>

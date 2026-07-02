@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
@@ -14,6 +15,7 @@ import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
 export default function VendorEditListing() {
   const { listingId } = useParams<{ listingId: string }>()
   const navigate = useNavigate()
+  const base = useVendorBase()
   const { vendorListings, vendorProfile, updateListing, _liveMode, _vendorDbId } = useVendorStore()
 
   const listing = vendorListings.find((l) => l.id === listingId)
@@ -95,7 +97,7 @@ export default function VendorEditListing() {
     return (
       <div className="p-8 text-center text-gray-500">
         Listing not found.
-        <button onClick={() => navigate('/vendor/listings')} className="block mx-auto mt-4 text-mustard">← Go back</button>
+        <button onClick={() => navigate(`${base}/listings`)} className="block mx-auto mt-4 text-mustard">← Go back</button>
       </div>
     )
   }
@@ -213,7 +215,7 @@ export default function VendorEditListing() {
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
     })
-    navigate('/vendor/listings')
+    navigate(`${base}/listings`)
   }
 
   const priceLabel = category === 'Catering' ? 'Price per plate' : category === 'Invitations' ? 'Price per invite' : 'Price'
@@ -222,7 +224,7 @@ export default function VendorEditListing() {
     <div className="min-h-dvh bg-white page-enter flex flex-col">
       <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/vendor/listings')} className="text-sm">←</button>
+          <button onClick={() => navigate(`${base}/listings`)} className="text-sm">←</button>
           <p className="text-[14px] font-bold text-dark">Edit Listing</p>
         </div>
         <button onClick={handleSave} disabled={saving} className="bg-mustard text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
