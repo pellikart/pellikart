@@ -23,8 +23,15 @@ export default function AdminVendorEditor() {
   // still prefills the identity fields captured at creation.
   const [rowSeed, setRowSeed] = useState<{ businessName: string; category: string; phone?: string } | undefined>()
 
+  // Isolate this vendor's resume-draft so building vendor B never inherits
+  // vendor A's half-finished draft (the real onboarding auto-saves to sessionStorage).
+  const draftKey = `pellikart:admin-vendor-draft:${id}`
+
   useEffect(() => {
     if (!id) return
+    // Clear the shared self-serve draft key so no stale draft (from before the
+    // per-vendor keys existed, or from a real vendor's own onboarding) bleeds in.
+    try { sessionStorage.removeItem('pellikart:vendor-onboarding-draft') } catch { /* ignore */ }
     let cancelled = false
     ;(async () => {
       const v = await fetchVendorById(id)
@@ -83,7 +90,7 @@ export default function AdminVendorEditor() {
   // flow's writes are re-keyed by id. On finish it returns to the dashboard.
   return (
     <div className="app-container">
-      <VendorOnboarding returnPath="/admin" adminSeed={seed ?? rowSeed} />
+      <VendorOnboarding returnPath="/admin" adminSeed={seed ?? rowSeed} draftKey={draftKey} />
     </div>
   )
 }

@@ -51,27 +51,30 @@ async function downscaleImage(file: File, maxDim = 2000, quality = 0.85): Promis
 // can't be serialized) so an accidental refresh or a mobile memory-reload doesn't
 // wipe the vendor's progress. Stored per-tab; cleared once onboarding completes.
 const DRAFT_KEY = 'pellikart:vendor-onboarding-draft'
-function loadDraft(): Record<string, unknown> {
-  try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || '{}') } catch { return {} }
+function loadDraft(key: string): Record<string, unknown> {
+  try { return JSON.parse(sessionStorage.getItem(key) || '{}') } catch { return {} }
 }
 
 /** Optional props let staff reuse this exact flow inside the admin panel to
  *  build a vendor on someone's behalf: `returnPath` is where we go when done
  *  (back to /admin instead of the vendor dashboard) and `adminSeed` prefills the
- *  identity fields captured on the "Add vendor" step. When omitted it's the
- *  normal self-serve vendor onboarding. */
+ *  identity fields captured on the "Add vendor" step. `draftKey` isolates the
+ *  resume-draft per vendor so building vendor B never inherits vendor A's
+ *  half-finished draft. When omitted it's the normal self-serve onboarding. */
 interface VendorOnboardingProps {
   returnPath?: string
   adminSeed?: { businessName: string; category: string; phone?: string }
+  draftKey?: string
 }
 
-export default function VendorOnboarding({ returnPath = '/vendor', adminSeed }: VendorOnboardingProps = {}) {
+export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, draftKey = DRAFT_KEY }: VendorOnboardingProps = {}) {
   const navigate = useNavigate()
   const { completeVendorOnboarding } = useVendorStore()
 
   // Restore any in-progress draft (text fields, selections, pricing, current step)
-  // so a refresh / mobile memory-reload resumes instead of starting over.
-  const draft = loadDraft()
+  // so a refresh / mobile memory-reload resumes instead of starting over. Keyed
+  // per vendor in admin mode so drafts never bleed between vendors.
+  const draft = loadDraft(draftKey)
   const [step, setStep] = useState<number>(() => (draft.step as number) ?? 1)
   // 'profile' = the onboarding questions; 'listing' = the embedded first-listing
   // wizard (multi-listing categories) shown before onboarding is marked complete.
@@ -118,7 +121,7 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed }: 
       makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
       hairAvailable, mehendiAvailable, transportIncluded,
     }
-    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot)) } catch { /* quota/serialize errors are non-fatal */ }
+    try { sessionStorage.setItem(draftKey, JSON.stringify(snapshot)) } catch { /* quota/serialize errors are non-fatal */ }
   }, [step, businessName, category, area, phone, secondaryPhone, whatsapp, email,
     instagram, sameAsPhone, description, experience, teamSize, mehendiPricing,
     makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
@@ -285,7 +288,7 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed }: 
     if (isSingleListing) {
       // Single-listing categories already authored their one listing above and
       // onboarding is marked complete — go to the dashboard.
-      try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+      try { sessionStorage.removeItem(draftKey) } catch { /* ignore */ }
       navigate(returnPath)
     } else {
       // Every other category continues — in the same onboarding flow — into the
@@ -302,7 +305,7 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed }: 
     const { _liveMode: lm, _adminMode: am, _userId: uid, _vendorDbId: vdbId } = useVendorStore.getState()
     if (lm && am && vdbId) await setVendorLiveById(vdbId)
     else if (lm && uid) await setVendorLive(uid)
-    try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+    try { sessionStorage.removeItem(draftKey) } catch { /* ignore */ }
     useVendorStore.setState({ vendorOnboardingComplete: true })
     navigate(returnPath)
   }
