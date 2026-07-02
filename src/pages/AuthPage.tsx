@@ -32,6 +32,19 @@ export default function AuthPage() {
     if (err) setError(err.message)
   }
 
+  // Staff entry: sign in and go straight to the admin panel. Access is enforced
+  // by the admins allowlist (RLS) — this button just skips the role routing.
+  async function handleAdminSignIn() {
+    if (!supabase) return
+    setError(null)
+    localStorage.removeItem('pellikart_pending_role')
+    const { error: err } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/app/admin' },
+    })
+    if (err) setError(err.message)
+  }
+
   async function handleGoogleSignIn() {
     if (!supabase) return
     setError(null)
@@ -93,6 +106,13 @@ export default function AuthPage() {
           className="mt-4 text-[12px] text-magenta font-medium hover:underline"
         >
           Invited by Pellikart? Claim your vendor profile
+        </button>
+
+        <button
+          onClick={handleAdminSignIn}
+          className="mt-6 text-[11px] text-gray-400 hover:text-gray-600"
+        >
+          Admin
         </button>
         {error && <p className="mt-3 text-[12px] text-red-500 text-center">{error}</p>}
       </div>

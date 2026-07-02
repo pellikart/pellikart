@@ -97,10 +97,6 @@ function LiveApp() {
   const initStore = useStore(s => s.initLiveMode)
   const initVendorStore = useVendorStore(s => s.initLiveMode)
 
-  // Is this signed-in user an admin? null = not yet checked. Resolved during the
-  // splash so an admin never flashes the couple flow before we route them.
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
-
   // The account's committed role, fetched directly so we have a definite loaded
   // signal: undefined = not fetched yet, null = fetched but undecided (new
   // account), 'couple' | 'vendor' = a real saved choice.
@@ -123,24 +119,20 @@ function LiveApp() {
   // True when the account has no role yet and must pick before continuing.
   const [needsRoleChoice, setNeedsRoleChoice] = useState(false)
 
-  // One-shot lookup per user: vendor ownership, admin status, and the committed
-  // DB role. All three must resolve before we decide where to send them.
+  // One-shot lookup per user: vendor ownership and the committed DB role. Admin
+  // status isn't needed here — /admin is gated independently by AdminGate.
   useEffect(() => {
     setInitialized(false)
     setNeedsRoleChoice(false)
     committedRoleRef.current = null
     if (!user) {
       setHasCompletedVendor(null)
-      setIsAdmin(null)
       setDbRole(undefined)
       return
     }
     let cancelled = false
     fetchVendor(user.id).then(v => {
       if (!cancelled) setHasCompletedVendor(!!(v && v.onboarding_complete))
-    })
-    isAdminUser().then(ok => {
-      if (!cancelled) setIsAdmin(ok)
     })
     fetchProfileRole(user.id).then(r => {
       if (!cancelled) setDbRole(r)
@@ -166,11 +158,10 @@ function LiveApp() {
     setInitialized(true)
   }, [user, updateRole, initStore, initVendorStore])
 
-  // Resolve the session role once everything we need has loaded. Admins are
-  // routed to the panel and don't need a couple/vendor role at all.
+  // Resolve the session role once everything we need has loaded.
   useEffect(() => {
-    if (!user || hasCompletedVendor === null || isAdmin === null || dbRole === undefined) return
-    if (isAdmin || committedRoleRef.current) return
+    if (!user || hasCompletedVendor === null || dbRole === undefined) return
+    if (committedRoleRef.current) return
 
     const picked = pendingRoleRef.current as 'couple' | 'vendor' | null
 
@@ -192,7 +183,7 @@ function LiveApp() {
     }
     // Only write to the DB if the stored role differs from what we resolved.
     commitRole(role, dbRole !== role)
-  }, [user, hasCompletedVendor, isAdmin, dbRole, commitRole])
+  }, [user, hasCompletedVendor, dbRole, commitRole])
 
   const splash = (
     <div className="min-h-dvh flex items-center justify-center bg-white">
@@ -203,9 +194,9 @@ function LiveApp() {
     </div>
   )
 
-  // Hold the splash until auth AND the per-user lookups (vendor / admin / role)
-  // have resolved, so we never flash the wrong flow before we know where to go.
-  if (loading || (user && (hasCompletedVendor === null || isAdmin === null || dbRole === undefined))) {
+  // Hold the splash until auth AND the per-user lookups (vendor / role) have
+  // resolved, so we never flash the wrong flow before we know where to go.
+  if (loading || (user && (hasCompletedVendor === null || dbRole === undefined))) {
     return splash
   }
 
@@ -214,12 +205,11 @@ function LiveApp() {
     return <AuthPage />
   }
 
-  // Admins go straight to the panel; they don't need a couple/vendor role.
-  if (isAdmin) {
-    if (pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/claim') {
-      return <AppRoutes />
-    }
-    return <Navigate to="/admin" replace />
+  // These routes don't depend on a chosen couple/vendor role: the admin panel
+  // is gated independently (AdminGate), and claim is for pre-onboarded vendors.
+  // Render them before the chooser so an undecided user can still reach them.
+  if (pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/claim') {
+    return <AppRoutes />
   }
 
   // Brand-new account with no role yet — make them choose. The pick is persisted
