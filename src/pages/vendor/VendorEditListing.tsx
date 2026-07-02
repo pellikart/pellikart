@@ -536,9 +536,9 @@ export default function VendorEditListing() {
                   ]
                   return (
                     <div key={row.key} className="p-3 rounded-xl border border-card-border space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[12px] font-semibold text-dark flex-1 min-w-0 leading-tight">{row.label}</span>
-                        <div className="relative w-[130px] shrink-0">
+                      <div>
+                        <span className="text-[12px] font-semibold text-dark block leading-tight mb-1.5">{row.label}</span>
+                        <div className="relative w-[150px]">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
                           <input type="number" min={0} step={row.step} value={row.price || ''} onChange={(e) => row.setPrice(Math.max(0, parseInt(e.target.value) || 0))} placeholder="0"
                             className="w-full pl-6 pr-12 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
