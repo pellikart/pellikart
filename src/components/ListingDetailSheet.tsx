@@ -733,7 +733,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {vendor.makeupPricing && (() => {
               const p = vendor.makeupPricing
               const fromPrice = getMakeupFromPrice(p)
-              const offeredEvents = MAKEUP_EVENTS.filter(e => (p.bridalByEvent?.[e] ?? 0) > 0)
+              // Standard events, plus any custom key (e.g. 'simple' mode's single
+              // overall bridal entry) so both pricing modes render.
+              const offeredEvents = [
+                ...MAKEUP_EVENTS.filter(e => (p.bridalByEvent?.[e] ?? 0) > 0),
+                ...Object.keys(p.bridalByEvent || {}).filter(k => !(MAKEUP_EVENTS as readonly string[]).includes(k) && (p.bridalByEvent[k] ?? 0) > 0),
+              ]
               const offeredAddons = MAKEUP_ADDONS.filter(a => (p.addons?.[a] ?? 0) > 0)
               const groomOK = (p.groomPrice ?? 0) > 0
               const guestOK = (p.guestPricePerPerson ?? 0) > 0
@@ -850,6 +855,19 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                       <div className="pt-3 border-t border-mustard/20">
                         <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Hairstyling <span className="text-gray-400 font-normal normal-case">· add-on</span></p>
                         <PerLookGuestRows p={hp} sel={hairSel} onUpdate={updateHair} labels={{ bridal: 'Bridal hairstyling', groom: 'Groom hairstyling', guest: 'Guest hairstyling' }} />
+                      </div>
+                    )}
+
+                    {/* Simple mode: services offered without pricing — shown as info tags. */}
+                    {p.mode === 'simple' && (p.offersSaree || p.offersHair || p.offersMehendi) && (
+                      <div className="pt-3 border-t border-mustard/20">
+                        <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Also offers</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.offersMehendi && <span className="py-1 px-2.5 rounded-full text-[10px] font-medium bg-empty-bg text-gray-700 border border-card-border">Mehendi</span>}
+                          {p.offersSaree && <span className="py-1 px-2.5 rounded-full text-[10px] font-medium bg-empty-bg text-gray-700 border border-card-border">Saree draping</span>}
+                          {p.offersHair && <span className="py-1 px-2.5 rounded-full text-[10px] font-medium bg-empty-bg text-gray-700 border border-card-border">Hairstyling</span>}
+                        </div>
+                        <p className="text-[9px] text-gray-400 mt-1">Ask the artist for pricing on these.</p>
                       </div>
                     )}
 

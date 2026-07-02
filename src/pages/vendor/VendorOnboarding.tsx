@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
 import { uploadPhotos, setVendorLive, setVendorLiveById } from '@/lib/supabase-db'
-import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, MAKEUP_SIMPLE_BRIDAL_KEY, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
@@ -108,6 +108,15 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
   const [hairPricing, setHairPricing] = useState<HairStylingPricing>(() => (draft.hairPricing as HairStylingPricing) ?? emptyHairStylingPricing())
   const [hairAvailable, setHairAvailable] = useState<boolean | null>((draft.hairAvailable as boolean | null) ?? null)
   const [mehendiAvailable, setMehendiAvailable] = useState<boolean | null>((draft.mehendiAvailable as boolean | null) ?? null)
+  // Makeup pricing mode: 'detailed' (per-event + priced add-ons) or 'simple'
+  // (overall bridal/groom/guest prices + offered-service checkboxes).
+  const [makeupMode, setMakeupMode] = useState<'detailed' | 'simple'>((draft.makeupMode as 'detailed' | 'simple') ?? 'detailed')
+  const [simpleBridal, setSimpleBridal] = useState<number>((draft.simpleBridal as number) ?? 0)
+  const [simpleGroom, setSimpleGroom] = useState<number>((draft.simpleGroom as number) ?? 0)
+  const [simpleGuest, setSimpleGuest] = useState<number>((draft.simpleGuest as number) ?? 0)
+  const [offersSaree, setOffersSaree] = useState<boolean>((draft.offersSaree as boolean) ?? false)
+  const [offersHair, setOffersHair] = useState<boolean>((draft.offersHair as boolean) ?? false)
+  const [offersMehendi, setOffersMehendi] = useState<boolean>((draft.offersMehendi as boolean) ?? false)
   // Single-listing categories: transport & logistics applied to the auto-created listing.
   const [transportIncluded, setTransportIncluded] = useState<boolean | null>((draft.transportIncluded as boolean | null) ?? null)
 
@@ -120,12 +129,14 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
       instagram, sameAsPhone, description, experience, teamSize, mehendiPricing,
       makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
       hairAvailable, mehendiAvailable, transportIncluded,
+      makeupMode, simpleBridal, simpleGroom, simpleGuest, offersSaree, offersHair, offersMehendi,
     }
     try { sessionStorage.setItem(draftKey, JSON.stringify(snapshot)) } catch { /* quota/serialize errors are non-fatal */ }
   }, [step, businessName, category, area, phone, secondaryPhone, whatsapp, email,
     instagram, sameAsPhone, description, experience, teamSize, mehendiPricing,
     makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
-    hairAvailable, mehendiAvailable, transportIncluded])
+    hairAvailable, mehendiAvailable, transportIncluded,
+    makeupMode, simpleBridal, simpleGroom, simpleGuest, offersSaree, offersHair, offersMehendi])
 
   // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, then category pricing/
   // add-ons (girly), then Portfolio Photos, then Ready. Photos go last so vendors
@@ -135,12 +146,16 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
   const isSaree = category === 'Saree Draping'
   const isHair = category === 'Hair Stylist'
   const isSingleListing = isSingleListingCategory(category)
+  // The detailed makeup add-on steps only exist in 'detailed' mode. In 'simple'
+  // mode the pricing step captures everything, so those steps collapse away and
+  // the flow goes straight to Portfolio.
+  const makeupDetailed = isMakeup && makeupMode === 'detailed'
   let _s = 5
   const pricingStep = isSingleListing ? _s++ : -1      // single-listing categories only
-  const makeupAddonsStep = isMakeup ? _s++ : -1        // Makeup only — add-ons (lashes, etc.)
-  const sareeAddonStep = isMakeup ? _s++ : -1          // Makeup only
-  const hairAddonStep = isMakeup ? _s++ : -1           // Makeup only
-  const mehendiAddonStep = isMakeup ? _s++ : -1        // Makeup only
+  const makeupAddonsStep = makeupDetailed ? _s++ : -1  // Makeup detailed only — add-ons (lashes, etc.)
+  const sareeAddonStep = makeupDetailed ? _s++ : -1    // Makeup detailed only
+  const hairAddonStep = makeupDetailed ? _s++ : -1     // Makeup detailed only
+  const mehendiAddonStep = makeupDetailed ? _s++ : -1  // Makeup detailed only
   // Photos step only for single-listing categories (it IS their listing's photos).
   // Multi-listing categories add photos in the listing wizard instead, and their
   // portfolio is the aggregate of all listing photos — so no separate upload here.
@@ -261,10 +276,19 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
         createdAt: new Date().toISOString().split('T')[0],
         transportIncluded: transportIncluded === null ? undefined : transportIncluded,
       }
+      const makeupPricingOut: MakeupPricing = makeupMode === 'simple'
+        ? {
+            mode: 'simple',
+            bridalByEvent: simpleBridal > 0 ? { [MAKEUP_SIMPLE_BRIDAL_KEY]: simpleBridal } : {},
+            groomPrice: simpleGroom || undefined,
+            guestPricePerPerson: simpleGuest || undefined,
+            offersSaree, offersHair, offersMehendi,
+          }
+        : { ...makeupPricing, addons: makeupAddons }
       const listing: VendorListing = isMehendi
         ? { ...base, name: `${profile.businessName} — Mehendi`, category: 'Mehendi', price: getMehendiFromPrice(mehendiPricing), mehendiPricing, rituals: ['Mehendi'] }
         : isMakeup
-        ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricing), makeupPricing: { ...makeupPricing, addons: makeupAddons }, mehendiPricing: mehendiAvailable ? mehendiPricing : undefined, sareeDrapingPricing: sareeAvailable ? sareePricing : undefined, hairStylingPricing: hairAvailable ? hairPricing : undefined, rituals: [] }
+        ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricingOut), makeupPricing: makeupPricingOut, mehendiPricing: makeupDetailed && mehendiAvailable ? mehendiPricing : undefined, sareeDrapingPricing: makeupDetailed && sareeAvailable ? sareePricing : undefined, hairStylingPricing: makeupDetailed && hairAvailable ? hairPricing : undefined, rituals: [] }
         : isSaree
         ? { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
         : { ...base, name: `${profile.businessName} — Hair Stylist`, category: 'Hair Stylist', price: getHairStylingFromPrice(hairPricing), hairStylingPricing: hairPricing, rituals: [] }
@@ -518,7 +542,57 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
             {isMehendi
               ? <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />
               : isMakeup
-              ? <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
+              ? (
+                <div className="space-y-5">
+                  {/* Pricing mode selector */}
+                  <div>
+                    <label className="text-[11px] font-medium text-dark block mb-1.5">Pricing style</label>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setMakeupMode('detailed')} className={`flex-1 py-2.5 rounded-xl text-[11px] font-medium transition-all ${makeupMode === 'detailed' ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Detailed<br /><span className="text-[9px] font-normal text-gray-400">per event + add-ons</span></button>
+                      <button type="button" onClick={() => setMakeupMode('simple')} className={`flex-1 py-2.5 rounded-xl text-[11px] font-medium transition-all ${makeupMode === 'simple' ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Simple<br /><span className="text-[9px] font-normal text-gray-400">overall prices</span></button>
+                    </div>
+                  </div>
+
+                  {makeupMode === 'simple' ? (
+                    <>
+                      <div className="space-y-2.5">
+                        {([
+                          { label: 'Bridal makeup', unit: '/ look', val: simpleBridal, set: setSimpleBridal, step: 500 },
+                          { label: 'Groom makeup', unit: '/ look', val: simpleGroom, set: setSimpleGroom, step: 500 },
+                          { label: 'Guest makeup', unit: '/ guest', val: simpleGuest, set: setSimpleGuest, step: 100 },
+                        ]).map(row => (
+                          <div key={row.label} className="flex items-center justify-between gap-3">
+                            <span className="text-[12px] font-medium text-dark">{row.label}</span>
+                            <div className="relative w-[150px] shrink-0">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                              <input type="number" min={0} step={row.step} value={row.val || ''} onChange={(e) => row.set(Math.max(0, parseInt(e.target.value) || 0))} placeholder="0"
+                                className="w-full pl-6 pr-12 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">{row.unit}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pt-2 border-t border-card-border">
+                        <label className="text-[12px] font-semibold text-dark block mb-2">Also offers <span className="text-gray-400 font-normal">(no pricing — just tick what you provide)</span></label>
+                        <div className="space-y-2">
+                          {([
+                            { label: 'Saree draping', val: offersSaree, set: setOffersSaree },
+                            { label: 'Hairstyling', val: offersHair, set: setOffersHair },
+                            { label: 'Mehendi', val: offersMehendi, set: setOffersMehendi },
+                          ]).map(row => (
+                            <label key={row.label} className="flex items-center gap-2.5 cursor-pointer">
+                              <input type="checkbox" className="accent-mustard w-4 h-4" checked={row.val} onChange={() => row.set(!row.val)} />
+                              <span className="text-[12px] text-dark">{row.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
+                  )}
+                </div>
+              )
               : isSaree
               ? <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />
               : <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />}

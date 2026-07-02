@@ -4,7 +4,7 @@ import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_SIMPLE_BRIDAL_KEY, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import type { MenuSection, PlatePackage, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
 import MenuBuilder from '@/components/MenuBuilder'
@@ -44,6 +44,15 @@ export default function VendorEditListing() {
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
   const [makeupAddons, setMakeupAddons] = useState<Record<string, number>>({})
+  // Makeup pricing mode: 'detailed' (per-event + priced add-ons) or 'simple'
+  // (overall bridal/groom/guest + offered-service checkboxes).
+  const [makeupMode, setMakeupMode] = useState<'detailed' | 'simple'>('detailed')
+  const [simpleBridal, setSimpleBridal] = useState(0)
+  const [simpleGroom, setSimpleGroom] = useState(0)
+  const [simpleGuest, setSimpleGuest] = useState(0)
+  const [offersSaree, setOffersSaree] = useState(false)
+  const [offersHair, setOffersHair] = useState(false)
+  const [offersMehendi, setOffersMehendi] = useState(false)
   const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
   // Makeup-only: whether this makeup artist also offers mehendi / saree draping / hairstyling as add-ons.
   const [sareeAddon, setSareeAddon] = useState(false)
@@ -93,6 +102,16 @@ export default function VendorEditListing() {
       setMehendiAddon(listing.category === 'Makeup' && !!listing.mehendiPricing)
       setMakeupPricing(listing.makeupPricing || emptyMakeupPricing())
       setMakeupAddons(listing.makeupPricing?.addons || {})
+      // Seed makeup pricing mode + simple-mode fields.
+      const mk = listing.makeupPricing
+      const simple = mk?.mode === 'simple'
+      setMakeupMode(simple ? 'simple' : 'detailed')
+      setSimpleBridal(simple ? (mk?.bridalByEvent?.[MAKEUP_SIMPLE_BRIDAL_KEY] || 0) : 0)
+      setSimpleGroom(simple ? (mk?.groomPrice || 0) : 0)
+      setSimpleGuest(simple ? (mk?.guestPricePerPerson || 0) : 0)
+      setOffersSaree(!!mk?.offersSaree)
+      setOffersHair(!!mk?.offersHair)
+      setOffersMehendi(!!mk?.offersMehendi)
       setSareePricing(listing.sareeDrapingPricing || emptySareeDrapingPricing())
       setSareeAddon(listing.category === 'Makeup' && !!listing.sareeDrapingPricing)
       setHairPricing(listing.hairStylingPricing || emptyHairStylingPricing())
@@ -228,10 +247,22 @@ export default function VendorEditListing() {
     const safeCover = Math.min(coverIndex, Math.max(0, finalPhotos.length - 1))
     // Photography: prefer the hourly "₹X/hr" board figure; fall back to the cheapest
     // guest-package cell when only guest-based pricing is offered.
+    // Assemble the makeup pricing object from whichever mode is active.
+    const makeupPricingOut: MakeupPricing = makeupMode === 'simple'
+      ? {
+          mode: 'simple',
+          bridalByEvent: simpleBridal > 0 ? { [MAKEUP_SIMPLE_BRIDAL_KEY]: simpleBridal } : {},
+          groomPrice: simpleGroom || undefined,
+          guestPricePerPerson: simpleGuest || undefined,
+          offersSaree, offersHair, offersMehendi,
+        }
+      : { ...makeupPricing, addons: makeupAddons }
+    const makeupDetailed = makeupMode === 'detailed'
+
     const effectivePrice = category === 'Photography'
       ? (photoOffersHourly && photoHourlyBase > 0 ? photoHourlyBase : photoGuestFrom)
       : category === 'Mehendi' ? getMehendiFromPrice(mehendiPricing)
-      : category === 'Makeup' ? getMakeupFromPrice(makeupPricing)
+      : category === 'Makeup' ? getMakeupFromPrice(makeupPricingOut)
       : category === 'Saree Draping' ? getSareeDrapingFromPrice(sareePricing)
       : category === 'Hair Stylist' ? getHairStylingFromPrice(hairPricing)
       : category === 'Venue' ? venueFrom
@@ -247,14 +278,14 @@ export default function VendorEditListing() {
       guestPackagePhotographers: category === 'Photography' && photoOffersGuest && Object.keys(guestPackagePhotographers).length > 0 ? guestPackagePhotographers : undefined,
       guestPackageVideographers: category === 'Photography' && photoOffersGuest && Object.keys(guestPackageVideographers).length > 0 ? guestPackageVideographers : undefined,
       mehendiPricing: category === 'Mehendi' ? mehendiPricing
-        : category === 'Makeup' && mehendiAddon ? mehendiPricing
+        : category === 'Makeup' && makeupDetailed && mehendiAddon ? mehendiPricing
         : undefined,
-      makeupPricing: category === 'Makeup' ? { ...makeupPricing, addons: makeupAddons } : undefined,
+      makeupPricing: category === 'Makeup' ? makeupPricingOut : undefined,
       sareeDrapingPricing: category === 'Saree Draping' ? sareePricing
-        : category === 'Makeup' && sareeAddon ? sareePricing
+        : category === 'Makeup' && makeupDetailed && sareeAddon ? sareePricing
         : undefined,
       hairStylingPricing: category === 'Hair Stylist' ? hairPricing
-        : category === 'Makeup' && hairAddon ? hairPricing
+        : category === 'Makeup' && makeupDetailed && hairAddon ? hairPricing
         : undefined,
       transportIncluded: transportIncluded === null ? undefined : transportIncluded,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
@@ -478,39 +509,87 @@ export default function VendorEditListing() {
           </div>
         ) : category === 'Makeup' ? (
           <div className="space-y-5">
+            {/* Pricing mode selector */}
             <div>
-              <label className="text-[11px] font-medium text-dark block mb-2">Makeup pricing</label>
-              <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
-            </div>
-            <div className="pt-2 border-t border-card-border">
-              <label className="text-[13px] font-semibold text-dark block mb-1">Add-ons</label>
-              <p className="text-[10px] text-gray-400 mb-2">Price any extras you offer. Leave blank for ones you don't.</p>
-              <MakeupAddonsEditor value={makeupAddons} onChange={setMakeupAddons} />
-            </div>
-            <div className="pt-2 border-t border-card-border">
-              <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Saree Draping?</label>
-              <div className="flex gap-2 mb-3">
-                <button type="button" onClick={() => setSareeAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${sareeAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
-                <button type="button" onClick={() => setSareeAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!sareeAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
+              <label className="text-[11px] font-medium text-dark block mb-1.5">Pricing style</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setMakeupMode('detailed')} className={`flex-1 py-2.5 rounded-xl text-[11px] font-medium transition-all ${makeupMode === 'detailed' ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Detailed<br /><span className="text-[9px] font-normal text-gray-400">per event + add-ons</span></button>
+                <button type="button" onClick={() => setMakeupMode('simple')} className={`flex-1 py-2.5 rounded-xl text-[11px] font-medium transition-all ${makeupMode === 'simple' ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Simple<br /><span className="text-[9px] font-normal text-gray-400">overall prices</span></button>
               </div>
-              {sareeAddon && <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />}
             </div>
-            <div className="pt-2 border-t border-card-border">
-              <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Hairstyling?</label>
-              <div className="flex gap-2 mb-3">
-                <button type="button" onClick={() => setHairAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${hairAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
-                <button type="button" onClick={() => setHairAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!hairAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
-              </div>
-              {hairAddon && <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />}
-            </div>
-            <div className="pt-2 border-t border-card-border">
-              <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Mehendi?</label>
-              <div className="flex gap-2 mb-3">
-                <button type="button" onClick={() => setMehendiAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${mehendiAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
-                <button type="button" onClick={() => setMehendiAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!mehendiAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
-              </div>
-              {mehendiAddon && <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />}
-            </div>
+
+            {makeupMode === 'simple' ? (
+              <>
+                <div className="space-y-2.5">
+                  {([
+                    { label: 'Bridal makeup', unit: '/ look', val: simpleBridal, set: setSimpleBridal, step: 500 },
+                    { label: 'Groom makeup', unit: '/ look', val: simpleGroom, set: setSimpleGroom, step: 500 },
+                    { label: 'Guest makeup', unit: '/ guest', val: simpleGuest, set: setSimpleGuest, step: 100 },
+                  ]).map(row => (
+                    <div key={row.label} className="flex items-center justify-between gap-3">
+                      <span className="text-[12px] font-medium text-dark">{row.label}</span>
+                      <div className="relative w-[150px] shrink-0">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                        <input type="number" min={0} step={row.step} value={row.val || ''} onChange={(e) => row.set(Math.max(0, parseInt(e.target.value) || 0))} placeholder="0"
+                          className="w-full pl-6 pr-12 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">{row.unit}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-2 border-t border-card-border">
+                  <label className="text-[12px] font-semibold text-dark block mb-2">Also offers <span className="text-gray-400 font-normal">(no pricing — just tick what you provide)</span></label>
+                  <div className="space-y-2">
+                    {([
+                      { label: 'Saree draping', val: offersSaree, set: setOffersSaree },
+                      { label: 'Hairstyling', val: offersHair, set: setOffersHair },
+                      { label: 'Mehendi', val: offersMehendi, set: setOffersMehendi },
+                    ]).map(row => (
+                      <label key={row.label} className="flex items-center gap-2.5 cursor-pointer">
+                        <input type="checkbox" className="accent-mustard w-4 h-4" checked={row.val} onChange={() => row.set(!row.val)} />
+                        <span className="text-[12px] text-dark">{row.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="text-[11px] font-medium text-dark block mb-2">Makeup pricing</label>
+                  <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
+                </div>
+                <div className="pt-2 border-t border-card-border">
+                  <label className="text-[13px] font-semibold text-dark block mb-1">Add-ons</label>
+                  <p className="text-[10px] text-gray-400 mb-2">Price any extras you offer. Leave blank for ones you don't.</p>
+                  <MakeupAddonsEditor value={makeupAddons} onChange={setMakeupAddons} />
+                </div>
+                <div className="pt-2 border-t border-card-border">
+                  <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Saree Draping?</label>
+                  <div className="flex gap-2 mb-3">
+                    <button type="button" onClick={() => setSareeAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${sareeAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
+                    <button type="button" onClick={() => setSareeAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!sareeAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
+                  </div>
+                  {sareeAddon && <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />}
+                </div>
+                <div className="pt-2 border-t border-card-border">
+                  <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Hairstyling?</label>
+                  <div className="flex gap-2 mb-3">
+                    <button type="button" onClick={() => setHairAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${hairAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
+                    <button type="button" onClick={() => setHairAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!hairAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
+                  </div>
+                  {hairAddon && <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />}
+                </div>
+                <div className="pt-2 border-t border-card-border">
+                  <label className="text-[13px] font-semibold text-dark block mb-2">Do you also offer Mehendi?</label>
+                  <div className="flex gap-2 mb-3">
+                    <button type="button" onClick={() => setMehendiAddon(true)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${mehendiAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>Yes</button>
+                    <button type="button" onClick={() => setMehendiAddon(false)} className={`flex-1 py-2.5 rounded-xl text-[12px] font-medium transition-all ${!mehendiAddon ? 'border-2 border-mustard bg-mustard-light text-dark' : 'border border-card-border text-gray-600'}`}>No</button>
+                  </div>
+                  {mehendiAddon && <MehendiPricingEditor value={mehendiPricing} onChange={setMehendiPricing} />}
+                </div>
+              </>
+            )}
           </div>
         ) : category === 'Saree Draping' ? (
           <div>

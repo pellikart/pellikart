@@ -840,7 +840,9 @@ export const MAKEUP_ADDONS = [
 ] as const
 
 export interface MakeupPricing {
-  /** event name → bridal makeup price per look (₹). Missing/0 = not offered. */
+  /** event name → bridal makeup price per look (₹). Missing/0 = not offered.
+   *  In 'simple' mode this holds a single overall entry keyed by
+   *  MAKEUP_SIMPLE_BRIDAL_KEY. */
   bridalByEvent: Record<string, number>
   /** Flat price for groom makeup per look (₹). Omitted/0 = not offered. */
   groomPrice?: number
@@ -848,7 +850,19 @@ export interface MakeupPricing {
   guestPricePerPerson?: number
   /** Add-on name → flat price (₹). Missing/0 = not offered. */
   addons?: Record<string, number>
+  /** Pricing mode. undefined/'detailed' = the per-event matrix + priced add-ons.
+   *  'simple' = one overall bridal price + groom + guest, with the add-on
+   *  services expressed only as offered/not-offered flags below. */
+  mode?: 'detailed' | 'simple'
+  /** 'simple' mode: vendor also offers these services (no price, just a flag). */
+  offersSaree?: boolean
+  offersHair?: boolean
+  offersMehendi?: boolean
 }
+
+/** In 'simple' makeup mode the single overall bridal price is stored under this
+ *  key in bridalByEvent, so the couple-side total helper keeps working unchanged. */
+export const MAKEUP_SIMPLE_BRIDAL_KEY = 'Bridal makeup'
 
 /** A fresh, empty Makeup pricing object. */
 export function emptyMakeupPricing(): MakeupPricing {
