@@ -5,7 +5,9 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import type { MenuSection, PlatePackage } from '@/lib/vendor-types'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
+import MenuBuilder from '@/components/MenuBuilder'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
 import MakeupAddonsEditor from '@/components/MakeupAddonsEditor'
@@ -53,6 +55,9 @@ export default function VendorEditListing() {
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
   const [bundledListings, setBundledListings] = useState<string[]>([])
   const [bundleMandatory, setBundleMandatory] = useState(false)
+  // Catering menu, and venue plate-package menus.
+  const [menu, setMenu] = useState<MenuSection[]>([])
+  const [platePackages, setPlatePackages] = useState<PlatePackage[]>([])
 
   useEffect(() => {
     if (listing) {
@@ -90,6 +95,8 @@ export default function VendorEditListing() {
       setCategoryFields(listing.categoryFields || {})
       setBundledListings(listing.bundledListings || [])
       setBundleMandatory(listing.bundleMandatory || false)
+      setMenu(listing.menu || [])
+      setPlatePackages(listing.platePackages || [])
     }
   }, [listing])
 
@@ -214,6 +221,10 @@ export default function VendorEditListing() {
       transportIncluded: transportIncluded === null ? undefined : transportIncluded,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
+      // Menu edits: catering menu, or per-package venue menus. Left as-is for
+      // other categories (they carry over via the ...listing spread above).
+      menu: category === 'Catering' ? menu : listing.menu,
+      platePackages: category === 'Venue' ? platePackages : listing.platePackages,
     })
     navigate(`${base}/listings`)
   }
@@ -529,9 +540,45 @@ export default function VendorEditListing() {
           </div>
         </div>
         )}
+
+        {/* Catering menu */}
+        {category === 'Catering' && (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-1.5">Menu</label>
+            <MenuBuilder value={menu} onChange={setMenu} />
+          </div>
+        )}
+
+        {/* Venue plate-package menus — edit each package's menu in place */}
+        {category === 'Venue' && platePackages.length > 0 && (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-1.5">Package menus</label>
+            <div className="space-y-2">
+              {platePackages.map((pkg, idx) => (
+                <details key={pkg.id} className="rounded-xl border border-card-border overflow-hidden">
+                  <summary className="px-3 py-2.5 text-[12px] font-semibold text-dark cursor-pointer select-none flex items-center justify-between">
+                    <span>{pkg.name?.trim() || `Package ${idx + 1}`}</span>
+                    <span className="text-[10px] font-normal text-gray-400">{menuItemCount(pkg.menu)} items</span>
+                  </summary>
+                  <div className="px-2.5 pb-2.5">
+                    <MenuBuilder
+                      value={pkg.menu || []}
+                      onChange={(next) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, menu: next } : p))}
+                    />
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+/** Count dishes offered across a menu (bank picks + custom dishes). */
+function menuItemCount(m?: MenuSection[]): number {
+  return (m || []).reduce((n, s) => n + s.dishIds.length + (s.customDishes?.length || 0), 0)
 }
 
 /** Reusable field renderer for category-specific selectable fields */
