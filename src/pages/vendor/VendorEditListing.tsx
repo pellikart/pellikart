@@ -549,26 +549,60 @@ export default function VendorEditListing() {
           </div>
         )}
 
-        {/* Venue plate-package menus — edit each package's menu in place */}
-        {category === 'Venue' && platePackages.length > 0 && (
+        {/* Venue plate packages — add/edit/remove tiers + their menus in place */}
+        {category === 'Venue' && (
           <div>
-            <label className="text-[11px] font-medium text-dark block mb-1.5">Package menus</label>
-            <div className="space-y-2">
+            <label className="text-[11px] font-medium text-dark block mb-1.5">Plate packages</label>
+            <div className="space-y-2.5">
               {platePackages.map((pkg, idx) => (
-                <details key={pkg.id} className="rounded-xl border border-card-border overflow-hidden">
-                  <summary className="px-3 py-2.5 text-[12px] font-semibold text-dark cursor-pointer select-none flex items-center justify-between">
-                    <span>{pkg.name?.trim() || `Package ${idx + 1}`}</span>
-                    <span className="text-[10px] font-normal text-gray-400">{menuItemCount(pkg.menu)} items</span>
-                  </summary>
-                  <div className="px-2.5 pb-2.5">
-                    <MenuBuilder
-                      value={pkg.menu || []}
-                      onChange={(next) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, menu: next } : p))}
+                <div key={pkg.id} className="rounded-xl border border-card-border p-3 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={pkg.name}
+                      onChange={(e) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
+                      placeholder={`Package ${idx + 1} name`}
+                      className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-card-border text-[12px] outline-none focus:border-mustard"
                     />
+                    <div className="relative w-[120px] shrink-0">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                      <input
+                        type="number" min={0} step={50}
+                        value={pkg.pricePerPlate || ''}
+                        onChange={(e) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, pricePerPlate: Math.max(0, parseInt(e.target.value) || 0) } : p))}
+                        placeholder="0"
+                        className="w-full pl-6 pr-10 py-2 rounded-lg border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">/plate</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPlatePackages(prev => prev.filter((_, i) => i !== idx))}
+                      aria-label="Remove package"
+                      className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100"
+                    >×</button>
                   </div>
-                </details>
+                  <details className="rounded-lg border border-card-border overflow-hidden">
+                    <summary className="px-2.5 py-1.5 text-[11px] font-medium text-mustard cursor-pointer select-none">
+                      Menu · {menuItemCount(pkg.menu)} items
+                    </summary>
+                    <div className="px-2 pb-2">
+                      <MenuBuilder
+                        value={pkg.menu || []}
+                        onChange={(next) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, menu: next } : p))}
+                      />
+                    </div>
+                  </details>
+                </div>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => setPlatePackages(prev => [...prev, { id: `pp-${Date.now()}-${prev.length}`, name: '', pricePerPlate: 0 }])}
+              className="mt-2.5 w-full py-2.5 rounded-lg border border-dashed border-mustard/50 text-[11px] font-semibold text-mustard active:bg-mustard-light/40"
+            >
+              + Add package
+            </button>
           </div>
         )}
       </div>
