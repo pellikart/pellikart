@@ -170,6 +170,17 @@ export default function VendorEditListing() {
     setRituals(prev => prev.includes(r) ? prev.filter(v => v !== r) : [...prev, r])
   }
 
+  // Copy another package's menu into this one as a starting point (deep-cloned so
+  // later edits don't affect the source). Confirms before replacing a non-empty menu.
+  function importPackageMenu(targetIdx: number, sourceId: string) {
+    const source = platePackages.find(p => p.id === sourceId)
+    if (!source || menuItemCount(source.menu) === 0) return
+    if (menuItemCount(platePackages[targetIdx]?.menu) > 0 &&
+        !window.confirm("Replace this package's menu with a copy from the selected package?")) return
+    const copy = JSON.parse(JSON.stringify(source.menu)) as MenuSection[]
+    setPlatePackages(prev => prev.map((p, i) => i === targetIdx ? { ...p, menu: copy } : p))
+  }
+
   const photoOffersHourly = photographyPricingModels.includes('hourly')
   const photoOffersGuest = photographyPricingModels.includes('guestBased')
   const photoHourlyBase = getRateCardBaseHourly(rateCard)
@@ -582,6 +593,24 @@ export default function VendorEditListing() {
                       className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100"
                     >×</button>
                   </div>
+                  {/* Import another package's menu as a starting point. */}
+                  {(() => {
+                    const sources = platePackages.filter((p, i) => i !== idx && menuItemCount(p.menu) > 0)
+                    if (sources.length === 0) return null
+                    return (
+                      <select
+                        value=""
+                        onChange={(e) => { if (e.target.value) importPackageMenu(idx, e.target.value) }}
+                        className="w-full px-2.5 py-2 rounded-lg border border-dashed border-mustard/50 text-[11px] font-medium text-dark bg-white outline-none focus:border-mustard"
+                      >
+                        <option value="">↓ Import menu from another package…</option>
+                        {sources.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name?.trim() || `Package ${platePackages.indexOf(p) + 1}`} ({menuItemCount(p.menu)} items)</option>
+                        ))}
+                      </select>
+                    )
+                  })()}
+
                   <details className="rounded-lg border border-card-border overflow-hidden">
                     <summary className="px-2.5 py-1.5 text-[11px] font-medium text-mustard cursor-pointer select-none">
                       Menu · {menuItemCount(pkg.menu)} items

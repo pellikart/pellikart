@@ -15,9 +15,10 @@ import type { PaidRoom, MenuSection, PlatePackage, VenuePricingModel, InHouseDec
 export default function VendorAddListing({ embedded = false, onPublished }: { embedded?: boolean; onPublished?: () => void } = {}) {
   const navigate = useNavigate()
   const base = useVendorBase()
+  const { search } = useLocation()
   // First listing during onboarding — either embedded in the onboarding flow,
   // or (legacy) reached via the ?onboarding=1 route.
-  const isFirstListing = embedded || new URLSearchParams(useLocation().search).get('onboarding') === '1'
+  const isFirstListing = embedded || new URLSearchParams(search).get('onboarding') === '1'
   const { vendorProfile, vendorListings, addListing, updateListing, addNotification, _vendorDbId, _liveMode } = useVendorStore()
   const profileCategory = vendorProfile?.category || 'Photography'
   // Single-listing categories (Mehendi/Makeup/Saree Draping) are authored in onboarding — no manual add flow.
@@ -823,6 +824,29 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
               <button onClick={() => setMenuEditPkgId(null)} className="text-[12px] text-mustard font-medium mb-2">← Back to packages</button>
               <h1 className="text-[20px] font-bold text-dark">{pkg.name.trim() || 'Package'} menu</h1>
               <p className="text-[11px] text-gray-400 mt-1 mb-5">Pick a category, then tick the dishes included in this package — or add your own. Set how many the couple can pick per category.</p>
+              {/* Start from another package's menu instead of from scratch. */}
+              {(() => {
+                const sources = platePackages.filter(p => p.id !== pkg.id && menuItemCount(p.menu) > 0)
+                if (sources.length === 0) return null
+                return (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const src = platePackages.find(p => p.id === e.target.value)
+                      if (!src || menuItemCount(src.menu) === 0) return
+                      if (menuItemCount(pkg.menu) > 0 && !window.confirm("Replace this package's menu with a copy from the selected package?")) return
+                      const copy = JSON.parse(JSON.stringify(src.menu)) as MenuSection[]
+                      setPlatePackages(prev => prev.map(p => p.id === pkg.id ? { ...p, menu: copy } : p))
+                    }}
+                    className="w-full mb-3 px-2.5 py-2.5 rounded-lg border border-dashed border-mustard/50 text-[11px] font-medium text-dark bg-white outline-none focus:border-mustard"
+                  >
+                    <option value="">↓ Import menu from another package…</option>
+                    {sources.map(p => (
+                      <option key={p.id} value={p.id}>{p.name?.trim() || 'Package'} ({menuItemCount(p.menu)} items)</option>
+                    ))}
+                  </select>
+                )
+              })()}
               <MenuBuilder
                 value={pkg.menu || []}
                 foodType={categoryFields.foodPolicy as string | undefined}
