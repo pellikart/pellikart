@@ -151,6 +151,17 @@ export default function VendorEditListing() {
     }
   }
 
+  function removePhoto(idx: number) {
+    const url = photos[idx]
+    setPhotos((prev) => prev.filter((_, i) => i !== idx))
+    // Keep the cover index pointing at the right photo after removal.
+    setCoverIndex((prev) => (idx === prev ? 0 : idx < prev ? prev - 1 : prev))
+    // Drop the pending-upload file mapping if this was a newly-added blob.
+    if (url && photoFiles[url]) {
+      setPhotoFiles((prev) => { const n = { ...prev }; delete n[url]; return n })
+    }
+  }
+
   function isFieldVisible(field: SelectField, values: Record<string, string | string[]>): boolean {
     if (!field.visibleWhen) return true
     const dep = values[field.visibleWhen.key]
@@ -377,13 +388,19 @@ export default function VendorEditListing() {
         {/* Photos */}
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1">Photos</label>
-          <p className="text-[10px] text-gray-400 mb-1.5">Tap any photo to set it as your listing cover.</p>
+          <p className="text-[10px] text-gray-400 mb-1.5">Tap a photo to set it as cover · tap × to remove.</p>
           <div className="grid grid-cols-4 gap-1.5">
             {photos.map((p, i) => (
               <div key={i} className="aspect-square rounded-lg overflow-hidden relative cursor-pointer" onClick={() => setCoverIndex(i)}>
                 <img src={p} alt="" className="w-full h-full object-cover" />
                 {i === coverIndex && <span className="absolute top-0.5 left-0.5 bg-mustard text-white text-[6px] font-bold px-1 py-0.5 rounded">COVER</span>}
                 {i !== coverIndex && <div className="absolute inset-0 bg-black/20" />}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); removePhoto(i) }}
+                  aria-label="Remove photo"
+                  className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px] leading-none active:bg-red-500"
+                >×</button>
               </div>
             ))}
             {photos.length < 10 && (
