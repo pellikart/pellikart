@@ -25,6 +25,8 @@ export default function MenuBuilder({ value, onChange }: Props) {
   const [search, setSearch] = useState<Record<number, string>>({})
   // The category currently selected in the "add category" dropdown.
   const [newCategory, setNewCategory] = useState('')
+  // Draft name for a custom (off-bank) category.
+  const [customCategory, setCustomCategory] = useState('')
 
   const usedSections = new Set(value.map(s => s.section))
   const availableSections = MENU_SECTIONS.filter(s => !usedSections.has(s))
@@ -32,6 +34,14 @@ export default function MenuBuilder({ value, onChange }: Props) {
   function addCategory(name: string) {
     if (!name || usedSections.has(name)) return
     onChange([...value, { section: name, dishIds: [], customDishes: [], pickLimit: 1 }])
+  }
+
+  function addCustomCategory() {
+    const name = customCategory.trim()
+    if (!name || usedSections.has(name)) { setCustomCategory(''); return }
+    // Custom category: no dish bank behind it — every dish is added by hand.
+    onChange([...value, { section: name, dishIds: [], customDishes: [], pickLimit: 1, custom: true }])
+    setCustomCategory('')
   }
 
   function updateSection(idx: number, patch: Partial<MenuSection>) {
@@ -84,10 +94,13 @@ export default function MenuBuilder({ value, onChange }: Props) {
 
         return (
           <div key={idx} className="rounded-xl border border-card-border p-3 space-y-2.5">
-            {/* Category name (from the bank) + remove */}
+            {/* Category name + remove */}
             <div className="flex items-center gap-2">
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-semibold text-dark truncate">{sec.section}</p>
+                <p className="text-[12px] font-semibold text-dark truncate">
+                  {sec.section}
+                  {sec.custom && <span className="ml-1.5 text-[9px] font-medium text-magenta align-middle">custom</span>}
+                </p>
                 <p className="text-[10px] text-gray-400">{totalOffered} {totalOffered === 1 ? 'dish' : 'dishes'} offered</p>
               </div>
               <button
@@ -98,38 +111,44 @@ export default function MenuBuilder({ value, onChange }: Props) {
               >×</button>
             </div>
 
-            {/* Search filter — only when the category has a long list */}
-            {bankDishes.length > 10 && (
-              <input
-                type="text"
-                value={search[idx] || ''}
-                onChange={(e) => setSearch(prev => ({ ...prev, [idx]: e.target.value }))}
-                placeholder={`Search ${bankDishes.length} dishes…`}
-                className="w-full px-2.5 py-1.5 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
-              />
-            )}
+            {/* Bank dish picker — hidden for custom categories, which are entirely
+                hand-typed via the "add a dish" box below. */}
+            {!sec.custom && (
+              <>
+                {/* Search filter — only when the category has a long list */}
+                {bankDishes.length > 10 && (
+                  <input
+                    type="text"
+                    value={search[idx] || ''}
+                    onChange={(e) => setSearch(prev => ({ ...prev, [idx]: e.target.value }))}
+                    placeholder={`Search ${bankDishes.length} dishes…`}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
+                  />
+                )}
 
-            {/* Bank dish options — tap to offer/remove */}
-            {visible.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto">
-                {visible.map(d => {
-                  const sel = selectedIds.has(d.id)
-                  return (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => toggleDish(idx, d.id)}
-                      className={`inline-flex items-center gap-1 py-1 px-2.5 rounded-full text-[10px] font-medium transition-all ${sel ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-700 border border-card-border active:bg-mustard-light/40'}`}
-                    >
-                      {sel && <span className="leading-none">✓</span>}
-                      {d.name}
-                      {d.veg === 'Non-Veg' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-[10px] text-gray-400">No dishes match “{search[idx]}”.</p>
+                {/* Bank dish options — tap to offer/remove */}
+                {visible.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto">
+                    {visible.map(d => {
+                      const sel = selectedIds.has(d.id)
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => toggleDish(idx, d.id)}
+                          className={`inline-flex items-center gap-1 py-1 px-2.5 rounded-full text-[10px] font-medium transition-all ${sel ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-700 border border-card-border active:bg-mustard-light/40'}`}
+                        >
+                          {sel && <span className="leading-none">✓</span>}
+                          {d.name}
+                          {d.veg === 'Non-Veg' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-gray-400">No dishes match “{search[idx]}”.</p>
+                )}
+              </>
             )}
 
             {/* Custom (off-bank) dishes the vendor added */}
@@ -203,7 +222,7 @@ export default function MenuBuilder({ value, onChange }: Props) {
       })}
 
       {/* Add a category from the bank */}
-      {availableSections.length > 0 ? (
+      {availableSections.length > 0 && (
         <select
           value={newCategory}
           onChange={(e) => { addCategory(e.target.value); setNewCategory('') }}
@@ -214,9 +233,26 @@ export default function MenuBuilder({ value, onChange }: Props) {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-      ) : (
-        <p className="text-[10px] text-gray-400 text-center py-1">All categories added.</p>
       )}
+
+      {/* Add a custom category not in the list — dishes are all typed in by hand. */}
+      <div className="flex items-center gap-1.5">
+        <input
+          type="text"
+          value={customCategory}
+          onChange={(e) => setCustomCategory(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomCategory() } }}
+          maxLength={40}
+          placeholder="+ Add a custom category…"
+          className="flex-1 px-2.5 py-2.5 rounded-lg border border-dashed border-magenta/50 text-[11px] font-medium text-dark outline-none focus:border-magenta"
+        />
+        <button
+          type="button"
+          onClick={addCustomCategory}
+          disabled={!customCategory.trim()}
+          className="px-3 py-2.5 rounded-lg bg-magenta text-white text-[11px] font-semibold disabled:opacity-40"
+        >Add</button>
+      </div>
     </div>
   )
 }

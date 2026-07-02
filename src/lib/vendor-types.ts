@@ -46,6 +46,9 @@ export interface MenuSection {
   customDishes?: string[]
   /** How many dishes the couple can pick from this section (0 = section disabled) */
   pickLimit: number
+  /** A vendor-named category not in the dish bank — no bank dish list; every
+   *  dish is added manually via customDishes. */
+  custom?: boolean
 }
 
 /** Venue-only: the venue's physical location. */
