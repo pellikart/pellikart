@@ -4,7 +4,7 @@ import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_SIMPLE_BRIDAL_KEY, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_SIMPLE_BRIDAL_KEY, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import type { MenuSection, PlatePackage, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
 import MenuBuilder from '@/components/MenuBuilder'
@@ -50,9 +50,8 @@ export default function VendorEditListing() {
   const [simpleBridal, setSimpleBridal] = useState(0)
   const [simpleGroom, setSimpleGroom] = useState(0)
   const [simpleGuest, setSimpleGuest] = useState(0)
-  const [offersSaree, setOffersSaree] = useState(false)
-  const [offersHair, setOffersHair] = useState(false)
-  const [offersMehendi, setOffersMehendi] = useState(false)
+  // Per-person included services (draping / hair / mehendi).
+  const [simpleIncludes, setSimpleIncludes] = useState<{ bridal: MakeupSimpleInclude; groom: MakeupSimpleInclude; guest: MakeupSimpleInclude }>({ bridal: {}, groom: {}, guest: {} })
   const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
   // Makeup-only: whether this makeup artist also offers mehendi / saree draping / hairstyling as add-ons.
   const [sareeAddon, setSareeAddon] = useState(false)
@@ -109,9 +108,11 @@ export default function VendorEditListing() {
       setSimpleBridal(simple ? (mk?.bridalByEvent?.[MAKEUP_SIMPLE_BRIDAL_KEY] || 0) : 0)
       setSimpleGroom(simple ? (mk?.groomPrice || 0) : 0)
       setSimpleGuest(simple ? (mk?.guestPricePerPerson || 0) : 0)
-      setOffersSaree(!!mk?.offersSaree)
-      setOffersHair(!!mk?.offersHair)
-      setOffersMehendi(!!mk?.offersMehendi)
+      setSimpleIncludes({
+        bridal: mk?.simpleIncludes?.bridal || {},
+        groom: mk?.simpleIncludes?.groom || {},
+        guest: mk?.simpleIncludes?.guest || {},
+      })
       setSareePricing(listing.sareeDrapingPricing || emptySareeDrapingPricing())
       setSareeAddon(listing.category === 'Makeup' && !!listing.sareeDrapingPricing)
       setHairPricing(listing.hairStylingPricing || emptyHairStylingPricing())
@@ -230,6 +231,13 @@ export default function VendorEditListing() {
   const decorPrices = sizes.map(s => s.price || 0).filter(p => p > 0)
   const decorFrom = decorPrices.length > 0 ? Math.min(...decorPrices) : 0
 
+  // Simple-makeup per-person rows (price + included services).
+  const makeupSimplePeople: { key: 'bridal' | 'groom' | 'guest'; label: string; unit: string; price: number; setPrice: (n: number) => void; step: number; drapingLabel: string }[] = [
+    { key: 'bridal', label: 'Bridal makeup', unit: '/ look', price: simpleBridal, setPrice: setSimpleBridal, step: 500, drapingLabel: 'Saree draping' },
+    { key: 'groom', label: 'Groom makeup', unit: '/ look', price: simpleGroom, setPrice: setSimpleGroom, step: 500, drapingLabel: 'Vesti draping' },
+    { key: 'guest', label: 'Guest makeup', unit: '/ guest', price: simpleGuest, setPrice: setSimpleGuest, step: 100, drapingLabel: 'Saree draping' },
+  ]
+
   async function handleSave() {
     if (!listing || saving) return
     setSaving(true)
@@ -254,7 +262,7 @@ export default function VendorEditListing() {
           bridalByEvent: simpleBridal > 0 ? { [MAKEUP_SIMPLE_BRIDAL_KEY]: simpleBridal } : {},
           groomPrice: simpleGroom || undefined,
           guestPricePerPerson: simpleGuest || undefined,
-          offersSaree, offersHair, offersMehendi,
+          simpleIncludes,
         }
       : { ...makeupPricing, addons: makeupAddons }
     const makeupDetailed = makeupMode === 'detailed'
@@ -519,40 +527,42 @@ export default function VendorEditListing() {
             </div>
 
             {makeupMode === 'simple' ? (
-              <>
-                <div className="space-y-2.5">
-                  {([
-                    { label: 'Bridal makeup', unit: '/ look', val: simpleBridal, set: setSimpleBridal, step: 500 },
-                    { label: 'Groom makeup', unit: '/ look', val: simpleGroom, set: setSimpleGroom, step: 500 },
-                    { label: 'Guest makeup', unit: '/ guest', val: simpleGuest, set: setSimpleGuest, step: 100 },
-                  ]).map(row => (
-                    <div key={row.label} className="flex items-center justify-between gap-3">
-                      <span className="text-[12px] font-medium text-dark">{row.label}</span>
-                      <div className="relative w-[150px] shrink-0">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
-                        <input type="number" min={0} step={row.step} value={row.val || ''} onChange={(e) => row.set(Math.max(0, parseInt(e.target.value) || 0))} placeholder="0"
-                          className="w-full pl-6 pr-12 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">{row.unit}</span>
+              <div className="space-y-3">
+                <p className="text-[10px] text-gray-400">One overall price per look, and what each one includes.</p>
+                {makeupSimplePeople.map(row => {
+                  const inc = simpleIncludes[row.key]
+                  const setInc = (patch: Partial<MakeupSimpleInclude>) => setSimpleIncludes(prev => ({ ...prev, [row.key]: { ...prev[row.key], ...patch } }))
+                  const services: { k: keyof MakeupSimpleInclude; label: string }[] = [
+                    { k: 'draping', label: row.drapingLabel },
+                    { k: 'hair', label: 'Hair styling' },
+                    { k: 'mehendi', label: 'Mehendi' },
+                  ]
+                  return (
+                    <div key={row.key} className="p-3 rounded-xl border border-card-border space-y-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[12px] font-semibold text-dark">{row.label}</span>
+                        <div className="relative w-[150px] shrink-0">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                          <input type="number" min={0} step={row.step} value={row.price || ''} onChange={(e) => row.setPrice(Math.max(0, parseInt(e.target.value) || 0))} placeholder="0"
+                            className="w-full pl-6 pr-12 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">{row.unit}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 mb-1.5">Includes:</p>
+                        <div className="space-y-1.5">
+                          {services.map(svc => (
+                            <label key={svc.k} className="flex items-center gap-2.5 cursor-pointer">
+                              <input type="checkbox" className="accent-mustard w-4 h-4" checked={!!inc[svc.k]} onChange={() => setInc({ [svc.k]: !inc[svc.k] })} />
+                              <span className="text-[12px] text-dark">{svc.label}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-                <div className="pt-2 border-t border-card-border">
-                  <label className="text-[12px] font-semibold text-dark block mb-2">Also offers <span className="text-gray-400 font-normal">(no pricing — just tick what you provide)</span></label>
-                  <div className="space-y-2">
-                    {([
-                      { label: 'Saree draping', val: offersSaree, set: setOffersSaree },
-                      { label: 'Hairstyling', val: offersHair, set: setOffersHair },
-                      { label: 'Mehendi', val: offersMehendi, set: setOffersMehendi },
-                    ]).map(row => (
-                      <label key={row.label} className="flex items-center gap-2.5 cursor-pointer">
-                        <input type="checkbox" className="accent-mustard w-4 h-4" checked={row.val} onChange={() => row.set(!row.val)} />
-                        <span className="text-[12px] text-dark">{row.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </>
+                  )
+                })}
+              </div>
             ) : (
               <>
                 <div>

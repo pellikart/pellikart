@@ -851,13 +851,24 @@ export interface MakeupPricing {
   /** Add-on name → flat price (₹). Missing/0 = not offered. */
   addons?: Record<string, number>
   /** Pricing mode. undefined/'detailed' = the per-event matrix + priced add-ons.
-   *  'simple' = one overall bridal price + groom + guest, with the add-on
-   *  services expressed only as offered/not-offered flags below. */
+   *  'simple' = one overall price each for bridal / groom / guest, each with a
+   *  set of included services (draping / hair / mehendi) expressed as flags. */
   mode?: 'detailed' | 'simple'
-  /** 'simple' mode: vendor also offers these services (no price, just a flag). */
-  offersSaree?: boolean
-  offersHair?: boolean
-  offersMehendi?: boolean
+  /** 'simple' mode: which extra services each look includes (no separate price —
+   *  just what's bundled in). Groom's draping is vesti; bridal/guest is saree. */
+  simpleIncludes?: {
+    bridal?: MakeupSimpleInclude
+    groom?: MakeupSimpleInclude
+    guest?: MakeupSimpleInclude
+  }
+}
+
+/** Included-service flags for one look in 'simple' makeup mode. */
+export interface MakeupSimpleInclude {
+  /** Saree draping (bridal/guest) or vesti draping (groom). */
+  draping?: boolean
+  hair?: boolean
+  mehendi?: boolean
 }
 
 /** In 'simple' makeup mode the single overall bridal price is stored under this

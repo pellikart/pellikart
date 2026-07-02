@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
 import { uploadPhotos, setVendorLive, setVendorLiveById } from '@/lib/supabase-db'
-import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, MAKEUP_SIMPLE_BRIDAL_KEY, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, MAKEUP_SIMPLE_BRIDAL_KEY, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
@@ -114,9 +114,9 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
   const [simpleBridal, setSimpleBridal] = useState<number>((draft.simpleBridal as number) ?? 0)
   const [simpleGroom, setSimpleGroom] = useState<number>((draft.simpleGroom as number) ?? 0)
   const [simpleGuest, setSimpleGuest] = useState<number>((draft.simpleGuest as number) ?? 0)
-  const [offersSaree, setOffersSaree] = useState<boolean>((draft.offersSaree as boolean) ?? false)
-  const [offersHair, setOffersHair] = useState<boolean>((draft.offersHair as boolean) ?? false)
-  const [offersMehendi, setOffersMehendi] = useState<boolean>((draft.offersMehendi as boolean) ?? false)
+  const [simpleIncludes, setSimpleIncludes] = useState<{ bridal: MakeupSimpleInclude; groom: MakeupSimpleInclude; guest: MakeupSimpleInclude }>(
+    () => (draft.simpleIncludes as { bridal: MakeupSimpleInclude; groom: MakeupSimpleInclude; guest: MakeupSimpleInclude }) ?? { bridal: {}, groom: {}, guest: {} }
+  )
   // Single-listing categories: transport & logistics applied to the auto-created listing.
   const [transportIncluded, setTransportIncluded] = useState<boolean | null>((draft.transportIncluded as boolean | null) ?? null)
 
@@ -129,14 +129,14 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
       instagram, sameAsPhone, description, experience, teamSize, mehendiPricing,
       makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
       hairAvailable, mehendiAvailable, transportIncluded,
-      makeupMode, simpleBridal, simpleGroom, simpleGuest, offersSaree, offersHair, offersMehendi,
+      makeupMode, simpleBridal, simpleGroom, simpleGuest, simpleIncludes,
     }
     try { sessionStorage.setItem(draftKey, JSON.stringify(snapshot)) } catch { /* quota/serialize errors are non-fatal */ }
   }, [step, businessName, category, area, phone, secondaryPhone, whatsapp, email,
     instagram, sameAsPhone, description, experience, teamSize, mehendiPricing,
     makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
     hairAvailable, mehendiAvailable, transportIncluded,
-    makeupMode, simpleBridal, simpleGroom, simpleGuest, offersSaree, offersHair, offersMehendi])
+    makeupMode, simpleBridal, simpleGroom, simpleGuest, simpleIncludes])
 
   // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, then category pricing/
   // add-ons (girly), then Portfolio Photos, then Ready. Photos go last so vendors
@@ -282,7 +282,7 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
             bridalByEvent: simpleBridal > 0 ? { [MAKEUP_SIMPLE_BRIDAL_KEY]: simpleBridal } : {},
             groomPrice: simpleGroom || undefined,
             guestPricePerPerson: simpleGuest || undefined,
-            offersSaree, offersHair, offersMehendi,
+            simpleIncludes,
           }
         : { ...makeupPricing, addons: makeupAddons }
       const listing: VendorListing = isMehendi
@@ -554,40 +554,46 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
                   </div>
 
                   {makeupMode === 'simple' ? (
-                    <>
-                      <div className="space-y-2.5">
-                        {([
-                          { label: 'Bridal makeup', unit: '/ look', val: simpleBridal, set: setSimpleBridal, step: 500 },
-                          { label: 'Groom makeup', unit: '/ look', val: simpleGroom, set: setSimpleGroom, step: 500 },
-                          { label: 'Guest makeup', unit: '/ guest', val: simpleGuest, set: setSimpleGuest, step: 100 },
-                        ]).map(row => (
-                          <div key={row.label} className="flex items-center justify-between gap-3">
-                            <span className="text-[12px] font-medium text-dark">{row.label}</span>
-                            <div className="relative w-[150px] shrink-0">
-                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
-                              <input type="number" min={0} step={row.step} value={row.val || ''} onChange={(e) => row.set(Math.max(0, parseInt(e.target.value) || 0))} placeholder="0"
-                                className="w-full pl-6 pr-12 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">{row.unit}</span>
+                    <div className="space-y-3">
+                      <p className="text-[11px] text-gray-400">One overall price per look, and what each one includes.</p>
+                      {([
+                        { key: 'bridal' as const, label: 'Bridal makeup', unit: '/ look', price: simpleBridal, setPrice: setSimpleBridal, step: 500, drapingLabel: 'Saree draping' },
+                        { key: 'groom' as const, label: 'Groom makeup', unit: '/ look', price: simpleGroom, setPrice: setSimpleGroom, step: 500, drapingLabel: 'Vesti draping' },
+                        { key: 'guest' as const, label: 'Guest makeup', unit: '/ guest', price: simpleGuest, setPrice: setSimpleGuest, step: 100, drapingLabel: 'Saree draping' },
+                      ]).map(row => {
+                        const inc = simpleIncludes[row.key]
+                        const setInc = (patch: Partial<MakeupSimpleInclude>) => setSimpleIncludes(prev => ({ ...prev, [row.key]: { ...prev[row.key], ...patch } }))
+                        const services: { k: keyof MakeupSimpleInclude; label: string }[] = [
+                          { k: 'draping', label: row.drapingLabel },
+                          { k: 'hair', label: 'Hair styling' },
+                          { k: 'mehendi', label: 'Mehendi' },
+                        ]
+                        return (
+                          <div key={row.key} className="p-3 rounded-xl border border-card-border space-y-2.5">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[13px] font-semibold text-dark">{row.label}</span>
+                              <div className="relative w-[150px] shrink-0">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                                <input type="number" min={0} step={row.step} value={row.price || ''} onChange={(e) => row.setPrice(Math.max(0, parseInt(e.target.value) || 0))} placeholder="0"
+                                  className="w-full pl-6 pr-12 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">{row.unit}</span>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-400 mb-1.5">Includes:</p>
+                              <div className="space-y-1.5">
+                                {services.map(svc => (
+                                  <label key={svc.k} className="flex items-center gap-2.5 cursor-pointer">
+                                    <input type="checkbox" className="accent-mustard w-4 h-4" checked={!!inc[svc.k]} onChange={() => setInc({ [svc.k]: !inc[svc.k] })} />
+                                    <span className="text-[12px] text-dark">{svc.label}</span>
+                                  </label>
+                                ))}
+                              </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                      <div className="pt-2 border-t border-card-border">
-                        <label className="text-[12px] font-semibold text-dark block mb-2">Also offers <span className="text-gray-400 font-normal">(no pricing — just tick what you provide)</span></label>
-                        <div className="space-y-2">
-                          {([
-                            { label: 'Saree draping', val: offersSaree, set: setOffersSaree },
-                            { label: 'Hairstyling', val: offersHair, set: setOffersHair },
-                            { label: 'Mehendi', val: offersMehendi, set: setOffersMehendi },
-                          ]).map(row => (
-                            <label key={row.label} className="flex items-center gap-2.5 cursor-pointer">
-                              <input type="checkbox" className="accent-mustard w-4 h-4" checked={row.val} onChange={() => row.set(!row.val)} />
-                              <span className="text-[12px] text-dark">{row.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </>
+                        )
+                      })}
+                    </div>
                   ) : (
                     <MakeupPricingEditor value={makeupPricing} onChange={setMakeupPricing} />
                   )}
