@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth-context'
-import { fetchAdminVendors, createAdminVendor } from '@/lib/supabase-db'
+import { fetchAdminVendors, createAdminVendor, deleteAdminVendor } from '@/lib/supabase-db'
 import { CATEGORIES } from '@/pages/vendor/VendorOnboarding'
 
 interface AdminVendorRow {
@@ -29,11 +29,25 @@ export default function AdminDashboard() {
   const [phone, setPhone] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function load() {
     const rows = await fetchAdminVendors()
     setVendors(rows as AdminVendorRow[])
     setLoading(false)
+  }
+
+  async function handleDelete(v: AdminVendorRow) {
+    const claimed = v.claimed_at || v.user_id
+    const warning = claimed
+      ? `"${v.business_name}" has already been claimed by the vendor. Deleting removes their whole account data. Continue?`
+      : `Delete "${v.business_name}"? This removes the vendor and all their listings. This can't be undone.`
+    if (!window.confirm(warning)) return
+    setDeletingId(v.id)
+    const ok = await deleteAdminVendor(v.id)
+    setDeletingId(null)
+    if (ok) setVendors(prev => prev.filter(x => x.id !== v.id))
+    else window.alert("Couldn't delete that vendor. Please try again.")
   }
 
   useEffect(() => { load() }, [])
@@ -121,12 +135,21 @@ export default function AdminDashboard() {
                     {v.claim_phone && (
                       <span className="text-[11px] text-gray-400">📞 {v.claim_phone}</span>
                     )}
-                    <button
-                      onClick={() => navigate(`/admin/vendor/${v.id}`)}
-                      className="ml-auto text-[12px] font-semibold text-magenta"
-                    >
-                      {v.onboarding_complete ? 'Edit' : 'Continue setup →'}
-                    </button>
+                    <div className="ml-auto flex items-center gap-3">
+                      <button
+                        onClick={() => handleDelete(v)}
+                        disabled={deletingId === v.id}
+                        className="text-[12px] font-medium text-red-500 disabled:opacity-50"
+                      >
+                        {deletingId === v.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                      <button
+                        onClick={() => navigate(`/admin/vendor/${v.id}`)}
+                        className="text-[12px] font-semibold text-magenta"
+                      >
+                        {v.onboarding_complete ? 'Edit' : 'Continue setup →'}
+                      </button>
+                    </div>
                   </div>
                 </li>
               )

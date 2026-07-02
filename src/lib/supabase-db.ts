@@ -250,6 +250,22 @@ export async function updateVendorFieldsById(vendorId: string, updates: Partial<
   await supabase.from('vendors').update(mapped).eq('id', vendorId)
 }
 
+/** Delete an admin-created vendor and its data. Listings / availability /
+ *  packages cascade via FK; photos are removed from storage best-effort. */
+export async function deleteAdminVendor(vendorId: string): Promise<boolean> {
+  if (!supabase) return false
+  // Best-effort storage cleanup (orphaned files are harmless if this fails).
+  try {
+    const { data: files } = await supabase.storage.from('vendor-photos').list(vendorId)
+    if (files && files.length) {
+      await supabase.storage.from('vendor-photos').remove(files.map(f => `${vendorId}/${f.name}`))
+    }
+  } catch { /* non-fatal */ }
+  const { error } = await supabase.from('vendors').delete().eq('id', vendorId)
+  if (error) { console.error('[db] deleteAdminVendor failed:', error.message); return false }
+  return true
+}
+
 /** Vendor-side: claim a pre-built profile by code and/or phone. Returns the
  *  claimed vendor id, or throws with a user-facing message on failure. */
 export async function claimVendor(code: string, phone: string): Promise<string> {
