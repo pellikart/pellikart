@@ -4,7 +4,7 @@ import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_SIMPLE_BRIDAL_KEY, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import type { MenuSection, PlatePackage, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
 import MenuBuilder from '@/components/MenuBuilder'
@@ -47,11 +47,12 @@ export default function VendorEditListing() {
   // Makeup pricing mode: 'detailed' (per-event + priced add-ons) or 'simple'
   // (overall bridal/groom/guest + offered-service checkboxes).
   const [makeupMode, setMakeupMode] = useState<'detailed' | 'simple'>('detailed')
-  const [simpleBridal, setSimpleBridal] = useState(0)
+  // Simple mode: bridal split into the 3 MAKEUP_EVENTS, plus groom + guest.
+  const [simpleBridalByEvent, setSimpleBridalByEvent] = useState<Record<string, number>>({})
   const [simpleGroom, setSimpleGroom] = useState(0)
   const [simpleGuest, setSimpleGuest] = useState(0)
-  // Per-person included services (draping / hair / mehendi).
-  const [simpleIncludes, setSimpleIncludes] = useState<{ bridal: MakeupSimpleInclude; groom: MakeupSimpleInclude; guest: MakeupSimpleInclude }>({ bridal: {}, groom: {}, guest: {} })
+  // Included services (draping / hair / mehendi) keyed per line (event / groom / guest).
+  const [simpleIncludes, setSimpleIncludes] = useState<Record<string, MakeupSimpleInclude>>({})
   const [sareePricing, setSareePricing] = useState<SareeDrapingPricing>(emptySareeDrapingPricing())
   // Makeup-only: whether this makeup artist also offers mehendi / saree draping / hairstyling as add-ons.
   const [sareeAddon, setSareeAddon] = useState(false)
@@ -105,14 +106,10 @@ export default function VendorEditListing() {
       const mk = listing.makeupPricing
       const simple = mk?.mode === 'simple'
       setMakeupMode(simple ? 'simple' : 'detailed')
-      setSimpleBridal(simple ? (mk?.bridalByEvent?.[MAKEUP_SIMPLE_BRIDAL_KEY] || 0) : 0)
+      setSimpleBridalByEvent(simple ? (mk?.bridalByEvent || {}) : {})
       setSimpleGroom(simple ? (mk?.groomPrice || 0) : 0)
       setSimpleGuest(simple ? (mk?.guestPricePerPerson || 0) : 0)
-      setSimpleIncludes({
-        bridal: mk?.simpleIncludes?.bridal || {},
-        groom: mk?.simpleIncludes?.groom || {},
-        guest: mk?.simpleIncludes?.guest || {},
-      })
+      setSimpleIncludes(mk?.simpleIncludes || {})
       setSareePricing(listing.sareeDrapingPricing || emptySareeDrapingPricing())
       setSareeAddon(listing.category === 'Makeup' && !!listing.sareeDrapingPricing)
       setHairPricing(listing.hairStylingPricing || emptyHairStylingPricing())
@@ -231,9 +228,9 @@ export default function VendorEditListing() {
   const decorPrices = sizes.map(s => s.price || 0).filter(p => p > 0)
   const decorFrom = decorPrices.length > 0 ? Math.min(...decorPrices) : 0
 
-  // Simple-makeup per-person rows (price + included services).
-  const makeupSimplePeople: { key: 'bridal' | 'groom' | 'guest'; label: string; unit: string; price: number; setPrice: (n: number) => void; step: number; drapingLabel: string }[] = [
-    { key: 'bridal', label: 'Bridal makeup', unit: '/ look', price: simpleBridal, setPrice: setSimpleBridal, step: 500, drapingLabel: 'Saree draping' },
+  // Simple-makeup lines: the 3 bridal events + groom + guest (price + includes).
+  const makeupSimplePeople: { key: string; label: string; unit: string; price: number; setPrice: (n: number) => void; step: number; drapingLabel: string }[] = [
+    ...MAKEUP_EVENTS.map(ev => ({ key: ev, label: ev, unit: '/ look', price: simpleBridalByEvent[ev] || 0, setPrice: (n: number) => setSimpleBridalByEvent(prev => ({ ...prev, [ev]: n })), step: 500, drapingLabel: 'Saree draping' })),
     { key: 'groom', label: 'Groom makeup', unit: '/ look', price: simpleGroom, setPrice: setSimpleGroom, step: 500, drapingLabel: 'Vesti draping' },
     { key: 'guest', label: 'Guest makeup', unit: '/ guest', price: simpleGuest, setPrice: setSimpleGuest, step: 100, drapingLabel: 'Saree draping' },
   ]
@@ -259,7 +256,7 @@ export default function VendorEditListing() {
     const makeupPricingOut: MakeupPricing = makeupMode === 'simple'
       ? {
           mode: 'simple',
-          bridalByEvent: simpleBridal > 0 ? { [MAKEUP_SIMPLE_BRIDAL_KEY]: simpleBridal } : {},
+          bridalByEvent: Object.fromEntries(Object.entries(simpleBridalByEvent).filter(([, v]) => v > 0)),
           groomPrice: simpleGroom || undefined,
           guestPricePerPerson: simpleGuest || undefined,
           simpleIncludes,
@@ -530,8 +527,8 @@ export default function VendorEditListing() {
               <div className="space-y-3">
                 <p className="text-[10px] text-gray-400">One overall price per look, and what each one includes.</p>
                 {makeupSimplePeople.map(row => {
-                  const inc = simpleIncludes[row.key]
-                  const setInc = (patch: Partial<MakeupSimpleInclude>) => setSimpleIncludes(prev => ({ ...prev, [row.key]: { ...prev[row.key], ...patch } }))
+                  const inc = simpleIncludes[row.key] || {}
+                  const setInc = (patch: Partial<MakeupSimpleInclude>) => setSimpleIncludes(prev => ({ ...prev, [row.key]: { ...(prev[row.key] || {}), ...patch } }))
                   const services: { k: keyof MakeupSimpleInclude; label: string }[] = [
                     { k: 'draping', label: row.drapingLabel },
                     { k: 'hair', label: 'Hair styling' },

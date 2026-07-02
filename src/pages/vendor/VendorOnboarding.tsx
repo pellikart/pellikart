@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
 import { uploadPhotos, setVendorLive, setVendorLiveById } from '@/lib/supabase-db'
-import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, MAKEUP_SIMPLE_BRIDAL_KEY, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, MAKEUP_EVENTS, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
@@ -111,12 +111,10 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
   // Makeup pricing mode: 'detailed' (per-event + priced add-ons) or 'simple'
   // (overall bridal/groom/guest prices + offered-service checkboxes).
   const [makeupMode, setMakeupMode] = useState<'detailed' | 'simple'>((draft.makeupMode as 'detailed' | 'simple') ?? 'detailed')
-  const [simpleBridal, setSimpleBridal] = useState<number>((draft.simpleBridal as number) ?? 0)
+  const [simpleBridalByEvent, setSimpleBridalByEvent] = useState<Record<string, number>>(() => (draft.simpleBridalByEvent as Record<string, number>) ?? {})
   const [simpleGroom, setSimpleGroom] = useState<number>((draft.simpleGroom as number) ?? 0)
   const [simpleGuest, setSimpleGuest] = useState<number>((draft.simpleGuest as number) ?? 0)
-  const [simpleIncludes, setSimpleIncludes] = useState<{ bridal: MakeupSimpleInclude; groom: MakeupSimpleInclude; guest: MakeupSimpleInclude }>(
-    () => (draft.simpleIncludes as { bridal: MakeupSimpleInclude; groom: MakeupSimpleInclude; guest: MakeupSimpleInclude }) ?? { bridal: {}, groom: {}, guest: {} }
-  )
+  const [simpleIncludes, setSimpleIncludes] = useState<Record<string, MakeupSimpleInclude>>(() => (draft.simpleIncludes as Record<string, MakeupSimpleInclude>) ?? {})
   // Single-listing categories: transport & logistics applied to the auto-created listing.
   const [transportIncluded, setTransportIncluded] = useState<boolean | null>((draft.transportIncluded as boolean | null) ?? null)
 
@@ -129,14 +127,14 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
       instagram, sameAsPhone, description, experience, teamSize, mehendiPricing,
       makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
       hairAvailable, mehendiAvailable, transportIncluded,
-      makeupMode, simpleBridal, simpleGroom, simpleGuest, simpleIncludes,
+      makeupMode, simpleBridalByEvent, simpleGroom, simpleGuest, simpleIncludes,
     }
     try { sessionStorage.setItem(draftKey, JSON.stringify(snapshot)) } catch { /* quota/serialize errors are non-fatal */ }
   }, [step, businessName, category, area, phone, secondaryPhone, whatsapp, email,
     instagram, sameAsPhone, description, experience, teamSize, mehendiPricing,
     makeupPricing, makeupAddons, sareePricing, sareeAvailable, hairPricing,
     hairAvailable, mehendiAvailable, transportIncluded,
-    makeupMode, simpleBridal, simpleGroom, simpleGuest, simpleIncludes])
+    makeupMode, simpleBridalByEvent, simpleGroom, simpleGuest, simpleIncludes])
 
   // Steps: 1=Welcome, 2=Business Basics, 3=Contact, 4=About, then category pricing/
   // add-ons (girly), then Portfolio Photos, then Ready. Photos go last so vendors
@@ -279,7 +277,7 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
       const makeupPricingOut: MakeupPricing = makeupMode === 'simple'
         ? {
             mode: 'simple',
-            bridalByEvent: simpleBridal > 0 ? { [MAKEUP_SIMPLE_BRIDAL_KEY]: simpleBridal } : {},
+            bridalByEvent: Object.fromEntries(Object.entries(simpleBridalByEvent).filter(([, v]) => v > 0)),
             groomPrice: simpleGroom || undefined,
             guestPricePerPerson: simpleGuest || undefined,
             simpleIncludes,
@@ -557,12 +555,12 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
                     <div className="space-y-3">
                       <p className="text-[11px] text-gray-400">One overall price per look, and what each one includes.</p>
                       {([
-                        { key: 'bridal' as const, label: 'Bridal makeup', unit: '/ look', price: simpleBridal, setPrice: setSimpleBridal, step: 500, drapingLabel: 'Saree draping' },
-                        { key: 'groom' as const, label: 'Groom makeup', unit: '/ look', price: simpleGroom, setPrice: setSimpleGroom, step: 500, drapingLabel: 'Vesti draping' },
-                        { key: 'guest' as const, label: 'Guest makeup', unit: '/ guest', price: simpleGuest, setPrice: setSimpleGuest, step: 100, drapingLabel: 'Saree draping' },
-                      ]).map(row => {
-                        const inc = simpleIncludes[row.key]
-                        const setInc = (patch: Partial<MakeupSimpleInclude>) => setSimpleIncludes(prev => ({ ...prev, [row.key]: { ...prev[row.key], ...patch } }))
+                        ...MAKEUP_EVENTS.map(ev => ({ key: ev, label: ev, unit: '/ look', price: simpleBridalByEvent[ev] || 0, setPrice: (n: number) => setSimpleBridalByEvent(prev => ({ ...prev, [ev]: n })), step: 500, drapingLabel: 'Saree draping' })),
+                        { key: 'groom', label: 'Groom makeup', unit: '/ look', price: simpleGroom, setPrice: setSimpleGroom, step: 500, drapingLabel: 'Vesti draping' },
+                        { key: 'guest', label: 'Guest makeup', unit: '/ guest', price: simpleGuest, setPrice: setSimpleGuest, step: 100, drapingLabel: 'Saree draping' },
+                      ] as { key: string; label: string; unit: string; price: number; setPrice: (n: number) => void; step: number; drapingLabel: string }[]).map(row => {
+                        const inc = simpleIncludes[row.key] || {}
+                        const setInc = (patch: Partial<MakeupSimpleInclude>) => setSimpleIncludes(prev => ({ ...prev, [row.key]: { ...(prev[row.key] || {}), ...patch } }))
                         const services: { k: keyof MakeupSimpleInclude; label: string }[] = [
                           { k: 'draping', label: row.drapingLabel },
                           { k: 'hair', label: 'Hair styling' },

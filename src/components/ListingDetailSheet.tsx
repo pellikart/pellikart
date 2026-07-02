@@ -860,23 +860,23 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
                     {/* Simple mode: what each look includes (no separate pricing). */}
                     {p.mode === 'simple' && p.simpleIncludes && (() => {
-                      const rows = ([
-                        { key: 'bridal' as const, label: 'Bridal', draping: 'Saree draping' },
-                        { key: 'groom' as const, label: 'Groom', draping: 'Vesti draping' },
-                        { key: 'guest' as const, label: 'Guest', draping: 'Saree draping' },
-                      ]).map(person => {
-                        const inc = p.simpleIncludes?.[person.key]
-                        const items = [inc?.draping ? person.draping : null, inc?.hair ? 'Hair styling' : null, inc?.mehendi ? 'Mehendi' : null].filter(Boolean) as string[]
-                        return { label: person.label, items }
+                      const rows = [
+                        ...offeredEvents.map(ev => ({ key: ev, label: ev, draping: 'Saree draping' })),
+                        ...(groomOK ? [{ key: 'groom', label: 'Groom makeup', draping: 'Vesti draping' }] : []),
+                        ...(guestOK ? [{ key: 'guest', label: 'Guest makeup', draping: 'Saree draping' }] : []),
+                      ].map(r => {
+                        const inc = p.simpleIncludes?.[r.key]
+                        const items = [inc?.draping ? r.draping : null, inc?.hair ? 'Hair styling' : null, inc?.mehendi ? 'Mehendi' : null].filter(Boolean) as string[]
+                        return { label: r.label, items }
                       }).filter(r => r.items.length > 0)
                       if (rows.length === 0) return null
                       return (
                         <div className="pt-3 border-t border-mustard/20">
                           <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">What's included</p>
-                          <div className="space-y-1.5">
+                          <div className="space-y-2">
                             {rows.map(r => (
-                              <div key={r.label} className="flex items-start gap-2">
-                                <span className="text-[11px] font-medium text-dark w-12 shrink-0">{r.label}</span>
+                              <div key={r.label}>
+                                <p className="text-[11px] font-medium text-dark mb-0.5">{r.label}</p>
                                 <div className="flex flex-wrap gap-1">
                                   {r.items.map(it => <span key={it} className="py-0.5 px-2 rounded-full text-[10px] font-medium bg-empty-bg text-gray-700 border border-card-border">{it}</span>)}
                                 </div>

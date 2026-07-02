@@ -855,12 +855,9 @@ export interface MakeupPricing {
    *  set of included services (draping / hair / mehendi) expressed as flags. */
   mode?: 'detailed' | 'simple'
   /** 'simple' mode: which extra services each look includes (no separate price —
-   *  just what's bundled in). Groom's draping is vesti; bridal/guest is saree. */
-  simpleIncludes?: {
-    bridal?: MakeupSimpleInclude
-    groom?: MakeupSimpleInclude
-    guest?: MakeupSimpleInclude
-  }
+   *  just what's bundled in). Keyed per line: each MAKEUP_EVENTS bridal event,
+   *  plus 'groom' and 'guest'. Groom's draping is vesti; others are saree. */
+  simpleIncludes?: Record<string, MakeupSimpleInclude>
 }
 
 /** Included-service flags for one look in 'simple' makeup mode. */
