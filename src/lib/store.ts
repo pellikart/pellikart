@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard } from "./types";
+import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard, MenuSelection } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
 import { getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
 import {
@@ -778,6 +778,28 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       updateBoardCategory(categoryId, { hairSelection: selection })
+    }
+  },
+
+  selectMenuOptions: (ritualId, categoryId, vendorId, packageKey, sectionPicks) => {
+    const { _liveMode } = get()
+    // Merge this vendor+package's picks into the category's menu selection,
+    // leaving other vendors'/packages' picks untouched.
+    let merged: MenuSelection = {}
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => {
+              if (c.id !== categoryId) return c
+              const prev = c.menuSelection || {}
+              merged = { ...prev, [vendorId]: { ...(prev[vendorId] || {}), [packageKey]: sectionPicks } }
+              return { ...c, menuSelection: merged }
+            }) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { menuSelection: merged })
     }
   },
 

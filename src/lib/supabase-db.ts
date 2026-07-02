@@ -624,6 +624,7 @@ export async function fetchRitualBoards(coupleId: string) {
         makeupSelection: (c.makeup_selection as { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] } | null) ?? undefined,
         sareeSelection: (c.saree_selection as { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number } | null) ?? undefined,
         hairSelection: (c.hair_selection as { bridalLooks?: number; groomLooks?: number; guests?: number } | null) ?? undefined,
+        menuSelection: (c.menu_selection as import('./types').MenuSelection | null) ?? undefined,
       })),
   })) as RitualBoard[]
 }
@@ -708,6 +709,7 @@ export async function updateBoardCategory(categoryId: string, updates: Partial<C
   if (updates.makeupSelection !== undefined) mapped.makeup_selection = updates.makeupSelection ?? null
   if (updates.sareeSelection !== undefined) mapped.saree_selection = updates.sareeSelection ?? null
   if (updates.hairSelection !== undefined) mapped.hair_selection = updates.hairSelection ?? null
+  if (updates.menuSelection !== undefined) mapped.menu_selection = updates.menuSelection ?? null
 
   await supabase.from('board_categories').update(mapped).eq('id', categoryId)
 }

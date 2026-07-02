@@ -186,11 +186,21 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const [showPortfolio, setShowPortfolio] = useState(false)
   // Photo lightbox: index into `gallery`, or null when closed.
   const [lightbox, setLightbox] = useState<number | null>(null)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectPhotographyPackage, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectPhotographyPackage, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
     : undefined
+  // Saved menu picks for this listing keyed by package (or 'listing' for a
+  // package-less catering menu), + a persist handler (only when we have a board
+  // context to save against).
+  const menuPicksFor = (packageKey: string) => currentCategory?.menuSelection?.[vendor.id]?.[packageKey]
+  function menuOnChange(packageKey: string) {
+    const rid = ritualId, cid = categoryId
+    if (!rid || !cid) return undefined
+    return (picks: Record<string, (number | string)[]>) => selectMenuOptions(rid, cid, vendor.id, packageKey, picks)
+  }
+
   // Existing saved team selection (persists across opens, drives the board card price).
   const savedTeam = currentCategory?.photographyTeam
   // Whether this exact vendor is the one currently added to the board for this category.
@@ -1071,7 +1081,14 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                       {pkg.menu && pkg.menu.length > 0 && (
                         <details className="border-t border-card-border">
                           <summary className="px-3 py-1.5 text-[10px] font-medium text-mustard cursor-pointer select-none">View menu</summary>
-                          <div className="px-2.5 pb-2.5"><MenuPicker menu={pkg.menu} /></div>
+                          <div className="px-2.5 pb-2.5">
+                            <MenuPicker
+                              key={pkg.id}
+                              menu={pkg.menu}
+                              initialPicks={menuPicksFor(pkg.id)}
+                              onPicksChange={menuOnChange(pkg.id)}
+                            />
+                          </div>
                         </details>
                       )}
                     </div>
@@ -1302,7 +1319,11 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {vendor.menu && vendor.menu.length > 0 && (
               <div className="mb-4">
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Menu</p>
-                <MenuPicker menu={vendor.menu} />
+                <MenuPicker
+                  menu={vendor.menu}
+                  initialPicks={menuPicksFor('listing')}
+                  onPicksChange={menuOnChange('listing')}
+                />
               </div>
             )}
 

@@ -146,7 +146,14 @@ export interface Category {
   sareeSelection?: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number };
   /** Hair Stylist-only (or Makeup add-on): the couple's selection — bridal looks, groom looks, guests. */
   hairSelection?: { bridalLooks?: number; groomLooks?: number; guests?: number };
+  /** Catering/Venue menu picks. Keyed by vendor/listing id → package id (or
+   *  'listing' for a package-less catering menu) → section name → picked dish
+   *  keys (bank dish id number, or custom dish name string). */
+  menuSelection?: MenuSelection;
 }
+
+/** vendorId → packageId → section → picked dish keys (number bank id | string custom name). */
+export type MenuSelection = Record<string, Record<string, Record<string, (number | string)[]>>>;
 
 export interface SuggestedVendor {
   vendorId: string;
@@ -203,6 +210,9 @@ export interface AppState {
   selectMakeupOptions: (ritualId: string, categoryId: string, selection: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] }) => void;
   selectSareeOptions: (ritualId: string, categoryId: string, selection: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number }) => void;
   selectHairOptions: (ritualId: string, categoryId: string, selection: { bridalLooks?: number; groomLooks?: number; guests?: number }) => void;
+  /** Save the couple's menu dish picks for a vendor's package (or 'listing' for
+   *  a package-less catering menu), keyed per section. */
+  selectMenuOptions: (ritualId: string, categoryId: string, vendorId: string, packageKey: string, sectionPicks: Record<string, (number | string)[]>) => void;
   addToShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   removeFromShortlist: (ritualId: string, categoryId: string, vendorId: string) => void;
   toggleLike: (vendorId: string, userName: string, userId: string) => void;
