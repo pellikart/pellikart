@@ -5,9 +5,10 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
-import type { MenuSection, PlatePackage } from '@/lib/vendor-types'
+import type { MenuSection, PlatePackage, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
 import MenuBuilder from '@/components/MenuBuilder'
+import SizesEditor from '@/components/SizesEditor'
 import TimePicker from '@/components/TimePicker'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
@@ -59,6 +60,12 @@ export default function VendorEditListing() {
   // Catering menu, and venue plate-package menus.
   const [menu, setMenu] = useState<MenuSection[]>([])
   const [platePackages, setPlatePackages] = useState<PlatePackage[]>([])
+  // Decor per-size pricing.
+  const [sizes, setSizes] = useState<SizePrice[]>([])
+  // Venue location + rent pricing.
+  const [venueLocation, setVenueLocation] = useState<VenueLocation>({ address: '' })
+  const [venuePricingModels, setVenuePricingModels] = useState<VenuePricingModel[]>([])
+  const [hourlyPricing, setHourlyPricing] = useState<{ hours: number; price: number }[]>([])
 
   useEffect(() => {
     if (listing) {
@@ -98,6 +105,10 @@ export default function VendorEditListing() {
       setBundleMandatory(listing.bundleMandatory || false)
       setMenu(listing.menu || [])
       setPlatePackages(listing.platePackages || [])
+      setSizes(listing.sizes || [])
+      setVenueLocation(listing.venueLocation && listing.venueLocation.address ? listing.venueLocation : { address: '' })
+      setVenuePricingModels(listing.venuePricingModels || [])
+      setHourlyPricing(listing.hourlyPricing || [])
     }
   }, [listing])
 
@@ -187,6 +198,19 @@ export default function VendorEditListing() {
   const photoHourlyBase = getRateCardBaseHourly(rateCard)
   const photoGuestFrom = getPhotographyGuestFromPrice(guestPackages)
 
+  // Venue pricing (mirrors the add flow's derivation).
+  const venueOffersRent = venuePricingModels.includes('rent')
+  const venueOffersPerPlate = venuePricingModels.includes('perPlate')
+  const venueRentTier = hourlyPricing.find(t => t.hours === 24) || hourlyPricing[0]
+  const venueRentPrice = venueRentTier?.price || 0
+  const venuePlateFrom = platePackages.length > 0 ? Math.min(...platePackages.map(p => p.pricePerPlate).filter(p => p > 0), Infinity) : 0
+  const venueFrom = venueOffersRent && venueRentPrice > 0 ? venueRentPrice
+    : venueOffersPerPlate && venuePlateFrom > 0 && venuePlateFrom !== Infinity ? venuePlateFrom
+    : 0
+  // Decor "from" price = cheapest size variant.
+  const decorPrices = sizes.map(s => s.price || 0).filter(p => p > 0)
+  const decorFrom = decorPrices.length > 0 ? Math.min(...decorPrices) : 0
+
   async function handleSave() {
     if (!listing || saving) return
     setSaving(true)
@@ -210,6 +234,8 @@ export default function VendorEditListing() {
       : category === 'Makeup' ? getMakeupFromPrice(makeupPricing)
       : category === 'Saree Draping' ? getSareeDrapingFromPrice(sareePricing)
       : category === 'Hair Stylist' ? getHairStylingFromPrice(hairPricing)
+      : category === 'Venue' ? venueFrom
+      : category === 'Decor' ? decorFrom
       : price
     updateListing({
       ...listing,
@@ -237,6 +263,10 @@ export default function VendorEditListing() {
       // other categories (they carry over via the ...listing spread above).
       menu: category === 'Catering' ? menu : listing.menu,
       platePackages: category === 'Venue' ? platePackages : listing.platePackages,
+      sizes: category === 'Decor' ? (sizes.length > 0 ? sizes : undefined) : listing.sizes,
+      venueLocation: category === 'Venue' ? (venueLocation.address.trim() ? venueLocation : undefined) : listing.venueLocation,
+      venuePricingModels: category === 'Venue' ? (venuePricingModels.length > 0 ? venuePricingModels : undefined) : listing.venuePricingModels,
+      hourlyPricing: category === 'Venue' && venuePricingModels.includes('rent') ? (hourlyPricing.length > 0 ? hourlyPricing : undefined) : (category === 'Venue' ? undefined : listing.hourlyPricing),
     })
     navigate(`${base}/listings`)
   }
@@ -491,6 +521,92 @@ export default function VendorEditListing() {
           <div>
             <label className="text-[11px] font-medium text-dark block mb-2">Hair styling pricing</label>
             <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />
+          </div>
+        ) : category === 'Venue' ? (
+          <div className="space-y-4">
+            {/* Location */}
+            <div>
+              <label className="text-[11px] font-medium text-dark block mb-1.5">Venue location</label>
+              <textarea
+                value={venueLocation.address}
+                onChange={(e) => setVenueLocation(prev => ({ ...prev, address: e.target.value }))}
+                rows={2} placeholder="Building, street, landmark…"
+                className="w-full px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard resize-none"
+              />
+              <div className="flex gap-2 mt-2">
+                <input value={venueLocation.area || ''} onChange={(e) => setVenueLocation(prev => ({ ...prev, area: e.target.value }))} placeholder="Area" className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard" />
+                <input value={venueLocation.city || ''} onChange={(e) => setVenueLocation(prev => ({ ...prev, city: e.target.value }))} placeholder="City" className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard" />
+              </div>
+              <input type="url" value={venueLocation.mapsLink || ''} onChange={(e) => setVenueLocation(prev => ({ ...prev, mapsLink: e.target.value }))} placeholder="Google Maps link (optional)" className="w-full mt-2 px-3 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard" />
+            </div>
+
+            {/* Pricing models */}
+            <div>
+              <label className="text-[11px] font-medium text-dark block mb-1.5">How do you price this venue?</label>
+              <div className="flex flex-col gap-2">
+                {([{ key: 'rent' as const, title: 'Venue rent', desc: 'You charge rent; food arranged separately.' }, { key: 'perPlate' as const, title: 'Per-plate (food included)', desc: 'Couples take food from your venue, charged per plate.' }]).map(m => {
+                  const selected = venuePricingModels.includes(m.key)
+                  return (
+                    <button key={m.key} type="button"
+                      onClick={() => setVenuePricingModels(prev => prev.includes(m.key) ? prev.filter(x => x !== m.key) : [...prev, m.key])}
+                      className={`w-full text-left p-3 rounded-xl border transition-all ${selected ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border bg-white'}`}
+                    >
+                      <p className="text-[12px] font-semibold text-dark">{m.title}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{m.desc}</p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Rent — hourly tiers */}
+            {venueOffersRent && (
+              <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <p className="text-[12px] font-semibold text-dark mb-2">Venue rent</p>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {[12, 24].map(h => {
+                    const selected = hourlyPricing.some(t => t.hours === h)
+                    return (
+                      <button key={h} type="button"
+                        onClick={() => setHourlyPricing(prev => selected ? prev.filter(t => t.hours !== h) : [...prev, { hours: h, price: 0 }])}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-medium transition-all ${selected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 border border-card-border'}`}
+                      >{selected && <span className="mr-0.5">✓ </span>}{h} hr</button>
+                    )
+                  })}
+                  <button type="button" onClick={() => setHourlyPricing(prev => [...prev, { hours: 6, price: 0 }])} className="px-3 py-1.5 rounded-full text-[10px] font-medium bg-empty-bg text-dark border border-card-border active:bg-mustard-light/40">+ Custom</button>
+                </div>
+                {hourlyPricing.length > 0 && (
+                  <div className="space-y-2">
+                    {hourlyPricing.map((tier, i) => {
+                      const isPreset = tier.hours === 12 || tier.hours === 24
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          {isPreset ? (
+                            <span className="px-2.5 py-2 rounded-lg bg-white border border-card-border text-[11px] font-medium text-dark min-w-[60px] text-center">{tier.hours} hr</span>
+                          ) : (
+                            <div className="relative">
+                              <input type="number" min={1} value={tier.hours || ''} onChange={(e) => { const h = parseInt(e.target.value) || 0; setHourlyPricing(prev => prev.map((t, idx) => idx === i ? { ...t, hours: h } : t)) }} className="w-16 pl-2 pr-7 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard" placeholder="6" />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">hr</span>
+                            </div>
+                          )}
+                          <div className="relative flex-1">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                            <input type="number" min={0} step={1000} value={tier.price || ''} onChange={(e) => { const p = parseInt(e.target.value) || 0; setHourlyPricing(prev => prev.map((t, idx) => idx === i ? { ...t, price: p } : t)) }} className="w-full pl-6 pr-2 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard" placeholder="Price" />
+                          </div>
+                          <button type="button" onClick={() => setHourlyPricing(prev => prev.filter((_, idx) => idx !== i))} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100">×</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+            <p className="text-[10px] text-gray-400">Per-plate packages (and their menus) are managed in the “Plate packages” section below.</p>
+          </div>
+        ) : category === 'Decor' ? (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-1.5">Sizes &amp; pricing</label>
+            <SizesEditor value={sizes} onChange={setSizes} />
           </div>
         ) : (
           <div>
