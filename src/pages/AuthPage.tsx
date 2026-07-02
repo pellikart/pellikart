@@ -19,6 +19,19 @@ export default function AuthPage() {
     setStep('login')
   }
 
+  // Invited-vendor entry: sign in, then land on the claim screen instead of the
+  // normal role routing, so a pre-onboarded vendor can take ownership.
+  async function handleClaimSignIn() {
+    if (!supabase) return
+    setError(null)
+    localStorage.removeItem('pellikart_pending_role')
+    const { error: err } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/app/claim' },
+    })
+    if (err) setError(err.message)
+  }
+
   async function handleGoogleSignIn() {
     if (!supabase) return
     setError(null)
@@ -74,6 +87,14 @@ export default function AuthPage() {
           </button>
         </div>
         <p className="text-[11px] text-gray-400 mt-6 text-center">Already a vendor or planning a wedding? Just log in.</p>
+
+        <button
+          onClick={handleClaimSignIn}
+          className="mt-4 text-[12px] text-magenta font-medium hover:underline"
+        >
+          Invited by Pellikart? Claim your vendor profile
+        </button>
+        {error && <p className="mt-3 text-[12px] text-red-500 text-center">{error}</p>}
       </div>
     )
   }

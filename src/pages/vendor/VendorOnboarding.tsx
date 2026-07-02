@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
-import { uploadPhotos, updateVendorFields, setVendorLive } from '@/lib/supabase-db'
+import { uploadPhotos, setVendorLive, setVendorLiveById } from '@/lib/supabase-db'
 import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
@@ -12,7 +12,7 @@ import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
 import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
 import VendorAddListing from './VendorAddListing'
 
-const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
+export const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
 const TEAM_SIZES_DEFAULT = ['Solo', '2-5', '5-10', '10+']
 // Decor crews are usually larger — start at 5 and step up by 5 to 30+.
@@ -55,7 +55,17 @@ function loadDraft(): Record<string, unknown> {
   try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || '{}') } catch { return {} }
 }
 
-export default function VendorOnboarding() {
+/** Optional props let staff reuse this exact flow inside the admin panel to
+ *  build a vendor on someone's behalf: `returnPath` is where we go when done
+ *  (back to /admin instead of the vendor dashboard) and `adminSeed` prefills the
+ *  identity fields captured on the "Add vendor" step. When omitted it's the
+ *  normal self-serve vendor onboarding. */
+interface VendorOnboardingProps {
+  returnPath?: string
+  adminSeed?: { businessName: string; category: string; phone?: string }
+}
+
+export default function VendorOnboarding({ returnPath = '/vendor', adminSeed }: VendorOnboardingProps = {}) {
   const navigate = useNavigate()
   const { completeVendorOnboarding } = useVendorStore()
 
@@ -66,10 +76,10 @@ export default function VendorOnboarding() {
   // 'profile' = the onboarding questions; 'listing' = the embedded first-listing
   // wizard (multi-listing categories) shown before onboarding is marked complete.
   const [phase, setPhase] = useState<'profile' | 'listing'>('profile')
-  const [businessName, setBusinessName] = useState((draft.businessName as string) ?? '')
-  const [category, setCategory] = useState((draft.category as string) ?? '')
+  const [businessName, setBusinessName] = useState((draft.businessName as string) ?? adminSeed?.businessName ?? '')
+  const [category, setCategory] = useState((draft.category as string) ?? adminSeed?.category ?? '')
   const [area, setArea] = useState((draft.area as string) ?? '')
-  const [phone, setPhone] = useState((draft.phone as string) ?? '')
+  const [phone, setPhone] = useState((draft.phone as string) ?? adminSeed?.phone ?? '')
   const [secondaryPhone, setSecondaryPhone] = useState((draft.secondaryPhone as string) ?? '')
   const [whatsapp, setWhatsapp] = useState((draft.whatsapp as string) ?? '')
   const [email, setEmail] = useState((draft.email as string) ?? '')
@@ -201,11 +211,13 @@ export default function VendorOnboarding() {
 
     // Now that completeVendorOnboarding has run upsertVendor, _vendorDbId
     // is populated. Upload photos/videos and persist their public URLs.
-    const { _vendorDbId, _userId, _liveMode } = useVendorStore.getState()
+    const { _vendorDbId, _liveMode } = useVendorStore.getState()
     // Photos to attach to an auto-created listing (Mehendi). Demo uses blob previews;
-    // live uses the uploaded public URLs once available.
+    // live uses the uploaded public URLs once available. Upload keys off the
+    // vendor DB id, so this path works for both a real vendor and an admin
+    // building a vendor (user_id NULL) — the store re-keys the profile write.
     let listingPhotos: string[] = _liveMode ? [] : photoPreviews
-    if (_liveMode && _vendorDbId && _userId) {
+    if (_liveMode && _vendorDbId) {
       const portfolioUrls = photoFiles.length > 0
         ? await uploadPhotos(_vendorDbId, photoFiles, 'portfolio')
         : []
@@ -218,17 +230,9 @@ export default function VendorOnboarding() {
         const updates: Partial<VendorProfile> = {}
         if (photoFiles.length > 0) updates.portfolioPhotos = portfolioUrls
         if (videoFiles.length > 0) updates.portfolioVideos = portfolioVideoUrls
-        await updateVendorFields(_userId, updates)
-
-        // Reflect the real URLs in the local store so the dashboard renders
-        // them immediately, not just after the next refresh.
-        useVendorStore.setState((s) => ({
-          vendorProfile: s.vendorProfile ? {
-            ...s.vendorProfile,
-            ...(photoFiles.length > 0 ? { portfolioPhotos: portfolioUrls } : {}),
-            ...(videoFiles.length > 0 ? { portfolioVideos: portfolioVideoUrls } : {}),
-          } : null,
-        }))
+        // Persists via the store's admin-aware write (by id or user_id) and
+        // merges the real URLs into local state so the dashboard renders them now.
+        useVendorStore.getState().updateVendorProfile(updates)
       }
     } else if (!_liveMode) {
       // Demo mode — keep the blob previews on the local profile so the UI
@@ -270,9 +274,11 @@ export default function VendorOnboarding() {
         setGoLiveError("We couldn't publish your listing. Please check your connection and try again.")
         return
       }
-      // Listing confirmed — now it's safe to flip the vendor live.
-      const { _liveMode: lm, _userId: uid } = useVendorStore.getState()
-      if (lm && uid) await setVendorLive(uid)
+      // Listing confirmed — now it's safe to flip the vendor live. (addListing
+      // already flips via id; this is a belt-and-suspenders retry.)
+      const { _liveMode: lm, _adminMode: am, _userId: uid, _vendorDbId: vdbId } = useVendorStore.getState()
+      if (lm && am && vdbId) await setVendorLiveById(vdbId)
+      else if (lm && uid) await setVendorLive(uid)
     }
 
     setUploading(false)
@@ -280,7 +286,7 @@ export default function VendorOnboarding() {
       // Single-listing categories already authored their one listing above and
       // onboarding is marked complete — go to the dashboard.
       try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
-      navigate('/vendor')
+      navigate(returnPath)
     } else {
       // Every other category continues — in the same onboarding flow — into the
       // embedded first-listing wizard. Onboarding finishes only once it publishes.
@@ -293,11 +299,12 @@ export default function VendorOnboarding() {
   async function finishFirstListing() {
     // The embedded wizard only calls this after a listing was confirmed saved,
     // so it's now safe to flip the vendor live + onboarding-complete in the DB.
-    const { _liveMode: lm, _userId: uid } = useVendorStore.getState()
-    if (lm && uid) await setVendorLive(uid)
+    const { _liveMode: lm, _adminMode: am, _userId: uid, _vendorDbId: vdbId } = useVendorStore.getState()
+    if (lm && am && vdbId) await setVendorLiveById(vdbId)
+    else if (lm && uid) await setVendorLive(uid)
     try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
     useVendorStore.setState({ vendorOnboardingComplete: true })
-    navigate('/vendor')
+    navigate(returnPath)
   }
 
   // Multi-listing categories: the first listing is created inside onboarding,

@@ -20,6 +20,20 @@ export async function fetchVendor(userId: string) {
   return data
 }
 
+/** The committed role for this account: 'couple' | 'vendor' | null (undecided).
+ *  Returned separately from auth-context so callers get a definite "loaded"
+ *  signal (undefined = not fetched yet) rather than racing the profile state. */
+export async function fetchProfileRole(userId: string): Promise<'couple' | 'vendor' | null> {
+  if (!supabase) return null
+  const { data } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle()
+  const r = data?.role
+  return r === 'couple' || r === 'vendor' ? r : null
+}
+
 export async function upsertVendor(userId: string, profile: VendorProfile, isLive: boolean) {
   if (!supabase) { console.error('[db] No supabase client'); return null }
   console.log('[db] upsertVendor for user:', userId)
@@ -99,6 +113,153 @@ export async function updateVendorFields(userId: string, updates: Partial<Vendor
   if (updates.portfolioVideos !== undefined) mapped.portfolio_videos = updates.portfolioVideos
 
   await supabase.from('vendors').update(mapped).eq('user_id', userId)
+}
+
+// ─── ADMIN ONBOARDING + CLAIM ───────────────
+// Staff pre-build real, live vendor rows from quotations we already hold. Such
+// rows have user_id = NULL until the real vendor claims them. Because the whole
+// vendor app keys off the vendors row id (not user_id), everything downstream —
+// listings, packages, availability, photos — reuses the normal write paths; the
+// only writes that must be re-keyed are the vendors-row profile writes below.
+
+/** True when the signed-in user's email is in the `admins` allowlist. */
+export async function isAdminUser(): Promise<boolean> {
+  if (!supabase) return false
+  const { data, error } = await supabase.rpc('is_admin')
+  if (error) { console.error('[db] is_admin failed:', error.message); return false }
+  return data === true
+}
+
+/** Generate a short, human-friendly claim code (e.g. "PK-7QK4"). Avoids
+ *  ambiguous chars (0/O, 1/I). Uniqueness is enforced by a DB unique index —
+ *  createAdminVendor retries on the rare collision. */
+function generateClaimCode(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let s = ''
+  for (let i = 0; i < 4; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)]
+  return `PK-${s}`
+}
+
+/** Fetch a vendor by its row id (admin editing path). */
+export async function fetchVendorById(vendorId: string) {
+  if (!supabase) return null
+  const { data } = await supabase.from('vendors').select('*').eq('id', vendorId).maybeSingle()
+  return data
+}
+
+/** All admin-created vendor rows, newest first (admin dashboard). */
+export async function fetchAdminVendors() {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('vendors')
+    .select('*')
+    .eq('is_admin_created', true)
+    .order('created_at', { ascending: false })
+  if (error) console.error('[db] fetchAdminVendors failed:', error.message)
+  return data || []
+}
+
+/** Create the shell vendor row an admin will then fill in via the normal
+ *  onboarding flow. Starts not-live (flipped live once a listing is saved) and
+ *  unowned (user_id NULL) with a unique claim code. */
+export async function createAdminVendor(
+  businessName: string,
+  category: string,
+  claimPhone: string | null,
+): Promise<{ id: string; claim_code: string } | null> {
+  if (!supabase) { console.error('[db] No supabase client'); return null }
+  // Retry a couple of times on the (rare) claim-code collision.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const claimCode = generateClaimCode()
+    const { data, error } = await supabase
+      .from('vendors')
+      .insert({
+        user_id: null,
+        business_name: businessName,
+        category,
+        claim_code: claimCode,
+        claim_phone: claimPhone || null,
+        phone: claimPhone || null,
+        is_admin_created: true,
+        is_live: false,
+        onboarding_complete: false,
+      })
+      .select('id, claim_code')
+      .maybeSingle()
+    if (!error && data) return data as { id: string; claim_code: string }
+    // 23505 = unique_violation (claim_code clash) — regenerate and retry.
+    if (error && error.code !== '23505') {
+      console.error('[db] createAdminVendor failed:', error.message, error.details, error.hint)
+      return null
+    }
+  }
+  console.error('[db] createAdminVendor: exhausted claim-code retries')
+  return null
+}
+
+/** Update a vendor's profile fields keyed by row id (admin edit mode). Mirrors
+ *  upsertVendor's field mapping but never touches user_id / claim / live flags. */
+export async function upsertVendorById(vendorId: string, profile: VendorProfile) {
+  if (!supabase) { console.error('[db] No supabase client'); return null }
+  const { data, error } = await supabase
+    .from('vendors')
+    .update({
+      business_name: profile.businessName,
+      category: profile.category,
+      city: profile.city,
+      area: profile.area,
+      phone: profile.phone,
+      secondary_phone: profile.secondaryPhone || null,
+      whatsapp: profile.whatsapp,
+      email: profile.email,
+      instagram: profile.instagram || null,
+      description: profile.description,
+      years_experience: String(profile.experience),
+      team_size: profile.teamSize,
+      category_fields: profile.categoryFields || {},
+      portfolio_photos: profile.portfolioPhotos || [],
+      portfolio_videos: profile.portfolioVideos || [],
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', vendorId)
+    .select()
+    .maybeSingle()
+  if (error) console.error('[db] upsertVendorById failed:', error.message, error.details, error.hint)
+  return data
+}
+
+/** Partial profile update keyed by row id (admin edit mode twin of updateVendorFields). */
+export async function updateVendorFieldsById(vendorId: string, updates: Partial<VendorProfile>) {
+  if (!supabase) return
+  const mapped: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (updates.businessName !== undefined) mapped.business_name = updates.businessName
+  if (updates.category !== undefined) mapped.category = updates.category
+  if (updates.area !== undefined) mapped.area = updates.area
+  if (updates.phone !== undefined) mapped.phone = updates.phone
+  if (updates.secondaryPhone !== undefined) mapped.secondary_phone = updates.secondaryPhone || null
+  if (updates.whatsapp !== undefined) mapped.whatsapp = updates.whatsapp
+  if (updates.email !== undefined) mapped.email = updates.email
+  if (updates.instagram !== undefined) mapped.instagram = updates.instagram || null
+  if (updates.description !== undefined) mapped.description = updates.description
+  if (updates.experience !== undefined) mapped.years_experience = String(updates.experience)
+  if (updates.teamSize !== undefined) mapped.team_size = updates.teamSize
+  if (updates.categoryFields !== undefined) mapped.category_fields = updates.categoryFields
+  if (updates.portfolioPhotos !== undefined) mapped.portfolio_photos = updates.portfolioPhotos
+  if (updates.portfolioVideos !== undefined) mapped.portfolio_videos = updates.portfolioVideos
+
+  await supabase.from('vendors').update(mapped).eq('id', vendorId)
+}
+
+/** Vendor-side: claim a pre-built profile by code and/or phone. Returns the
+ *  claimed vendor id, or throws with a user-facing message on failure. */
+export async function claimVendor(code: string, phone: string): Promise<string> {
+  if (!supabase) throw new Error('Not connected')
+  const { data, error } = await supabase.rpc('claim_vendor', {
+    p_code: code.trim(),
+    p_phone: phone.trim(),
+  })
+  if (error) throw new Error(error.message)
+  return data as string
 }
 
 // ─── VENDOR LISTINGS ────────────────────────

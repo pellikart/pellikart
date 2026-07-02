@@ -6,7 +6,9 @@ export type AppRole = 'couple' | 'vendor'
 
 export interface Profile {
   id: string
-  role: AppRole
+  // null = the account hasn't chosen a role yet (new signup). The app shows the
+  // couple/vendor chooser and persists the pick.
+  role: AppRole | null
   subscription_tier: 'free' | 'silver' | 'gold'
 }
 
@@ -47,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[auth] Profile missing — creating one')
         const { data: newProfile, error: insertErr } = await supabase
           .from('profiles')
-          .insert({ id: userId, role: 'couple' })
+          .insert({ id: userId, role: null })
           .select('id, role, subscription_tier')
           .maybeSingle()
         if (insertErr) {
@@ -133,4 +135,10 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>')
   return ctx
+}
+
+/** Like useAuth but returns null instead of throwing when there's no provider
+ *  (e.g. demo mode). Lets shared components opt into auth only when it exists. */
+export function useOptionalAuth() {
+  return useContext(AuthContext)
 }

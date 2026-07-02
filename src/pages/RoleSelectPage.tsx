@@ -2,11 +2,22 @@ import { useStore } from '@/lib/store'
 import { useNavigate } from 'react-router-dom'
 import { AppRole } from '@/lib/types'
 
-export default function RoleSelectPage() {
+/** In the live app, LiveApp passes `onSelect` so the pick is persisted to the
+ *  account (profiles.role) and the stores are initialized in live mode. Without
+ *  it (demo mode) we just set the local role and navigate. */
+interface RoleSelectPageProps {
+  onSelect?: (role: 'couple' | 'vendor') => void
+}
+
+export default function RoleSelectPage({ onSelect }: RoleSelectPageProps = {}) {
   const { setRole } = useStore()
   const navigate = useNavigate()
 
   function handleSelect(role: AppRole) {
+    if (onSelect) {
+      onSelect(role === 'vendor' ? 'vendor' : 'couple')
+      return
+    }
     setRole(role)
     if (role === 'user') navigate('/onboarding')
     else navigate('/vendor')

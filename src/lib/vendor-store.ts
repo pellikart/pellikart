@@ -9,6 +9,7 @@ import {
 } from './vendor-mock-data'
 import {
   fetchVendor, upsertVendor, updateVendorFields, setVendorLiveById,
+  fetchVendorById, upsertVendorById, updateVendorFieldsById,
   fetchVendorListings, insertListing, updateListingDb, deleteListingDb,
   fetchVendorAvailability, upsertAvailability,
   fetchVendorTrials as fetchVendorTrialsDb, acceptTrialDb, proposeNewTrialTimeDb, declineTrialDb,
@@ -22,9 +23,87 @@ import {
   type TrialRow, type BidRow,
 } from './supabase-db'
 
+/** Map a raw vendor_listings DB row into the app's VendorListing shape.
+ *  Shared by initLiveMode (owner) and initAdminEditMode (admin editing). Empty
+ *  jsonb defaults ({} / []) come back as undefined so the category editors fall
+ *  back to their `empty*()` shapes rather than a malformed empty object. */
+function mapDbListingToVendorListing(l: Record<string, unknown>): VendorListing {
+  const obj = (v: unknown): unknown =>
+    v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length > 0 ? v : undefined
+  const arr = (v: unknown): unknown => (Array.isArray(v) && v.length > 0 ? v : undefined)
+  const rawSizes = l.sizes
+  const sizes = Array.isArray(rawSizes) && rawSizes.length > 0
+    ? (rawSizes as Array<{ widthFt: number; heightFt: number; price: number }>)
+    : undefined
+  return {
+    id: `vl-${l.id}`,
+    name: l.name as string,
+    photos: (l.photos as string[]) || [],
+    videos: arr(l.videos) as string[] | undefined,
+    coverPhotoIndex: (l.cover_photo_index as number) ?? 0,
+    category: l.category as string,
+    price: l.price as number,
+    sizes,
+    style: (l.style as string) || '',
+    rituals: (l.rituals as string[]) || [],
+    categoryFields: (l.category_fields as Record<string, string | string[]>) || {},
+    includes: (l.includes as string[]) || [],
+    createdAt: (l.created_at as string)?.split('T')[0] || '',
+    bundledListings: (l.bundled_listings as string[]) || [],
+    bundleMandatory: (l.bundle_mandatory as boolean) || false,
+    // Category-specific data — must round-trip or the vendor loses their
+    // pricing on refresh (and a later save would blank it in the DB).
+    venueLocation: (() => { const v = l.venue_location as import('./vendor-types').VenueLocation | null; return v && v.address ? v : undefined })(),
+    venuePricingModels: arr(l.venue_pricing_models) as import('./vendor-types').VenuePricingModel[] | undefined,
+    hourlyPricing: arr(l.hourly_pricing) as { hours: number; price: number }[] | undefined,
+    platePackages: arr(l.plate_packages) as import('./vendor-types').PlatePackage[] | undefined,
+    paidRooms: arr(l.paid_rooms) as import('./vendor-types').PaidRoom[] | undefined,
+    inHouseDecor: (() => { const d = l.in_house_decor as import('./vendor-types').InHouseDecor | null; return d && typeof d.compulsory === 'boolean' ? d : undefined })(),
+    menu: arr(l.menu) as import('./vendor-types').MenuSection[] | undefined,
+    rateCard: obj(l.rate_card) as import('./vendor-category-config').PhotographyRateCard | undefined,
+    availableHours: arr(l.available_hours) as number[] | undefined,
+    photographyPricingModels: arr(l.photography_pricing_models) as import('./vendor-category-config').PhotographyPricingModel[] | undefined,
+    guestPackages: obj(l.guest_packages) as import('./vendor-category-config').PhotographyGuestPackages | undefined,
+    guestPackagePhotographers: obj(l.guest_package_photographers) as Record<string, number> | undefined,
+    guestPackageVideographers: obj(l.guest_package_videographers) as Record<string, number> | undefined,
+    mehendiPricing: obj(l.mehendi_pricing) as import('./vendor-category-config').MehendiPricing | undefined,
+    makeupPricing: obj(l.makeup_pricing) as import('./vendor-category-config').MakeupPricing | undefined,
+    sareeDrapingPricing: obj(l.saree_draping_pricing) as import('./vendor-category-config').SareeDrapingPricing | undefined,
+    hairStylingPricing: obj(l.hair_styling_pricing) as import('./vendor-category-config').HairStylingPricing | undefined,
+    transportIncluded: (l.transport_included as boolean | null) ?? undefined,
+    transportExtra: (l.transport_extra as number | null) ?? undefined,
+  }
+}
+
+/** Map a raw vendors DB row into the app's VendorProfile shape. Shared by
+ *  initLiveMode and initAdminEditMode. */
+function mapDbVendorToProfile(vendor: Record<string, unknown>): VendorProfile {
+  return {
+    businessName: vendor.business_name as string,
+    category: vendor.category as string,
+    city: (vendor.city as string) || 'Hyderabad',
+    area: (vendor.area as string) || '',
+    phone: (vendor.phone as string) || '',
+    secondaryPhone: (vendor.secondary_phone as string) || undefined,
+    whatsapp: (vendor.whatsapp as string) || '',
+    email: (vendor.email as string) || '',
+    instagram: (vendor.instagram as string) || undefined,
+    description: (vendor.description as string) || '',
+    experience: parseInt(vendor.years_experience as string) || 0,
+    teamSize: (vendor.team_size as string) || '',
+    portfolioPhotos: Array.isArray(vendor.portfolio_photos) ? vendor.portfolio_photos as string[] : [],
+    portfolioVideos: Array.isArray(vendor.portfolio_videos) ? vendor.portfolio_videos as string[] : undefined,
+    rating: (vendor.rating as number) || 0,
+    categoryFields: (vendor.category_fields as Record<string, string | string[]>) || {},
+  }
+}
+
 interface LiveModeState {
   /** When true, all mutations persist to Supabase */
   _liveMode: boolean
+  /** When true, this store is editing an admin-created vendor (user_id NULL).
+   *  Profile writes are keyed by vendor row id instead of user_id. */
+  _adminMode: boolean
   _userId: string | null
   _vendorDbId: string | null
   /** Maps local listing IDs to Supabase UUIDs */
@@ -37,9 +116,11 @@ interface LiveModeState {
 
 export const useVendorStore = create<VendorState & LiveModeState & {
   initLiveMode: (userId: string) => Promise<void>
+  initAdminEditMode: (vendorId: string) => Promise<void>
 }>((set, get) => ({
   // Live mode state
   _liveMode: false,
+  _adminMode: false,
   _userId: null,
   _vendorDbId: null,
   _listingIdMap: {},
@@ -71,79 +152,14 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     const vendor = await fetchVendor(userId)
     if (vendor) {
       // Returning vendor — restore their data
-      const profile: VendorProfile = {
-        businessName: vendor.business_name,
-        category: vendor.category,
-        city: vendor.city || 'Hyderabad',
-        area: vendor.area || '',
-        phone: vendor.phone || '',
-        secondaryPhone: vendor.secondary_phone || undefined,
-        whatsapp: vendor.whatsapp || '',
-        email: vendor.email || '',
-        instagram: vendor.instagram || undefined,
-        description: vendor.description || '',
-        experience: parseInt(vendor.years_experience) || 0,
-        teamSize: vendor.team_size || '',
-        portfolioPhotos: Array.isArray(vendor.portfolio_photos) ? vendor.portfolio_photos : [],
-        portfolioVideos: Array.isArray(vendor.portfolio_videos) ? vendor.portfolio_videos : undefined,
-        rating: vendor.rating || 0,
-        categoryFields: vendor.category_fields || {},
-      }
+      const profile = mapDbVendorToProfile(vendor)
 
       // Fetch listings
       const dbListings = await fetchVendorListings(vendor.id)
       const listingIdMap: Record<string, string> = {}
       const listings: VendorListing[] = dbListings.map((l: Record<string, unknown>) => {
-        const localId = `vl-${l.id}`
-        listingIdMap[localId] = l.id as string
-        // Empty jsonb defaults ({} / []) must come back as undefined so the
-        // editors fall back to their `empty*()` shapes rather than a malformed
-        // empty object.
-        const obj = (v: unknown): unknown =>
-          v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length > 0 ? v : undefined
-        const arr = (v: unknown): unknown => (Array.isArray(v) && v.length > 0 ? v : undefined)
-        const rawSizes = l.sizes
-        const sizes = Array.isArray(rawSizes) && rawSizes.length > 0
-          ? (rawSizes as Array<{ widthFt: number; heightFt: number; price: number }>)
-          : undefined
-        return {
-          id: localId,
-          name: l.name as string,
-          photos: (l.photos as string[]) || [],
-          videos: arr(l.videos) as string[] | undefined,
-          coverPhotoIndex: (l.cover_photo_index as number) ?? 0,
-          category: l.category as string,
-          price: l.price as number,
-          sizes,
-          style: (l.style as string) || '',
-          rituals: (l.rituals as string[]) || [],
-          categoryFields: (l.category_fields as Record<string, string | string[]>) || {},
-          includes: (l.includes as string[]) || [],
-          createdAt: (l.created_at as string)?.split('T')[0] || '',
-          bundledListings: (l.bundled_listings as string[]) || [],
-          bundleMandatory: (l.bundle_mandatory as boolean) || false,
-          // Category-specific data — must round-trip or the vendor loses their
-          // pricing on refresh (and a later save would blank it in the DB).
-          venueLocation: (() => { const v = l.venue_location as import('./vendor-types').VenueLocation | null; return v && v.address ? v : undefined })(),
-          venuePricingModels: arr(l.venue_pricing_models) as import('./vendor-types').VenuePricingModel[] | undefined,
-          hourlyPricing: arr(l.hourly_pricing) as { hours: number; price: number }[] | undefined,
-          platePackages: arr(l.plate_packages) as import('./vendor-types').PlatePackage[] | undefined,
-          paidRooms: arr(l.paid_rooms) as import('./vendor-types').PaidRoom[] | undefined,
-          inHouseDecor: (() => { const d = l.in_house_decor as import('./vendor-types').InHouseDecor | null; return d && typeof d.compulsory === 'boolean' ? d : undefined })(),
-          menu: arr(l.menu) as import('./vendor-types').MenuSection[] | undefined,
-          rateCard: obj(l.rate_card) as import('./vendor-category-config').PhotographyRateCard | undefined,
-          availableHours: arr(l.available_hours) as number[] | undefined,
-          photographyPricingModels: arr(l.photography_pricing_models) as import('./vendor-category-config').PhotographyPricingModel[] | undefined,
-          guestPackages: obj(l.guest_packages) as import('./vendor-category-config').PhotographyGuestPackages | undefined,
-          guestPackagePhotographers: obj(l.guest_package_photographers) as Record<string, number> | undefined,
-          guestPackageVideographers: obj(l.guest_package_videographers) as Record<string, number> | undefined,
-          mehendiPricing: obj(l.mehendi_pricing) as import('./vendor-category-config').MehendiPricing | undefined,
-          makeupPricing: obj(l.makeup_pricing) as import('./vendor-category-config').MakeupPricing | undefined,
-          sareeDrapingPricing: obj(l.saree_draping_pricing) as import('./vendor-category-config').SareeDrapingPricing | undefined,
-          hairStylingPricing: obj(l.hair_styling_pricing) as import('./vendor-category-config').HairStylingPricing | undefined,
-          transportIncluded: (l.transport_included as boolean | null) ?? undefined,
-          transportExtra: (l.transport_extra as number | null) ?? undefined,
-        }
+        listingIdMap[`vl-${l.id}`] = l.id as string
+        return mapDbListingToVendorListing(l)
       })
 
       // Fetch availability
@@ -316,9 +332,100 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     // If no vendor record, user hasn't onboarded yet — state stays empty
   },
 
+  // Admin editing a pre-built (user_id NULL) vendor. Points the whole vendor UI
+  // at an existing vendors row by id. Reuses every downstream write path (which
+  // key on _vendorDbId); only the vendors-row profile writes re-key by id, via
+  // the _adminMode flag checked in completeVendorOnboarding / updateVendorProfile.
+  initAdminEditMode: async (vendorId: string) => {
+    set({ _liveMode: true, _adminMode: true, _userId: null, _vendorDbId: vendorId })
+
+    const vendor = await fetchVendorById(vendorId)
+    if (!vendor) {
+      console.error('[vendor-store] initAdminEditMode: vendor not found', vendorId)
+      return
+    }
+
+    const profile = mapDbVendorToProfile(vendor)
+
+    const [dbListings, dbAvail, dbPackages] = await Promise.all([
+      fetchVendorListings(vendorId),
+      fetchVendorAvailability(vendorId),
+      fetchVendorPackages(vendorId),
+    ])
+
+    const listingIdMap: Record<string, string> = {}
+    const listings: VendorListing[] = dbListings.map((l: Record<string, unknown>) => {
+      listingIdMap[`vl-${l.id}`] = l.id as string
+      return mapDbListingToVendorListing(l)
+    })
+
+    const availability: VendorState['vendorAvailability'] = {}
+    for (const a of dbAvail) {
+      availability[a.date] = {
+        status: a.status,
+        listingIds: a.listing_ids || [],
+        blockedRanges: a.blocked_ranges || [],
+      }
+    }
+
+    const packageIdMap: Record<string, string> = {}
+    const mappedPackages = dbPackages.map((p) => {
+      const localId = `vp-${p.id}`
+      packageIdMap[localId] = p.id
+      return { id: localId, name: p.name, price: p.price, features: p.features || [], capacity: p.capacity || '' }
+    })
+
+    // Couple-interaction data (bookings/trials/bids/reviews/earnings/notifications)
+    // never applies to an admin-created vendor — leave those arrays empty.
+    set({
+      _listingIdMap: listingIdMap,
+      _packageIdMap: packageIdMap,
+      vendorOnboardingComplete: vendor.onboarding_complete,
+      vendorProfile: profile,
+      vendorPackages: mappedPackages,
+      vendorListings: listings,
+      vendorAvailability: availability,
+      vendorBookings: [],
+      vendorTrials: [],
+      vendorBidRequests: [],
+      vendorNotifications: [],
+      vendorReviews: [],
+      vendorEarnings: [],
+    })
+  },
+
   completeVendorOnboarding: async (profile, packages, markComplete = true) => {
-    const { _liveMode, _userId } = get()
-    console.log('[vendor-store] completeVendorOnboarding — liveMode:', _liveMode, 'userId:', _userId)
+    const { _liveMode, _adminMode, _userId, _vendorDbId } = get()
+    console.log('[vendor-store] completeVendorOnboarding — liveMode:', _liveMode, 'adminMode:', _adminMode, 'userId:', _userId)
+
+    // Admin edit mode: the shell vendor row already exists (created before the
+    // editor opened), so update it by id rather than upserting by user_id.
+    if (_liveMode && _adminMode && _vendorDbId) {
+      await upsertVendorById(_vendorDbId, profile)
+
+      const packageIdMap: Record<string, string> = {}
+      for (let i = 0; i < packages.length; i++) {
+        const p = packages[i]
+        const row = await insertPackage(_vendorDbId, p, i)
+        if (row) packageIdMap[p.id] = row.id
+      }
+
+      set({
+        _packageIdMap: packageIdMap,
+        vendorOnboardingComplete: markComplete,
+        vendorProfile: profile,
+        vendorPackages: packages,
+        vendorListings: [],
+        vendorAvailability: {},
+        vendorBookings: [],
+        vendorTrials: [],
+        vendorBidRequests: [],
+        vendorNotifications: [],
+        vendorReviews: [],
+        vendorEarnings: [],
+      })
+      return
+    }
 
     if (_liveMode && _userId) {
       // Save vendor to Supabase FIRST so we have the DB ID for photo uploads.
@@ -546,13 +653,15 @@ export const useVendorStore = create<VendorState & LiveModeState & {
   },
 
   updateVendorProfile: (updates) => {
-    const { _liveMode, _userId } = get()
+    const { _liveMode, _adminMode, _userId, _vendorDbId } = get()
 
     set((s) => ({
       vendorProfile: s.vendorProfile ? { ...s.vendorProfile, ...updates } : null,
     }))
 
-    if (_liveMode && _userId) {
+    if (_liveMode && _adminMode && _vendorDbId) {
+      updateVendorFieldsById(_vendorDbId, updates)
+    } else if (_liveMode && _userId) {
       updateVendorFields(_userId, updates)
     }
   },

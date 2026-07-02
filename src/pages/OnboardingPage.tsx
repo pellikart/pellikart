@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { OnboardingData } from '@/lib/types'
 import { formatINR } from '@/lib/helpers'
+import RoleSwitch from '@/components/RoleSwitch'
 
 const PRESET_EVENTS = ['Pre-Wedding Shoot', 'Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
 const GUEST_OPTIONS = ['100-200', '200-500', '500-1000', '1000+']
@@ -100,6 +101,10 @@ export default function OnboardingPage() {
             <button onClick={next} className="mt-8 w-full py-3.5 rounded-xl bg-magenta text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">
               Let's go
             </button>
+            {/* Escape hatch: a vendor who landed here by mistake can switch sides. */}
+            <div className="mt-6 text-[12px] text-gray-400">
+              Not planning a wedding? <RoleSwitch to="vendor" />
+            </div>
           </div>
         )}
 

@@ -4,6 +4,7 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos, deletePhoto } from '@/lib/supabase-db'
 import type { VendorProfile as VendorProfileType } from '@/lib/vendor-types'
 import SignOutButton from '@/components/SignOutButton'
+import RoleSwitch from '@/components/RoleSwitch'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props', 'Other']
 const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
@@ -252,7 +253,10 @@ export default function VendorProfile() {
       </div>
 
       {/* Account */}
-      <div className="px-4 mt-6 mb-2">
+      <div className="px-4 mt-6 mb-2 space-y-3">
+        <div className="text-[12px] text-gray-400">
+          Planning your own wedding? <RoleSwitch to="couple" />
+        </div>
         <SignOutButton />
       </div>
 

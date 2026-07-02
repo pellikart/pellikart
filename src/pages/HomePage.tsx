@@ -6,6 +6,7 @@ import UnlockBanner from '@/components/UnlockBanner'
 import TrialsBanner from '@/components/TrialsBanner'
 import RitualBoard from '@/components/RitualBoard'
 import SignOutButton from '@/components/SignOutButton'
+import RoleSwitch from '@/components/RoleSwitch'
 
 export default function HomePage() {
   const { ritualBoards, vendors, addRitualBoard, activeBoardId, setActiveBoardId } = useStore()
@@ -111,7 +112,10 @@ export default function HomePage() {
       </div>
 
       {/* Account */}
-      <div className="px-4 mt-8 mb-2 max-w-[480px] mx-auto">
+      <div className="px-4 mt-8 mb-2 max-w-[480px] mx-auto space-y-3">
+        <div className="text-[12px] text-gray-400">
+          Are you a vendor? <RoleSwitch to="vendor" />
+        </div>
         <SignOutButton />
       </div>
 
