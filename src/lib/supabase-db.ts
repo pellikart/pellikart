@@ -1095,6 +1095,60 @@ export async function fetchVendorTrials(vendorId: string): Promise<TrialRow[]> {
   return (data || []) as TrialRow[]
 }
 
+/**
+ * Leads: couples who selected (added to their board) one of this vendor's
+ * listings. board_categories / ritual_boards are world-readable (migration 010),
+ * so we can resolve the demand signal without exposing couple PII. For a
+ * per-plate venue, the picked plate package is resolved from the listing.
+ */
+export async function fetchVendorLeads(vendorId: string): Promise<import('./vendor-types').VendorLead[]> {
+  if (!supabase) return []
+  // 1. This vendor's listings — we need names, category and plate packages to
+  //    resolve which package a couple picked.
+  const { data: listings } = await supabase
+    .from('vendor_listings')
+    .select('id, name, category, plate_packages')
+    .eq('vendor_id', vendorId)
+  if (!listings || listings.length === 0) return []
+  const listingById = new Map(listings.map(l => [l.id as string, l]))
+  const listingIds = listings.map(l => l.id as string)
+
+  // 2. Board categories that picked one of these listings.
+  const { data: cats } = await supabase
+    .from('board_categories')
+    .select('id, ritual_board_id, label, selected_vendor_id, selected_plate_package_id, selected_tier_hours')
+    .in('selected_vendor_id', listingIds)
+    .eq('is_removed', false)
+  if (!cats || cats.length === 0) return []
+
+  // 3. Boards for name + event date context.
+  const boardIds = [...new Set(cats.map(c => c.ritual_board_id as string))]
+  const { data: boards } = await supabase
+    .from('ritual_boards')
+    .select('id, name, date_start')
+    .in('id', boardIds)
+  const boardById = new Map((boards || []).map(b => [b.id as string, b]))
+
+  return cats.map(c => {
+    const l = listingById.get(c.selected_vendor_id as string)
+    const board = boardById.get(c.ritual_board_id as string)
+    const pkgs = (l?.plate_packages as import('./vendor-types').PlatePackage[] | null) || []
+    const pkg = c.selected_plate_package_id ? pkgs.find(p => p.id === c.selected_plate_package_id) : undefined
+    return {
+      id: c.id as string,
+      listingId: c.selected_vendor_id as string,
+      listingName: (l?.name as string) || 'Listing',
+      category: (l?.category as string) || '',
+      boardName: (board?.name as string) || 'Wedding',
+      eventDate: (board?.date_start as string) || undefined,
+      categoryLabel: c.label as string,
+      packageName: pkg?.name || undefined,
+      packagePrice: pkg?.pricePerPlate,
+      tierHours: (c.selected_tier_hours as number | null) ?? undefined,
+    }
+  })
+}
+
 /** Vendor accepts a trial (keeps the couple's proposed time) */
 export async function acceptTrialDb(trialId: string) {
   if (!supabase) return

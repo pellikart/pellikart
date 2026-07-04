@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { VendorState, VendorProfile, VendorPackage, VendorListing, resolveVenueSlots } from './vendor-types'
 import { useStore } from './store'
 import {
-  mockVendorBookings, mockVendorTrials, mockVendorBidRequests,
+  mockVendorBookings, mockVendorTrials, mockVendorBidRequests, mockVendorLeads,
   mockVendorNotifications, mockVendorReviews, mockVendorEarnings,
   getMockListingsForCategory,
   mockVendorAnalytics, generateMockAvailability,
@@ -13,6 +13,7 @@ import {
   fetchVendorListings, insertListing, updateListingDb, deleteListingDb,
   fetchVendorAvailability, upsertAvailability,
   fetchVendorTrials as fetchVendorTrialsDb, acceptTrialDb, proposeNewTrialTimeDb, declineTrialDb,
+  fetchVendorLeads as fetchVendorLeadsDb,
   fetchVendorBidsDb, submitBidDb,
   fetchVendorBookingsDb, fetchVendorReviewsDb, fetchVendorEarningsDb,
   fetchNotifications, markNotificationReadDb, markAllNotificationsReadDb,
@@ -140,6 +141,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
   vendorBookings: [],
   vendorTrials: [],
   vendorBidRequests: [],
+  vendorLeads: [],
   vendorNotifications: [],
   vendorReviews: [],
   vendorEarnings: [],
@@ -177,7 +179,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       }
 
       // Fetch trials, bids, bookings, reviews, earnings, notifications, packages from DB
-      const [dbTrials, dbBids, dbBookings, dbReviews, dbEarnings, dbNotifications, dbPackages] = await Promise.all([
+      const [dbTrials, dbBids, dbBookings, dbReviews, dbEarnings, dbNotifications, dbPackages, dbLeads] = await Promise.all([
         fetchVendorTrialsDb(vendor.id),
         fetchVendorBidsDb(vendor.id),
         fetchVendorBookingsDb(vendor.id),
@@ -185,6 +187,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         fetchVendorEarningsDb(vendor.id),
         fetchNotifications(userId),
         fetchVendorPackages(vendor.id),
+        fetchVendorLeadsDb(vendor.id),
       ])
 
       // Map DB trials to vendor store format
@@ -327,6 +330,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         vendorBookings: mappedBookings,
         vendorTrials: mappedTrials,
         vendorBidRequests: mappedBids,
+        vendorLeads: dbLeads,
         vendorNotifications: mappedNotifications,
         vendorReviews: mappedReviews,
         vendorEarnings: mappedEarnings,
@@ -391,6 +395,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       vendorBookings: [],
       vendorTrials: [],
       vendorBidRequests: [],
+      vendorLeads: [],
       vendorNotifications: [],
       vendorReviews: [],
       vendorEarnings: [],
@@ -423,6 +428,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         vendorBookings: [],
         vendorTrials: [],
         vendorBidRequests: [],
+        vendorLeads: [],
         vendorNotifications: [],
         vendorReviews: [],
         vendorEarnings: [],
@@ -461,6 +467,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         vendorBookings: [],
         vendorTrials: [],
         vendorBidRequests: [],
+        vendorLeads: [],
         vendorNotifications: [],
         vendorReviews: [],
         vendorEarnings: [],
@@ -477,6 +484,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         vendorBookings: mockVendorBookings,
         vendorTrials: mockVendorTrials,
         vendorBidRequests: mockVendorBidRequests,
+        vendorLeads: markComplete && profile.category === 'Venue' ? mockVendorLeads : [],
         vendorNotifications: mockVendorNotifications,
         vendorReviews: mockVendorReviews,
         vendorEarnings: mockVendorEarnings,

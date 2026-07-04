@@ -317,6 +317,31 @@ export interface VendorBidRequest {
   decorBrief?: import('./types').DecorBrief | null
 }
 
+/**
+ * A lead: a couple who added one of this vendor's listings to their board (a
+ * "picked" signal). For a per-plate venue it records which plate package they
+ * chose. No couple contact — couples stay anonymous until a trial/booking.
+ */
+export interface VendorLead {
+  /** board_category id (stable per lead). */
+  id: string
+  /** The vendor listing the couple selected. */
+  listingId: string
+  listingName: string
+  /** Listing category (e.g. 'Venue'). */
+  category: string
+  /** The couple's ritual/board name (e.g. 'Wedding') and event date, if set. */
+  boardName: string
+  eventDate?: string
+  /** The board category label the listing was selected under. */
+  categoryLabel: string
+  /** Venue per-plate: the plate package the couple picked. */
+  packageName?: string
+  packagePrice?: number
+  /** Venue rent: the rental duration (hours) the couple picked. */
+  tierHours?: number
+}
+
 export interface VendorNotification {
   id: string
   type: string
@@ -375,6 +400,7 @@ export interface VendorState {
   vendorBookings: VendorBooking[]
   vendorTrials: VendorTrial[]
   vendorBidRequests: VendorBidRequest[]
+  vendorLeads: VendorLead[]
   vendorNotifications: VendorNotification[]
   vendorReviews: VendorReview[]
   vendorEarnings: EarningsTransaction[]

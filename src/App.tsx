@@ -29,6 +29,7 @@ import VendorCalendar from './pages/vendor/VendorCalendar'
 import VendorAnalytics from './pages/vendor/VendorAnalytics'
 import VendorReviews from './pages/vendor/VendorReviews'
 import VendorListings from './pages/vendor/VendorListings'
+import VendorLeads from './pages/vendor/VendorLeads'
 import VendorAddListing from './pages/vendor/VendorAddListing'
 import VendorEditListing from './pages/vendor/VendorEditListing'
 import VendorBottomNav from './components/VendorBottomNav'
@@ -321,6 +322,7 @@ function AppRoutes() {
           <Route path="/vendor/analytics" element={<VendorAnalytics />} />
           <Route path="/vendor/reviews" element={<VendorReviews />} />
           <Route path="/vendor/listings" element={<VendorListings />} />
+          <Route path="/vendor/leads" element={<VendorLeads />} />
           <Route path="/vendor/listings/new" element={<VendorAddListing />} />
           <Route path="/vendor/listings/edit/:listingId" element={<VendorEditListing />} />
           <Route path="*" element={<Navigate to="/vendor" />} />

@@ -8,7 +8,7 @@ import { VendorBooking } from '@/lib/vendor-types'
 
 export default function VendorDashboard() {
   const navigate = useNavigate()
-  const { vendorProfile, vendorListings, vendorBookings, vendorTrials, vendorBidRequests, vendorEarnings, vendorNotifications, vendorAnalytics } = useVendorStore()
+  const { vendorProfile, vendorListings, vendorBookings, vendorTrials, vendorBidRequests, vendorLeads, vendorEarnings, vendorNotifications, vendorAnalytics } = useVendorStore()
   // Single-listing categories (Mehendi, Makeup, Saree Draping) edit their pricing rather than manage listings.
   const singleCategory = isSingleListingCategory(vendorProfile?.category)
     ? vendorProfile?.category
@@ -112,6 +112,19 @@ export default function VendorDashboard() {
             <p className="text-[14px] font-bold text-mustard mt-0.5">{formatINR(pending)}</p>
           </button>
         </div>
+
+        {/* Leads — couples who picked your listings (with the package they chose) */}
+        {vendorLeads.length > 0 && (
+          <button onClick={() => navigate('/vendor/leads')} className="w-full mb-4 p-3 rounded-xl bg-mustard-light border border-mustard/20 flex items-center justify-between text-left">
+            <div>
+              <p className="text-[11px] font-semibold text-dark">Leads</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">
+                {vendorLeads.length} {vendorLeads.length === 1 ? 'couple' : 'couples'} picked your listings — see which package
+              </p>
+            </div>
+            <span className="text-mustard text-[18px]">›</span>
+          </button>
+        )}
 
         {/* Pending Actions */}
         {(pendingTrials > 0 || pendingBids > 0) && (

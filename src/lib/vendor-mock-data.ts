@@ -1,4 +1,4 @@
-import { VendorBooking, VendorTrial, VendorBidRequest, VendorNotification, VendorReview, EarningsTransaction, VendorAnalytics, VendorListing } from './vendor-types'
+import { VendorBooking, VendorTrial, VendorBidRequest, VendorLead, VendorNotification, VendorReview, EarningsTransaction, VendorAnalytics, VendorListing } from './vendor-types'
 
 const mockListingsData: Record<string, VendorListing[]> = {
   Photography: [
@@ -128,6 +128,24 @@ export const mockVendorBidRequests: VendorBidRequest[] = [
     id: 'vbr-2', coupleNames: 'Ravi & Anjali', eventName: 'Wedding',
     category: 'Decor', uploadedImage: '/images/gallery/decor/3.jpg', status: 'submitted',
     bidPrice: 280000, bidNote: 'Can do this exact design with premium flowers',
+  },
+]
+
+export const mockVendorLeads: VendorLead[] = [
+  {
+    id: 'vl-lead-1', listingId: 'v-venue-1', listingName: 'Grand Palace Banquet',
+    category: 'Venue', boardName: 'Wedding', eventDate: '2026-12-12',
+    categoryLabel: 'Venue', packageName: 'Non-veg Gold', packagePrice: 1500,
+  },
+  {
+    id: 'vl-lead-2', listingId: 'v-venue-1', listingName: 'Grand Palace Banquet',
+    category: 'Venue', boardName: 'Reception', eventDate: '2026-12-14',
+    categoryLabel: 'Venue', packageName: 'Veg Silver', packagePrice: 900,
+  },
+  {
+    id: 'vl-lead-3', listingId: 'v-venue-1', listingName: 'Grand Palace Banquet',
+    category: 'Venue', boardName: 'Sangeet', eventDate: '2026-12-11',
+    categoryLabel: 'Venue', packageName: 'Non-veg Platinum', packagePrice: 2200,
   },
 ]
 
