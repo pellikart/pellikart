@@ -138,6 +138,8 @@ export interface Category {
   decorBrief?: DecorBrief | null;
   /** Venue-only: which hourly tier (by hours) the couple picked for the selected vendor */
   selectedTierHours?: number;
+  /** Venue per-plate-only: which plate package (by id) the couple picked for the selected venue. */
+  selectedPlatePackageId?: string;
   /** Photography-only: the couple's rate-card selection for the selected vendor —
    *  how many people per role + shared coverage hours. Drives the live total. */
   photographyTeam?: { counts: Record<string, number>; hours: number };
@@ -210,6 +212,8 @@ export interface AppState {
   subscribe: (tier: SubscriptionTier) => void;
   selectVendor: (ritualId: string, categoryId: string, vendorId: string) => void;
   selectVendorTier: (ritualId: string, categoryId: string, tierHours: number | undefined) => void;
+  /** Venue per-plate: select this venue for the category with one specific plate package. */
+  selectVenuePackage: (ritualId: string, categoryId: string, vendorId: string, packageId: string) => void;
   selectPhotographyTeam: (ritualId: string, categoryId: string, counts: Record<string, number>, hours: number) => void;
   selectPhotographyPackage: (ritualId: string, categoryId: string, bucket: string, hours: number) => void;
   selectMehendiOptions: (ritualId: string, categoryId: string, selection: { coverage?: string; design?: string; groom?: boolean; guests?: number }) => void;

@@ -191,6 +191,13 @@ export default function CategoryBoardPage() {
     const prev = prevId ? vendors[prevId] : null
     const next = vendors[newVendorId]
 
+    // Intercept: a per-plate venue is added by picking one specific package, not
+    // the whole venue — open the detail sheet so the couple chooses a package.
+    if (next?.category === 'Venue' && next.venuePricingModels?.includes('perPlate') && (next.platePackages?.length ?? 0) > 0) {
+      setDetailVendorId(newVendorId)
+      return
+    }
+
     // Intercept: if this is a venue with a mandatory bundle, show the popup first.
     if (shouldShowBundlePopup(next)) {
       const bundles = buildBundleEntries(next!.bundledListings!, vendors)

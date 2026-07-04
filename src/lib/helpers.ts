@@ -281,7 +281,15 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
   if (!vendor || !category) return null
   // Most categories are exclusive, but a Makeup artist can also offer Saree
   // Draping and Hair Styling as add-ons — sum whatever the couple configured.
+  // Venue per-plate: reflect the couple's chosen package's per-plate price
+  // (falls back to the venue's "from" price via getListingTotal when unset).
+  const venuePlate = (() => {
+    if (!category.selectedPlatePackageId || !vendor.platePackages?.length) return null
+    const pkg = vendor.platePackages.find(p => p.id === category.selectedPlatePackageId)
+    return pkg ? pkg.pricePerPlate : null
+  })()
   const parts = [
+    venuePlate,
     // Photography is one model at a time: a guest-based package (if picked) takes
     // precedence over the hourly rate-card team so the two never double-count.
     getPhotographyPackageSelectionTotal(vendor, category.photographyPackage)

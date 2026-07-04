@@ -188,7 +188,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const [lightbox, setLightbox] = useState<number | null>(null)
   // Menu-photo zoom: a single menu image URL to show full-screen, or null.
   const [menuPhotoZoom, setMenuPhotoZoom] = useState<string | null>(null)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectPhotographyPackage, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectVenuePackage, selectPhotographyTeam, selectPhotographyPackage, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -1110,7 +1110,14 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {/* Per-plate packages (Venue per-plate model) */}
             {vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && vendor.platePackages && vendor.platePackages.length > 0 && (
               <div className="mb-4 p-2.5 rounded-xl bg-mustard-light/30 border border-mustard/20">
-                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Per-plate packages</p>
+                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1">Per-plate packages</p>
+                {ritualId && categoryId && (
+                  <p className="text-[10px] text-gray-500 mb-1.5">
+                    {isAddedToBoard && currentCategory?.selectedPlatePackageId
+                      ? '✓ Added to your board — tap another to switch'
+                      : 'Pick the package you want to add this venue to your board'}
+                  </p>
+                )}
                 {/* Venue-level service time slots — shared across all packages */}
                 {vendor.slots && vendor.slots.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-2">
@@ -1125,15 +1132,30 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                   </div>
                 )}
                 <div className="flex flex-col gap-1.5">
-                  {vendor.platePackages.map((pkg) => (
-                    <div key={pkg.id} className="w-full rounded-lg bg-white border border-card-border overflow-hidden">
-                      <div className="flex items-center justify-between py-2 px-3">
-                        <span className="text-[12px] font-medium text-dark">
-                          {pkg.name?.trim() || 'Per plate'}
-                          {pkg.minPlates ? <span className="text-[10px] text-gray-400 font-normal"> · min {pkg.minPlates}</span> : null}
+                  {vendor.platePackages.map((pkg) => {
+                    const selectable = !!(ritualId && categoryId)
+                    const pkgSelected = isAddedToBoard && currentCategory?.selectedPlatePackageId === pkg.id
+                    return (
+                    <div key={pkg.id} className={`w-full rounded-lg bg-white border overflow-hidden ${pkgSelected ? 'border-2 border-mustard' : 'border-card-border'}`}>
+                      <button
+                        type="button"
+                        disabled={!selectable}
+                        onClick={() => { if (selectable) selectVenuePackage(ritualId!, categoryId!, vendor.id, pkg.id) }}
+                        className={`w-full flex items-center justify-between py-2 px-3 text-left ${selectable ? 'active:bg-mustard-light/30' : 'cursor-default'}`}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          {selectable && (
+                            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${pkgSelected ? 'border-mustard' : 'border-gray-300'}`}>
+                              {pkgSelected && <span className="w-2 h-2 rounded-full bg-mustard" />}
+                            </span>
+                          )}
+                          <span className="text-[12px] font-medium text-dark truncate">
+                            {pkg.name?.trim() || 'Per plate'}
+                            {pkg.minPlates ? <span className="text-[10px] text-gray-400 font-normal"> · min {pkg.minPlates}</span> : null}
+                          </span>
                         </span>
-                        <span className="text-[12px] font-semibold text-magenta">{formatINR(pkg.pricePerPlate)} <span className="text-[10px] font-normal text-gray-400">/plate</span></span>
-                      </div>
+                        <span className="text-[12px] font-semibold text-magenta shrink-0">{formatINR(pkg.pricePerPlate)} <span className="text-[10px] font-normal text-gray-400">/plate</span></span>
+                      </button>
                       {(() => {
                         const pkgShowPhotos = pkg.menuMode === 'photos' && (pkg.menuPhotos?.length ?? 0) > 0
                         const pkgShowPicker = !pkgShowPhotos && (pkg.menu?.length ?? 0) > 0
@@ -1155,7 +1177,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                         )
                       })()}
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             )}

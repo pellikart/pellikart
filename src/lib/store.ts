@@ -672,12 +672,30 @@ export const useStore = create<AppState & LiveModeState & {
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedVendorId: vendorId, selectedTierHours: defaultTier } : c) }
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedVendorId: vendorId, selectedTierHours: defaultTier, selectedPlatePackageId: undefined } : c) }
           : b
       ),
     }))
     if (_liveMode) {
-      updateBoardCategory(categoryId, { selectedVendorId: vendorId, selectedTierHours: defaultTier })
+      updateBoardCategory(categoryId, { selectedVendorId: vendorId, selectedTierHours: defaultTier, selectedPlatePackageId: undefined })
+      const vid = _listingVendorMap[vendorId]
+      if (vid) trackEvent(vid, 'vendor_select', _userId, vendorId)
+    }
+  },
+
+  // Select a per-plate venue for the category with one specific plate package.
+  // Mirrors selectVendor but records the chosen package (and clears any rent tier).
+  selectVenuePackage: (ritualId, categoryId, vendorId, packageId) => {
+    const { _liveMode, _userId, _listingVendorMap } = get()
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedVendorId: vendorId, selectedPlatePackageId: packageId, selectedTierHours: undefined } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { selectedVendorId: vendorId, selectedPlatePackageId: packageId, selectedTierHours: undefined })
       const vid = _listingVendorMap[vendorId]
       if (vid) trackEvent(vid, 'vendor_select', _userId, vendorId)
     }

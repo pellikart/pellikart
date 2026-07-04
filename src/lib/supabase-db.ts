@@ -624,6 +624,7 @@ export async function fetchRitualBoards(coupleId: string) {
         removed: c.is_removed || false,
         decorBrief: c.decor_brief || null,
         selectedTierHours: c.selected_tier_hours ?? undefined,
+        selectedPlatePackageId: (c.selected_plate_package_id as string | null) ?? undefined,
         photographyTeam: (c.photography_team as { counts: Record<string, number>; hours: number } | null) ?? undefined,
         photographyPackage: (c.photography_package as { bucket: string; hours: number } | null) ?? undefined,
         mehendiSelection: (c.mehendi_selection as { coverage?: string; design?: string; groom?: boolean; guests?: number } | null) ?? undefined,
@@ -706,6 +707,9 @@ export async function updateBoardCategory(categoryId: string, updates: Partial<C
   if (updates.suggestedVendors !== undefined) mapped.suggested_vendors = updates.suggestedVendors
   if (updates.removed !== undefined) mapped.is_removed = updates.removed
   if (updates.selectedTierHours !== undefined) mapped.selected_tier_hours = updates.selectedTierHours ?? null
+  // `in` check (not !== undefined) so selecting a whole vendor / other package
+  // actively clears any previously-picked plate package rather than leaving it set.
+  if ('selectedPlatePackageId' in updates) mapped.selected_plate_package_id = updates.selectedPlatePackageId ?? null
   // Photography fields use an `in` check (not !== undefined) so a model switch that
   // passes `photographyPackage: undefined` / `photographyTeam: undefined` actively
   // clears the sibling column rather than silently leaving it set.
