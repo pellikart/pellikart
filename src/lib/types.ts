@@ -41,6 +41,8 @@ export interface Vendor {
   hourlyPricing?: { hours: number; price: number }[];
   /** Venue-only: per-plate food packages (the rent-free / per-plate model). */
   platePackages?: import('./vendor-types').PlatePackage[];
+  /** Venue-only: service time slots offered by the venue (shared across all plate packages). */
+  slots?: import('./vendor-types').PlateSlot[];
   /** Decor-only: per-size price variants. When set, `price` is the min (starting price). */
   sizes?: import('./vendor-types').SizePrice[];
   paidRooms?: import('./vendor-types').PaidRoom[];

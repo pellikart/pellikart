@@ -1111,6 +1111,19 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && vendor.platePackages && vendor.platePackages.length > 0 && (
               <div className="mb-4 p-2.5 rounded-xl bg-mustard-light/30 border border-mustard/20">
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">Per-plate packages</p>
+                {/* Venue-level service time slots — shared across all packages */}
+                {vendor.slots && vendor.slots.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {vendor.slots.map((s) => {
+                      const range = s.from && s.to ? `${fmtTime(s.from)}–${fmtTime(s.to)}` : (s.from ? fmtTime(s.from) : '')
+                      return (
+                        <span key={s.id} className="bg-white border border-card-border text-[9px] text-gray-600 px-2 py-0.5 rounded-full">
+                          {s.name?.trim() || 'Slot'}{range ? ` · ${range}` : ''}
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
                 <div className="flex flex-col gap-1.5">
                   {vendor.platePackages.map((pkg) => (
                     <div key={pkg.id} className="w-full rounded-lg bg-white border border-card-border overflow-hidden">
@@ -1121,18 +1134,6 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                         </span>
                         <span className="text-[12px] font-semibold text-magenta">{formatINR(pkg.pricePerPlate)} <span className="text-[10px] font-normal text-gray-400">/plate</span></span>
                       </div>
-                      {pkg.slots && pkg.slots.length > 0 && (
-                        <div className="flex flex-wrap gap-1 px-3 pb-2">
-                          {pkg.slots.map((s) => {
-                            const range = s.from && s.to ? `${fmtTime(s.from)}–${fmtTime(s.to)}` : (s.from ? fmtTime(s.from) : '')
-                            return (
-                              <span key={s.id} className="bg-empty-bg text-[9px] text-gray-600 px-2 py-0.5 rounded-full">
-                                {s.name?.trim() || 'Slot'}{range ? ` · ${range}` : ''}
-                              </span>
-                            )
-                          })}
-                        </div>
-                      )}
                       {(() => {
                         const pkgShowPhotos = pkg.menuMode === 'photos' && (pkg.menuPhotos?.length ?? 0) > 0
                         const pkgShowPicker = !pkgShowPhotos && (pkg.menu?.length ?? 0) > 0

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard, MenuSelection } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
 import { getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
+import { resolveVenueSlots } from "./vendor-types";
 import {
   fetchCouple, upsertCouple,
   fetchRitualBoards, insertRitualBoard,
@@ -141,6 +142,7 @@ export function buildLiveVendorMap(
         const pp = l.plate_packages as import('./vendor-types').PlatePackage[] | null
         return Array.isArray(pp) && pp.length > 0 ? pp : undefined
       })(),
+      slots: resolveVenueSlots(l.plate_slots, l.plate_packages),
       sizes: (() => {
         const raw = l.sizes
         return Array.isArray(raw) && raw.length > 0

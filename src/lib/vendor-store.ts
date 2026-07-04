@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { VendorState, VendorProfile, VendorPackage, VendorListing } from './vendor-types'
+import { VendorState, VendorProfile, VendorPackage, VendorListing, resolveVenueSlots } from './vendor-types'
 import { useStore } from './store'
 import {
   mockVendorBookings, mockVendorTrials, mockVendorBidRequests,
@@ -57,6 +57,7 @@ function mapDbListingToVendorListing(l: Record<string, unknown>): VendorListing 
     venuePricingModels: arr(l.venue_pricing_models) as import('./vendor-types').VenuePricingModel[] | undefined,
     hourlyPricing: arr(l.hourly_pricing) as { hours: number; price: number }[] | undefined,
     platePackages: arr(l.plate_packages) as import('./vendor-types').PlatePackage[] | undefined,
+    slots: resolveVenueSlots(l.plate_slots, l.plate_packages),
     paidRooms: arr(l.paid_rooms) as import('./vendor-types').PaidRoom[] | undefined,
     inHouseDecor: (() => { const d = l.in_house_decor as import('./vendor-types').InHouseDecor | null; return d && typeof d.compulsory === 'boolean' ? d : undefined })(),
     menu: arr(l.menu) as import('./vendor-types').MenuSection[] | undefined,

@@ -5,11 +5,11 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
-import type { MenuSection, MenuMode, PlatePackage, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
+import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
 import MenuEditor from '@/components/MenuEditor'
 import SizesEditor from '@/components/SizesEditor'
-import TimePicker from '@/components/TimePicker'
+import PlateSlotsEditor from '@/components/PlateSlotsEditor'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
 import MakeupAddonsEditor from '@/components/MakeupAddonsEditor'
@@ -72,6 +72,8 @@ export default function VendorEditListing() {
   const [menuPhotos, setMenuPhotos] = useState<string[]>([])
   const [menuMode, setMenuMode] = useState<MenuMode>('items')
   const [platePackages, setPlatePackages] = useState<PlatePackage[]>([])
+  // Venue-level service time slots, shared across all plate packages.
+  const [slots, setSlots] = useState<PlateSlot[]>([])
   // Decor per-size pricing.
   const [sizes, setSizes] = useState<SizePrice[]>([])
   // Venue location + rent pricing.
@@ -127,6 +129,7 @@ export default function VendorEditListing() {
       setMenuPhotos(listing.menuPhotos || [])
       setMenuMode(listing.menuMode || 'items')
       setPlatePackages(listing.platePackages || [])
+      setSlots(listing.slots || [])
       setSizes(listing.sizes || [])
       setVenueLocation(listing.venueLocation && listing.venueLocation.address ? listing.venueLocation : { address: '' })
       setVenuePricingModels(listing.venuePricingModels || [])
@@ -323,6 +326,7 @@ export default function VendorEditListing() {
       menuPhotos: category === 'Catering' ? menuPhotos : listing.menuPhotos,
       menuMode: category === 'Catering' ? menuMode : listing.menuMode,
       platePackages: category === 'Venue' ? platePackages : listing.platePackages,
+      slots: category === 'Venue' ? slots : listing.slots,
       sizes: category === 'Decor' ? (sizes.length > 0 ? sizes : undefined) : listing.sizes,
       venueLocation: category === 'Venue' ? (venueLocation.address.trim() ? venueLocation : undefined) : listing.venueLocation,
       venuePricingModels: category === 'Venue' ? (venuePricingModels.length > 0 ? venuePricingModels : undefined) : listing.venuePricingModels,
@@ -869,54 +873,6 @@ export default function VendorEditListing() {
                     </div>
                   </details>
 
-                  {/* Time slots — name + hours so couples know the timing */}
-                  <div>
-                    <p className="text-[10px] text-gray-500 mb-1.5">Time slots <span className="text-gray-400">(optional)</span></p>
-                    {(pkg.slots && pkg.slots.length > 0) && (
-                      <div className="space-y-1.5 mb-1.5">
-                        {pkg.slots.map((slot, si) => (
-                          <div key={slot.id} className="rounded-lg border border-card-border p-2.5 space-y-2">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={slot.name}
-                                onChange={(e) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, slots: (p.slots || []).map((s, sj) => sj === si ? { ...s, name: e.target.value } : s) } : p))}
-                                placeholder="e.g. Morning"
-                                className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, slots: (p.slots || []).filter((_, sj) => sj !== si) } : p))}
-                                aria-label="Remove slot"
-                                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100"
-                              >×</button>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-medium text-gray-500 w-8 shrink-0">From</span>
-                              <TimePicker
-                                value={slot.from}
-                                onChange={(val) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, slots: (p.slots || []).map((s, sj) => sj === si ? { ...s, from: val } : s) } : p))}
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-medium text-gray-500 w-8 shrink-0">To</span>
-                              <TimePicker
-                                value={slot.to}
-                                onChange={(val) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, slots: (p.slots || []).map((s, sj) => sj === si ? { ...s, to: val } : s) } : p))}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, slots: [...(p.slots || []), { id: `sl-${Date.now()}-${(p.slots || []).length}`, name: '', from: '', to: '' }] } : p))}
-                      className="px-3 py-1.5 rounded-full text-[10px] font-medium bg-empty-bg text-dark border border-card-border active:bg-mustard-light/40"
-                    >
-                      + Add slot
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>
@@ -927,6 +883,10 @@ export default function VendorEditListing() {
             >
               + Add package
             </button>
+            {/* Venue-level service time slots — shared across all packages */}
+            <div className="mt-3 pt-3 border-t border-card-border">
+              <PlateSlotsEditor value={slots} onChange={setSlots} />
+            </div>
           </div>
         )}
       </div>

@@ -70,7 +70,8 @@ export interface VenueLocation {
 /** Venue-only: which pricing model(s) a venue offers. */
 export type VenuePricingModel = 'rent' | 'perPlate'
 
-/** Venue-only: a named service time slot for a per-plate package (e.g. "Morning · 9 AM–1 PM"). */
+/** Venue-only: a named service time slot offered by the venue (e.g. "Morning · 9 AM–1 PM").
+ *  Defined once at the venue (listing) level and shared across all plate packages. */
 export interface PlateSlot {
   /** Stable per-slot id. */
   id: string
@@ -80,6 +81,25 @@ export interface PlateSlot {
   from: string
   /** End time, 'HH:MM' (24h). */
   to: string
+}
+
+/**
+ * Resolve a venue's service slots for display/edit. Prefers the venue-level
+ * `plate_slots` column; falls back to legacy per-package slots (deduped by
+ * name+from+to) so venues created before slots moved up keep showing them.
+ */
+export function resolveVenueSlots(rawSlots: unknown, platePackages: unknown): PlateSlot[] | undefined {
+  if (Array.isArray(rawSlots) && rawSlots.length > 0) return rawSlots as PlateSlot[]
+  const pkgs = Array.isArray(platePackages) ? (platePackages as Array<{ slots?: PlateSlot[] }>) : []
+  const seen = new Set<string>()
+  const out: PlateSlot[] = []
+  for (const p of pkgs) {
+    for (const s of p?.slots || []) {
+      const key = `${s.name}|${s.from}|${s.to}`
+      if (!seen.has(key)) { seen.add(key); out.push(s) }
+    }
+  }
+  return out.length > 0 ? out : undefined
 }
 
 /** Venue-only: a per-plate food package/tier for the rent-free (per-plate) model. */
@@ -92,8 +112,6 @@ export interface PlatePackage {
   pricePerPlate: number
   /** Optional minimum plate count for this tier. */
   minPlates?: number
-  /** Service time slots offered for this package (e.g. Morning 4 hrs, Evening 5 hrs). */
-  slots?: PlateSlot[]
   /** Menu the couple gets in this package — same structure as a Catering menu
    *  (sections of dish-bank picks + custom dishes + per-section pick limits). */
   menu?: MenuSection[]
@@ -186,6 +204,8 @@ export interface VendorListing {
   hourlyPricing?: { hours: number; price: number }[]
   /** Venue-only: per-plate food packages (the rent-free / per-plate model). */
   platePackages?: PlatePackage[]
+  /** Venue-only: service time slots offered by the venue (shared across all plate packages). */
+  slots?: PlateSlot[]
   /** Venue-only: paid lodging rooms the venue offers, grouped by sharing capacity. */
   paidRooms?: PaidRoom[]
   /** Venue-only: in-house decor offering (whether compulsory + its details/designs). */
