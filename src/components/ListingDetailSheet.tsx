@@ -188,7 +188,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const [lightbox, setLightbox] = useState<number | null>(null)
   // Menu-photo zoom: a single menu image URL to show full-screen, or null.
   const [menuPhotoZoom, setMenuPhotoZoom] = useState<string | null>(null)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectVenuePackage, selectPhotographyTeam, selectPhotographyPackage, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, addVenueToBoard, selectPhotographyTeam, selectPhotographyPackage, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -1113,8 +1113,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1">Per-plate packages</p>
                 {ritualId && categoryId && (
                   <p className="text-[10px] text-gray-500 mb-1.5">
-                    {isAddedToBoard && currentCategory?.selectedPlatePackageId
-                      ? '✓ Added to your board — tap another to switch'
+                    {currentCategory?.platePackageByVendor?.[vendor.id]
+                      ? '✓ On your board — tap another to switch package'
                       : 'Pick the package you want to add this venue to your board'}
                   </p>
                 )}
@@ -1134,13 +1134,13 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                 <div className="flex flex-col gap-1.5">
                   {vendor.platePackages.map((pkg) => {
                     const selectable = !!(ritualId && categoryId)
-                    const pkgSelected = isAddedToBoard && currentCategory?.selectedPlatePackageId === pkg.id
+                    const pkgSelected = currentCategory?.platePackageByVendor?.[vendor.id] === pkg.id
                     return (
                     <div key={pkg.id} className={`w-full rounded-lg bg-white border overflow-hidden ${pkgSelected ? 'border-2 border-mustard' : 'border-card-border'}`}>
                       <button
                         type="button"
                         disabled={!selectable}
-                        onClick={() => { if (selectable) selectVenuePackage(ritualId!, categoryId!, vendor.id, pkg.id) }}
+                        onClick={() => { if (selectable) addVenueToBoard(ritualId!, categoryId!, vendor.id, pkg.id) }}
                         className={`w-full flex items-center justify-between py-2 px-3 text-left ${selectable ? 'active:bg-mustard-light/30' : 'cursor-default'}`}
                       >
                         <span className="flex items-center gap-2 min-w-0">

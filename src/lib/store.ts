@@ -663,39 +663,82 @@ export const useStore = create<AppState & LiveModeState & {
   getMaxTrials: () => maxTrialsForTier(get().subscription),
 
   selectVendor: (ritualId, categoryId, vendorId) => {
-    const { _liveMode, _userId, _listingVendorMap, vendors } = get()
+    const { _liveMode, _userId, _listingVendorMap, vendors, ritualBoards } = get()
     // When selecting a venue with hourly pricing, default the tier to 24 hr (or first tier).
     const v = vendors[vendorId]
     const defaultTier = v?.hourlyPricing && v.hourlyPricing.length > 0
       ? (v.hourlyPricing.find(t => t.hours === 24)?.hours || v.hourlyPricing[0].hours)
       : undefined
+    // If this venue was added to the board with a plate package, keep it as the
+    // selected package (per-plate venues choose their package at add time).
+    const cat = ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
+    const pkgId = cat?.platePackageByVendor?.[vendorId]
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedVendorId: vendorId, selectedTierHours: defaultTier, selectedPlatePackageId: undefined } : c) }
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedVendorId: vendorId, selectedTierHours: defaultTier, selectedPlatePackageId: pkgId } : c) }
           : b
       ),
     }))
     if (_liveMode) {
-      updateBoardCategory(categoryId, { selectedVendorId: vendorId, selectedTierHours: defaultTier, selectedPlatePackageId: undefined })
+      updateBoardCategory(categoryId, { selectedVendorId: vendorId, selectedTierHours: defaultTier, selectedPlatePackageId: pkgId })
       const vid = _listingVendorMap[vendorId]
       if (vid) trackEvent(vid, 'vendor_select', _userId, vendorId)
     }
   },
 
-  // Select a per-plate venue for the category with one specific plate package.
-  // Mirrors selectVendor but records the chosen package (and clears any rent tier).
-  selectVenuePackage: (ritualId, categoryId, vendorId, packageId) => {
+  // Add a per-plate venue to the board (shortlist) with a chosen plate package,
+  // without selecting it as the winner. Records the package per-vendor so Compare
+  // can show each venue at its picked package price.
+  addVenueToBoard: (ritualId, categoryId, vendorId, packageId) => {
     const { _liveMode, _userId, _listingVendorMap } = get()
+    let newList: string[] = []
+    let newMap: Record<string, string> = {}
+    let winnerPkg: string | undefined
+    let isWinner = false
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, selectedVendorId: vendorId, selectedPlatePackageId: packageId, selectedTierHours: undefined } : c) }
+          ? { ...b, categories: b.categories.map((c) => {
+              if (c.id !== categoryId) return c
+              newList = c.shortlistedVendorIds.includes(vendorId) ? c.shortlistedVendorIds : [...c.shortlistedVendorIds, vendorId]
+              newMap = { ...c.platePackageByVendor, [vendorId]: packageId }
+              // If this venue is already the selected winner, keep its package in sync.
+              isWinner = c.selectedVendorId === vendorId
+              winnerPkg = isWinner ? packageId : c.selectedPlatePackageId
+              return { ...c, shortlistedVendorIds: newList, platePackageByVendor: newMap, selectedPlatePackageId: winnerPkg }
+            }) }
           : b
       ),
     }))
     if (_liveMode) {
-      updateBoardCategory(categoryId, { selectedVendorId: vendorId, selectedPlatePackageId: packageId, selectedTierHours: undefined })
+      updateBoardCategory(categoryId, isWinner
+        ? { shortlistedVendorIds: newList, platePackageByVendor: newMap, selectedPlatePackageId: winnerPkg }
+        : { shortlistedVendorIds: newList, platePackageByVendor: newMap })
+      const vid = _listingVendorMap[vendorId]
+      if (vid) trackEvent(vid, 'shortlist_add', _userId, vendorId)
+    }
+  },
+
+  // Select a per-plate venue for the category with one specific plate package.
+  // Mirrors selectVendor but records the chosen package (and clears any rent tier),
+  // and remembers the package per-vendor so Compare reflects it.
+  selectVenuePackage: (ritualId, categoryId, vendorId, packageId) => {
+    const { _liveMode, _userId, _listingVendorMap } = get()
+    let newMap: Record<string, string> = {}
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => {
+              if (c.id !== categoryId) return c
+              newMap = { ...c.platePackageByVendor, [vendorId]: packageId }
+              return { ...c, selectedVendorId: vendorId, selectedPlatePackageId: packageId, selectedTierHours: undefined, platePackageByVendor: newMap }
+            }) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { selectedVendorId: vendorId, selectedPlatePackageId: packageId, selectedTierHours: undefined, platePackageByVendor: newMap })
       const vid = _listingVendorMap[vendorId]
       if (vid) trackEvent(vid, 'vendor_select', _userId, vendorId)
     }

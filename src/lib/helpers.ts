@@ -312,6 +312,21 @@ export function getVenuePlateFromPrice(packages?: import('./vendor-types').Plate
   return prices.length ? Math.min(...prices) : 0
 }
 
+/**
+ * The board price to show for a venue: the per-plate price of the plate package
+ * the couple picked for THIS venue (via category.platePackageByVendor), falling
+ * back to the venue's own `price` (its "from" price) when no package is chosen.
+ * Used so the Compare table lines venues up on their picked packages.
+ */
+export function getVenueBoardPrice(vendor: Vendor, category?: Category): number {
+  const pkgId = category?.platePackageByVendor?.[vendor.id]
+  if (pkgId && vendor.platePackages?.length) {
+    const pkg = vendor.platePackages.find(p => p.id === pkgId)
+    if (pkg) return pkg.pricePerPlate
+  }
+  return vendor.price
+}
+
 export function bgStyle(photo: string): { background: string } {
   if (!photo) return { background: '#f3f4f6' }
   const val = photo.startsWith('url(') ? photo : `url("${photo}")`

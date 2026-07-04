@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal, makePublicCode } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal, getVenueBoardPrice, makePublicCode } from '@/lib/helpers'
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
@@ -28,7 +28,7 @@ export default function CategoryBoardPage() {
 
   const {
     ritualBoards, vendors, subscription,
-    selectVendor, addToShortlist, removeFromShortlist, toggleLike,
+    selectVendor, addToShortlist, addVenueToBoard, removeFromShortlist, toggleLike,
     trialSessions, trialsUsed, requestTrial, markTrialDone, confirmReschedule,
     addDesignAsVendor, setDecorBrief, restoreCategory,
   } = useStore()
@@ -56,6 +56,8 @@ export default function CategoryBoardPage() {
   const [filterValues, setFilterValues] = useState<FilterValues>({})
   const [sheetExpanded, setSheetExpanded] = useState(false)
   const [detailVendorId, setDetailVendorId] = useState<string | null>(null)
+  // Per-plate venue package picker shown when adding a venue to the board.
+  const [pkgPicker, setPkgPicker] = useState<{ vendorId: string; design?: Design } | null>(null)
   const [trialPickerVendorId, setTrialPickerVendorId] = useState<string | null>(null)
   const [trialDate, setTrialDate] = useState('')
   const [trialTime, setTrialTime] = useState('')
@@ -186,16 +188,36 @@ export default function CategoryBoardPage() {
   }
   const bookingAmount = Math.round(ritualTotal * 0.04)
 
+  // A venue that prices per plate and has packages — its board price is one chosen package.
+  function isPerPlateVenue(v: Vendor | undefined): boolean {
+    return !!v && v.category === 'Venue' && !!v.venuePricingModels?.includes('perPlate') && (v.platePackages?.length ?? 0) > 0
+  }
+
+  // Add a vendor to the board. For a per-plate venue, first ask which package
+  // (so every board venue carries a chosen package and Compare lines them up).
+  function handleAddToBoard(vendorId: string, design?: Design) {
+    const v = vendors[vendorId] || (design ? getExploreVendor(design) : undefined)
+    if (isPerPlateVenue(v)) {
+      setPkgPicker({ vendorId, design })
+      return
+    }
+    if (design) addDesignAsVendor(design)
+    addToShortlist(ritualId!, categoryId!, vendorId)
+  }
+
   function handleSwap(newVendorId: string) {
     const prevId = category!.selectedVendorId
     const prev = prevId ? vendors[prevId] : null
     const next = vendors[newVendorId]
 
-    // Intercept: a per-plate venue is added by picking one specific package, not
-    // the whole venue — open the detail sheet so the couple chooses a package.
-    if (next?.category === 'Venue' && next.venuePricingModels?.includes('perPlate') && (next.platePackages?.length ?? 0) > 0) {
-      setDetailVendorId(newVendorId)
-      return
+    // A per-plate venue is chosen as one specific package. If it was added to the
+    // board with a package, select it directly; otherwise open the sheet to pick.
+    if (isPerPlateVenue(next)) {
+      if (!category!.platePackageByVendor?.[newVendorId]) {
+        setDetailVendorId(newVendorId)
+        return
+      }
+      // has a picked package — fall through to normal select (keeps the package)
     }
 
     // Intercept: if this is a venue with a mandatory bundle, show the popup first.
@@ -310,6 +332,7 @@ export default function CategoryBoardPage() {
                 selectedId={category.selectedVendorId}
                 unlocked={unlocked}
                 categoryLabel={category.label}
+                category={category}
                 onSelect={handleSwap}
               />
             )}
@@ -466,7 +489,7 @@ export default function CategoryBoardPage() {
                         unlocked={unlocked}
                         vendorName={pv?.name || d.name}
                         specs={specs}
-                        onAdd={() => { addDesignAsVendor(d); addToShortlist(ritualId!, categoryId!, d.id) }}
+                        onAdd={() => handleAddToBoard(d.id, d)}
                         onTap={() => { addDesignAsVendor(d); setDetailVendorId(d.id) }}
                       />
                     )
@@ -493,7 +516,7 @@ export default function CategoryBoardPage() {
                           <div>
                             <p className="text-white/80 text-[9px]">{unlocked ? vendor.name : vendor.code}</p>
                             <p className="text-white font-bold text-xs">{vendor.guestPackages && !vendor.rateCard ? <span className="font-normal text-[10px]">from </span> : ''}{formatINR(vendor.price)}{vendor.rateCard ? <span className="font-normal text-[10px]">/hr</span> : vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
-                            <button onClick={(e) => { e.stopPropagation(); addToShortlist(ritualId!, categoryId!, v.id) }} className="mt-1.5 w-full bg-white text-magenta text-[10px] font-semibold py-1.5 rounded-lg active:scale-[0.97] transition-transform">+ Add</button>
+                            <button onClick={(e) => { e.stopPropagation(); handleAddToBoard(v.id) }} className="mt-1.5 w-full bg-white text-magenta text-[10px] font-semibold py-1.5 rounded-lg active:scale-[0.97] transition-transform">+ Add</button>
                           </div>
                         </div>
                       </div>
@@ -676,6 +699,41 @@ export default function CategoryBoardPage() {
         />
       )}
 
+      {/* Package picker — choose a plate package when adding a per-plate venue */}
+      {pkgPicker && vendors[pkgPicker.vendorId] && (() => {
+        const v = vendors[pkgPicker.vendorId]
+        return (
+          <div className="fixed inset-0 bg-black/50 z-[60] flex items-end justify-center md:items-center md:p-6" onClick={() => setPkgPicker(null)}>
+            <div className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+              <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3 md:hidden" />
+              <p className="text-[14px] font-bold text-dark">Pick a package</p>
+              <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Choose which plate package to add for {unlocked ? v.name : (v.publicCode || v.code)}. You can compare this against other venues.</p>
+              <div className="space-y-1.5">
+                {v.platePackages!.map((pkg) => (
+                  <button
+                    key={pkg.id}
+                    type="button"
+                    onClick={() => {
+                      if (pkgPicker.design) addDesignAsVendor(pkgPicker.design)
+                      addVenueToBoard(ritualId!, categoryId!, pkgPicker.vendorId, pkg.id)
+                      setPkgPicker(null)
+                    }}
+                    className="w-full flex items-center justify-between py-2.5 px-3 rounded-lg border border-card-border bg-white active:bg-mustard-light/30 text-left"
+                  >
+                    <span className="text-[12px] font-medium text-dark truncate">
+                      {pkg.name?.trim() || 'Per plate'}
+                      {pkg.minPlates ? <span className="text-[10px] text-gray-400 font-normal"> · min {pkg.minPlates}</span> : null}
+                    </span>
+                    <span className="text-[12px] font-semibold text-magenta shrink-0">{formatINR(pkg.pricePerPlate)} <span className="text-[10px] font-normal text-gray-400">/plate</span></span>
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setPkgPicker(null)} className="mt-3 w-full py-2.5 rounded-xl border border-card-border text-gray-500 text-[12px] font-medium">Cancel</button>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Price-change toast on swap */}
       {priceChange && (() => {
         const diff = priceChange.newPrice - priceChange.oldPrice
@@ -759,12 +817,13 @@ export default function CategoryBoardPage() {
 // --- Sub-components ---
 
 function VisualGridCard({
-  v, isSelected, unlocked, onSelect, onLike, onRemove, onTap, trialStatus, selectionTotal,
+  v, isSelected, unlocked, onSelect, onLike, onRemove, onTap, trialStatus, selectionTotal, platePkg,
 }: {
   v: Vendor; isSelected: boolean; unlocked: boolean;
   onSelect: () => void; onLike: () => void; onRemove: () => void; onTap: () => void;
   trialStatus: 'none' | 'requested' | 'done';
   selectionTotal?: number | null;
+  platePkg?: { name: string; price: number } | null;
 }) {
   const likeNames = v.likes.map((l) => l.name)
   const userLiked = v.likes.some((l) => l.userId === 'u-user')
@@ -786,7 +845,9 @@ function VisualGridCard({
             {unlocked ? v.name : v.code} · {v.style}
             {v.category && <> · {v.category}</>}
           </p>
-          {selectionTotal != null ? (
+          {platePkg ? (
+            <p className="text-white font-bold text-xs">{formatINR(platePkg.price)}<span className="font-normal text-[10px]">/plate</span> <span className="font-normal text-white/70 text-[9px]">· {platePkg.name}</span></p>
+          ) : selectionTotal != null ? (
             <p className="text-white font-bold text-xs">{formatINR(selectionTotal)}</p>
           ) : v.price > 0 ? (
             <p className="text-white font-bold text-xs">{v.guestPackages && !v.rateCard ? <span className="font-normal text-[10px]">from </span> : ''}{formatINR(v.price)}{v.rateCard ? <span className="font-normal text-[10px]">/hr</span> : v.category === 'Venue' && v.venuePricingModels?.includes('perPlate') && !v.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
@@ -831,6 +892,9 @@ function VisualGrid({
         const trialKey = `${ritualId}-${categoryId}-${v.id}`
         const trial = trialSessions[trialKey]
         const trialStatus: 'none' | 'requested' | 'done' = trial ? (trial.status === 'done' ? 'done' : 'requested') : 'none'
+        // Per-plate venue: show the plate package the couple picked for this venue.
+        const pkgId = category.platePackageByVendor?.[v.id]
+        const pkg = pkgId && v.platePackages ? v.platePackages.find(p => p.id === pkgId) : undefined
         return (
           <div key={v.id} className={i === 0 && vendors.length > 2 ? 'span-2' : ''}>
             <VisualGridCard
@@ -838,6 +902,7 @@ function VisualGrid({
               onSelect={() => onSelect(v.id)} onLike={() => onLike(v.id)} onRemove={() => onRemove(v.id)} onTap={() => onTap(v.id)}
               trialStatus={trialStatus}
               selectionTotal={v.id === selectedId ? getCategorySelectionTotal(v, category) : null}
+              platePkg={pkg ? { name: pkg.name?.trim() || 'Package', price: pkg.pricePerPlate } : null}
             />
           </div>
         )
@@ -847,10 +912,13 @@ function VisualGrid({
 }
 
 function CompareTable({
-  vendors, selectedId, unlocked, categoryLabel, onSelect,
+  vendors, selectedId, unlocked, categoryLabel, category, onSelect,
 }: {
-  vendors: Vendor[]; selectedId: string | null; unlocked: boolean; categoryLabel: string; onSelect: (id: string) => void;
+  vendors: Vendor[]; selectedId: string | null; unlocked: boolean; categoryLabel: string; category: import('@/lib/types').Category; onSelect: (id: string) => void;
 }) {
+  // Per-plate venues compare on the package the couple picked for each; everything
+  // else compares on the listing price.
+  const priceOf = (v: Vendor) => getVenueBoardPrice(v, category)
   const [includesExpanded, setIncludesExpanded] = useState(false)
   const listingConfig = getListingConfig(categoryLabel)
   // Flatten all category-specific fields from the listing creation flow
@@ -867,7 +935,7 @@ function CompareTable({
     vendors.some(v => v.includes?.includes(inc))
   )
 
-  const bestPrice = Math.min(...vendors.map((v) => v.price))
+  const bestPrice = Math.min(...vendors.map((v) => priceOf(v)))
   const bestRating = Math.max(...vendors.map((v) => v.rating))
   const bestLikes = Math.max(...vendors.map((v) => v.likes.length))
 
@@ -896,9 +964,17 @@ function CompareTable({
           {/* Generic rows */}
           <tr className="border-b border-card-border/50">
             <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Price</td>
-            {vendors.map((v) => (
-              <td key={v.id} className={`py-2 px-2 text-center ${v.price === bestPrice ? 'text-magenta font-bold' : 'text-dark'}`}>{formatINR(v.price)}</td>
-            ))}
+            {vendors.map((v) => {
+              const price = priceOf(v)
+              const pkgId = category.platePackageByVendor?.[v.id]
+              const pkg = pkgId && v.platePackages ? v.platePackages.find(p => p.id === pkgId) : undefined
+              return (
+                <td key={v.id} className={`py-2 px-2 text-center ${price === bestPrice ? 'text-magenta font-bold' : 'text-dark'}`}>
+                  {formatINR(price)}{pkg ? <span className="font-normal text-gray-400">/plate</span> : ''}
+                  {pkg && <span className="block text-[9px] text-gray-400 font-normal">{pkg.name}</span>}
+                </td>
+              )
+            })}
           </tr>
           <tr className="border-b border-card-border/50">
             <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Style</td>
