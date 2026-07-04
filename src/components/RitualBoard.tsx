@@ -178,7 +178,7 @@ export default function RitualBoard({ board }: Props) {
       {/* Category Picker Modal */}
       {showCategoryPicker && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setShowCategoryPicker(false)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
             <p className="text-[13px] font-semibold text-dark mb-3">Add a category</p>
             <div className="flex flex-col gap-1.5">
@@ -268,7 +268,7 @@ export default function RitualBoard({ board }: Props) {
       {/* Tier Picker Modal */}
       {showTierPicker && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setShowTierPicker(false)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
             <p className="text-[14px] font-bold text-dark mb-1">Choose your plan</p>
             <p className="text-[11px] text-gray-500 mb-4">Unlock vendor names, trial sessions & booking</p>
@@ -292,7 +292,7 @@ export default function RitualBoard({ board }: Props) {
       {/* Share Sheet (fallback when navigator.share is unavailable) */}
       {showShareSheet && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setShowShareSheet(false)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
             <p className="text-[13px] font-semibold text-dark mb-1">Share {board.name}</p>
             <p className="text-[10px] text-gray-400 mb-4">Send your plan to family or your partner.</p>

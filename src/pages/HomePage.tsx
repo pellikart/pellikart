@@ -124,7 +124,7 @@ export default function HomePage() {
       {/* Add board bottom sheet */}
       {showAddBoard && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setShowAddBoard(false)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
             <p className="text-[14px] font-bold text-dark mb-4">New event board</p>
 
