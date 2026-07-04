@@ -47,6 +47,10 @@ export interface Vendor {
   /** Venue-only: in-house decor offering (compulsory flag + details/designs). */
   inHouseDecor?: import('./vendor-types').InHouseDecor;
   menu?: import('./vendor-types').MenuSection[];
+  /** Catering-only: uploaded menu photos (shown when menuMode is 'photos'). */
+  menuPhotos?: string[];
+  /** Catering-only: whether the menu is item-by-item or photo-based. */
+  menuMode?: import('./vendor-types').MenuMode;
   /** Photography-only: per-hour rate card keyed by role. When set, `price` is the
    *  per-hour total for 1 of each offered role (the "₹X/hr" board figure). */
   rateCard?: import('./vendor-category-config').PhotographyRateCard;

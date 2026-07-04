@@ -36,6 +36,10 @@ export interface InHouseDecor {
   designs?: DesignDraft[]
 }
 
+/** How a catering / plate-package menu is presented to couples:
+ *  'items' = the interactive dish-bank builder; 'photos' = uploaded menu images. */
+export type MenuMode = 'items' | 'photos'
+
 /** Catering-only: one section of the curated menu. */
 export interface MenuSection {
   /** Section name, matches one of MENU_SECTIONS from dish-bank.ts */
@@ -93,6 +97,10 @@ export interface PlatePackage {
   /** Menu the couple gets in this package — same structure as a Catering menu
    *  (sections of dish-bank picks + custom dishes + per-section pick limits). */
   menu?: MenuSection[]
+  /** Uploaded menu photos for this package (used when menuMode is 'photos'). */
+  menuPhotos?: string[]
+  /** Whether this package's menu is built item-by-item or shown as photos. Defaults to 'items'. */
+  menuMode?: MenuMode
 }
 
 export interface PaidRoom {
@@ -184,6 +192,10 @@ export interface VendorListing {
   inHouseDecor?: InHouseDecor
   /** Catering-only: curated menu sections (dish bank picks + per-section pick limits). */
   menu?: MenuSection[]
+  /** Catering-only: uploaded menu photos (used when menuMode is 'photos'). */
+  menuPhotos?: string[]
+  /** Catering-only: whether the menu is built item-by-item or shown as photos. Defaults to 'items'. */
+  menuMode?: MenuMode
   /** Photography-only: per-hour rate card keyed by role (candidPhotographer, drone, …).
    *  When present, replaces the single package price — the couple picks people per role
    *  plus a shared number of hours. `price` holds the per-hour total for 1 of each role. */

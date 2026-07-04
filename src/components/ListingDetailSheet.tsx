@@ -186,6 +186,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const [showPortfolio, setShowPortfolio] = useState(false)
   // Photo lightbox: index into `gallery`, or null when closed.
   const [lightbox, setLightbox] = useState<number | null>(null)
+  // Menu-photo zoom: a single menu image URL to show full-screen, or null.
+  const [menuPhotoZoom, setMenuPhotoZoom] = useState<string | null>(null)
   const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, selectPhotographyTeam, selectPhotographyPackage, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
@@ -199,6 +201,25 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
     const rid = ritualId, cid = categoryId
     if (!rid || !cid) return undefined
     return (picks: Record<string, (number | string)[]>) => selectMenuOptions(rid, cid, vendor.id, packageKey, picks)
+  }
+  // Reference-only menu photos: a thumbnail grid; tap to zoom. Used for both the
+  // catering listing menu and per-plate package menus when the vendor uploaded
+  // photos instead of building the menu dish-by-dish.
+  function renderMenuPhotos(photos: string[]) {
+    return (
+      <div className="grid grid-cols-3 gap-1.5">
+        {photos.map((src, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setMenuPhotoZoom(src)}
+            className="aspect-square rounded-lg overflow-hidden cursor-pointer active:scale-[0.98] transition-transform border border-card-border"
+          >
+            <img src={src} alt={`Menu ${i + 1}`} className="w-full h-full object-cover" />
+          </button>
+        ))}
+      </div>
+    )
   }
 
   // Existing saved team selection (persists across opens, drives the board card price).
@@ -1112,19 +1133,26 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                           })}
                         </div>
                       )}
-                      {pkg.menu && pkg.menu.length > 0 && (
-                        <details className="border-t border-card-border">
-                          <summary className="px-3 py-1.5 text-[10px] font-medium text-mustard cursor-pointer select-none">View menu</summary>
-                          <div className="px-2.5 pb-2.5">
-                            <MenuPicker
-                              key={pkg.id}
-                              menu={pkg.menu}
-                              initialPicks={menuPicksFor(pkg.id)}
-                              onPicksChange={menuOnChange(pkg.id)}
-                            />
-                          </div>
-                        </details>
-                      )}
+                      {(() => {
+                        const pkgShowPhotos = pkg.menuMode === 'photos' && (pkg.menuPhotos?.length ?? 0) > 0
+                        const pkgShowPicker = !pkgShowPhotos && (pkg.menu?.length ?? 0) > 0
+                        if (!pkgShowPhotos && !pkgShowPicker) return null
+                        return (
+                          <details className="border-t border-card-border">
+                            <summary className="px-3 py-1.5 text-[10px] font-medium text-mustard cursor-pointer select-none">View menu</summary>
+                            <div className="px-2.5 pb-2.5">
+                              {pkgShowPhotos ? renderMenuPhotos(pkg.menuPhotos!) : (
+                                <MenuPicker
+                                  key={pkg.id}
+                                  menu={pkg.menu!}
+                                  initialPicks={menuPicksFor(pkg.id)}
+                                  onPicksChange={menuOnChange(pkg.id)}
+                                />
+                              )}
+                            </div>
+                          </details>
+                        )
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -1349,17 +1377,25 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </>
             )}
 
-            {/* Catering menu — interactive picker per section */}
-            {vendor.menu && vendor.menu.length > 0 && (
-              <div className="mb-4">
-                <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Menu</p>
-                <MenuPicker
-                  menu={vendor.menu}
-                  initialPicks={menuPicksFor('listing')}
-                  onPicksChange={menuOnChange('listing')}
-                />
-              </div>
-            )}
+            {/* Catering menu — photos (reference-only) if the vendor uploaded them,
+                otherwise the interactive dish picker per section. */}
+            {(() => {
+              const showPhotos = vendor.menuMode === 'photos' && (vendor.menuPhotos?.length ?? 0) > 0
+              const showPicker = !showPhotos && (vendor.menu?.length ?? 0) > 0
+              if (!showPhotos && !showPicker) return null
+              return (
+                <div className="mb-4">
+                  <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Menu</p>
+                  {showPhotos ? renderMenuPhotos(vendor.menuPhotos!) : (
+                    <MenuPicker
+                      menu={vendor.menu!}
+                      initialPicks={menuPicksFor('listing')}
+                      onPicksChange={menuOnChange('listing')}
+                    />
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Paid rooms (Venue) — collapsible interactive mock-up */}
             {vendor.paidRooms && vendor.paidRooms.length > 0 && (() => {
@@ -1525,6 +1561,26 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               {lightbox + 1} / {gallery.length}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Menu-photo zoom — tap a menu image to view it full-screen */}
+      {menuPhotoZoom !== null && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center select-none"
+          onClick={() => setMenuPhotoZoom(null)}
+        >
+          <button
+            onClick={() => setMenuPhotoZoom(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-white text-lg flex items-center justify-center backdrop-blur-sm"
+            aria-label="Close menu photo"
+          >×</button>
+          <img
+            src={menuPhotoZoom}
+            alt="Menu"
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[88vh] max-w-[92vw] object-contain rounded-lg"
+          />
         </div>
       )}
     </>

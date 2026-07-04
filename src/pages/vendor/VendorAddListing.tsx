@@ -8,10 +8,10 @@ import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPT
 import { uploadPhotos } from '@/lib/supabase-db'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
-import MenuBuilder from '@/components/MenuBuilder'
+import MenuEditor from '@/components/MenuEditor'
 import TimePicker from '@/components/TimePicker'
 import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
-import type { PaidRoom, MenuSection, PlatePackage, VenuePricingModel, InHouseDecor, VenueLocation } from '@/lib/vendor-types'
+import type { PaidRoom, MenuSection, MenuMode, PlatePackage, VenuePricingModel, InHouseDecor, VenueLocation } from '@/lib/vendor-types'
 
 export default function VendorAddListing({ embedded = false, onPublished }: { embedded?: boolean; onPublished?: () => void } = {}) {
   const navigate = useNavigate()
@@ -96,6 +96,9 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const [paidRoomFiles, setPaidRoomFiles] = useState<Record<string, File[]>>({})
   // Catering-only: curated menu
   const [menu, setMenu] = useState<MenuSection[]>([])
+  // Catering-only: menu photos + which input mode ('items' builder vs 'photos' upload).
+  const [menuPhotos, setMenuPhotos] = useState<string[]>([])
+  const [menuMode, setMenuMode] = useState<MenuMode>('items')
   // Transport & logistics — collected on Review step for every category
   const [transportIncluded, setTransportIncluded] = useState<boolean | null>(null)
   // Decor-only: portfolio of designs — each becomes its own published listing
@@ -218,6 +221,23 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   // Number of dishes (dish-bank + custom) configured in a plate package's menu.
   const menuItemCount = (menu?: MenuSection[]) =>
     (menu || []).reduce((s, sec) => s + sec.dishIds.length + (sec.customDishes?.length || 0), 0)
+  // Short menu summary for a package, accounting for photo vs item mode.
+  const menuSummary = (pkg: PlatePackage): string => {
+    if (pkg.menuMode === 'photos') {
+      const n = pkg.menuPhotos?.length || 0
+      return `${n} ${n === 1 ? 'photo' : 'photos'}`
+    }
+    const n = menuItemCount(pkg.menu)
+    return `${n} ${n === 1 ? 'item' : 'items'}`
+  }
+  // True when a package has any menu content (items or photos).
+  const menuHasContent = (pkg: PlatePackage): boolean =>
+    pkg.menuMode === 'photos' ? (pkg.menuPhotos?.length || 0) > 0 : menuItemCount(pkg.menu) > 0
+  // Live-mode menu-photo uploader for MenuEditor; undefined in demo mode (falls
+  // back to local object-URL previews).
+  const menuUploadFn = _liveMode && _vendorDbId
+    ? (files: File[]) => uploadPhotos(_vendorDbId, files, 'listing')
+    : undefined
   // Decor step is answerable once they pick No, choose to skip, or open the add-now form.
   const decorStepReady =
     inHouseDecorCompulsory === false ||
@@ -482,6 +502,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
       inHouseDecor: category === 'Venue' ? inHouseDecorForPayload : undefined,
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
+      menuPhotos: category === 'Catering' && menuPhotos.length > 0 ? menuPhotos : undefined,
+      menuMode: category === 'Catering' ? menuMode : undefined,
       ...transportFields,
     }
     const published = await addListing(listing)
@@ -803,11 +825,16 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         {step === menuStep && hasMenuStep && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">Build your menu</h1>
-            <p className="text-[11px] text-gray-400 mt-1 mb-5">Pick a category, then tick the dishes you offer from the list — or add your own. Set how many the couple can pick per category.</p>
-            <MenuBuilder
-              value={menu}
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Add dishes one by one — or, for a large menu, just upload photos of it. Switch between the two anytime.</p>
+            <MenuEditor
+              menu={menu}
+              onMenuChange={setMenu}
+              photos={menuPhotos}
+              onPhotosChange={setMenuPhotos}
+              mode={menuMode}
+              onModeChange={setMenuMode}
+              uploadFn={menuUploadFn}
               foodType={categoryFields.foodType as string | undefined}
-              onChange={setMenu}
             />
             <div className="flex gap-2 mt-6">
               <button onClick={() => setStep(menuStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
@@ -848,15 +875,20 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                   </select>
                 )
               })()}
-              <MenuBuilder
-                value={pkg.menu || []}
+              <MenuEditor
+                menu={pkg.menu || []}
+                onMenuChange={(next) => setPlatePackages(prev => prev.map(p => p.id === pkg.id ? { ...p, menu: next } : p))}
+                photos={pkg.menuPhotos || []}
+                onPhotosChange={(next) => setPlatePackages(prev => prev.map(p => p.id === pkg.id ? { ...p, menuPhotos: next } : p))}
+                mode={pkg.menuMode || 'items'}
+                onModeChange={(next) => setPlatePackages(prev => prev.map(p => p.id === pkg.id ? { ...p, menuMode: next } : p))}
+                uploadFn={menuUploadFn}
                 foodType={categoryFields.foodPolicy as string | undefined}
-                onChange={(next) => setPlatePackages(prev => prev.map(p => p.id === pkg.id ? { ...p, menu: next } : p))}
               />
               <button
                 onClick={() => setMenuEditPkgId(null)}
                 className="mt-6 w-full py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform"
-              >Done · {menuItemCount(pkg.menu)} {menuItemCount(pkg.menu) === 1 ? 'item' : 'items'}</button>
+              >Done · {menuSummary(pkg)}</button>
             </div>
           )
         })()}
@@ -991,7 +1023,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                 {platePackages.length > 0 && (
                   <div className="space-y-2 mb-2">
                     {platePackages.map((pkg, i) => {
-                      const items = menuItemCount(pkg.menu)
+                      const hasMenu = menuHasContent(pkg)
                       return (
                         <div key={pkg.id} className="p-2 rounded-lg bg-white border border-card-border">
                           <div className="flex items-center gap-2">
@@ -1030,9 +1062,9 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                           <button
                             type="button"
                             onClick={() => setMenuEditPkgId(pkg.id)}
-                            className={`mt-2 w-full flex items-center justify-between py-2 px-2.5 rounded-lg text-[11px] font-medium transition-all ${items > 0 ? 'bg-mustard-light/50 text-dark border border-mustard/30' : 'bg-empty-bg text-gray-600 border border-card-border'}`}
+                            className={`mt-2 w-full flex items-center justify-between py-2 px-2.5 rounded-lg text-[11px] font-medium transition-all ${hasMenu ? 'bg-mustard-light/50 text-dark border border-mustard/30' : 'bg-empty-bg text-gray-600 border border-card-border'}`}
                           >
-                            <span>{items > 0 ? `Menu · ${items} ${items === 1 ? 'item' : 'items'}` : '+ Add menu items'}</span>
+                            <span>{hasMenu ? `Menu · ${menuSummary(pkg)}` : '+ Add menu'}</span>
                             <span className="text-gray-400">›</span>
                           </button>
 
@@ -1659,12 +1691,12 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                     </div>
                   ))}
                   {venueOffersPerPlate && platePackages.filter(p => p.pricePerPlate > 0).map((pkg) => {
-                    const items = menuItemCount(pkg.menu)
+                    const hasMenu = menuHasContent(pkg)
                     return (
                       <div key={pkg.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5">
                         <span className="text-[11px] text-dark truncate">
                           {pkg.name.trim() || 'Per plate'}
-                          {items > 0 ? <span className="text-[9px] text-gray-400 font-normal"> · {items} {items === 1 ? 'item' : 'items'}</span> : null}
+                          {hasMenu ? <span className="text-[9px] text-gray-400 font-normal"> · {menuSummary(pkg)}</span> : null}
                         </span>
                         <span className="text-[11px] font-semibold text-mustard">{formatINR(pkg.pricePerPlate)} <span className="text-[9px] font-normal text-gray-400">/plate</span></span>
                       </div>

@@ -153,6 +153,8 @@ export function buildLiveVendorMap(
         return d && typeof d.compulsory === 'boolean' ? d : undefined
       })(),
       menu: (l.menu as import('./vendor-types').MenuSection[]) || undefined,
+      menuPhotos: (l.menu_photos as string[]) || undefined,
+      menuMode: (l.menu_mode as import('./vendor-types').MenuMode) || undefined,
       rateCard: (() => {
         const rc = l.rate_card as import('./vendor-category-config').PhotographyRateCard | null
         return rc && Object.keys(rc).length > 0 ? rc : undefined

@@ -60,6 +60,8 @@ function mapDbListingToVendorListing(l: Record<string, unknown>): VendorListing 
     paidRooms: arr(l.paid_rooms) as import('./vendor-types').PaidRoom[] | undefined,
     inHouseDecor: (() => { const d = l.in_house_decor as import('./vendor-types').InHouseDecor | null; return d && typeof d.compulsory === 'boolean' ? d : undefined })(),
     menu: arr(l.menu) as import('./vendor-types').MenuSection[] | undefined,
+    menuPhotos: arr(l.menu_photos) as string[] | undefined,
+    menuMode: (l.menu_mode as import('./vendor-types').MenuMode) || undefined,
     rateCard: obj(l.rate_card) as import('./vendor-category-config').PhotographyRateCard | undefined,
     availableHours: arr(l.available_hours) as number[] | undefined,
     photographyPricingModels: arr(l.photography_pricing_models) as import('./vendor-category-config').PhotographyPricingModel[] | undefined,

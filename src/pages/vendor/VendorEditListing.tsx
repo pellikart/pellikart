@@ -5,9 +5,9 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
-import type { MenuSection, PlatePackage, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
+import type { MenuSection, MenuMode, PlatePackage, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
-import MenuBuilder from '@/components/MenuBuilder'
+import MenuEditor from '@/components/MenuEditor'
 import SizesEditor from '@/components/SizesEditor'
 import TimePicker from '@/components/TimePicker'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
@@ -68,6 +68,9 @@ export default function VendorEditListing() {
   const [bundleMandatory, setBundleMandatory] = useState(false)
   // Catering menu, and venue plate-package menus.
   const [menu, setMenu] = useState<MenuSection[]>([])
+  // Catering menu photos + which input mode ('items' builder vs 'photos' upload).
+  const [menuPhotos, setMenuPhotos] = useState<string[]>([])
+  const [menuMode, setMenuMode] = useState<MenuMode>('items')
   const [platePackages, setPlatePackages] = useState<PlatePackage[]>([])
   // Decor per-size pricing.
   const [sizes, setSizes] = useState<SizePrice[]>([])
@@ -121,6 +124,8 @@ export default function VendorEditListing() {
       setBundledListings(listing.bundledListings || [])
       setBundleMandatory(listing.bundleMandatory || false)
       setMenu(listing.menu || [])
+      setMenuPhotos(listing.menuPhotos || [])
+      setMenuMode(listing.menuMode || 'items')
       setPlatePackages(listing.platePackages || [])
       setSizes(listing.sizes || [])
       setVenueLocation(listing.venueLocation && listing.venueLocation.address ? listing.venueLocation : { address: '' })
@@ -246,6 +251,12 @@ export default function VendorEditListing() {
     { key: 'guest', label: 'Guest makeup', unit: '/ guest', price: simpleGuest, setPrice: setSimpleGuest, step: 100, drapingLabel: 'Saree draping' },
   ]
 
+  // Live-mode menu-photo uploader passed to MenuEditor. In demo mode it's
+  // undefined, so MenuEditor falls back to local object-URL previews.
+  const menuUploadFn = _liveMode && _vendorDbId
+    ? (files: File[]) => uploadPhotos(_vendorDbId, files, 'listing')
+    : undefined
+
   async function handleSave() {
     if (!listing || saving) return
     setSaving(true)
@@ -309,6 +320,8 @@ export default function VendorEditListing() {
       // Menu edits: catering menu, or per-package venue menus. Left as-is for
       // other categories (they carry over via the ...listing spread above).
       menu: category === 'Catering' ? menu : listing.menu,
+      menuPhotos: category === 'Catering' ? menuPhotos : listing.menuPhotos,
+      menuMode: category === 'Catering' ? menuMode : listing.menuMode,
       platePackages: category === 'Venue' ? platePackages : listing.platePackages,
       sizes: category === 'Decor' ? (sizes.length > 0 ? sizes : undefined) : listing.sizes,
       venueLocation: category === 'Venue' ? (venueLocation.address.trim() ? venueLocation : undefined) : listing.venueLocation,
@@ -776,7 +789,15 @@ export default function VendorEditListing() {
         {category === 'Catering' && (
           <div>
             <label className="text-[11px] font-medium text-dark block mb-1.5">Menu</label>
-            <MenuBuilder value={menu} onChange={setMenu} />
+            <MenuEditor
+              menu={menu}
+              onMenuChange={setMenu}
+              photos={menuPhotos}
+              onPhotosChange={setMenuPhotos}
+              mode={menuMode}
+              onModeChange={setMenuMode}
+              uploadFn={menuUploadFn}
+            />
           </div>
         )}
 
@@ -833,12 +854,17 @@ export default function VendorEditListing() {
 
                   <details className="rounded-lg border border-card-border overflow-hidden">
                     <summary className="px-2.5 py-1.5 text-[11px] font-medium text-mustard cursor-pointer select-none">
-                      Menu · {menuItemCount(pkg.menu)} items
+                      Menu · {menuSummary(pkg)}
                     </summary>
                     <div className="px-2 pb-2">
-                      <MenuBuilder
-                        value={pkg.menu || []}
-                        onChange={(next) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, menu: next } : p))}
+                      <MenuEditor
+                        menu={pkg.menu || []}
+                        onMenuChange={(next) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, menu: next } : p))}
+                        photos={pkg.menuPhotos || []}
+                        onPhotosChange={(next) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, menuPhotos: next } : p))}
+                        mode={pkg.menuMode || 'items'}
+                        onModeChange={(next) => setPlatePackages(prev => prev.map((p, i) => i === idx ? { ...p, menuMode: next } : p))}
+                        uploadFn={menuUploadFn}
                       />
                     </div>
                   </details>
@@ -911,6 +937,16 @@ export default function VendorEditListing() {
 /** Count dishes offered across a menu (bank picks + custom dishes). */
 function menuItemCount(m?: MenuSection[]): number {
   return (m || []).reduce((n, s) => n + s.dishIds.length + (s.customDishes?.length || 0), 0)
+}
+
+/** Short summary of a plate package's menu, accounting for photo vs item mode. */
+function menuSummary(pkg: PlatePackage): string {
+  if (pkg.menuMode === 'photos') {
+    const n = pkg.menuPhotos?.length || 0
+    return `${n} ${n === 1 ? 'photo' : 'photos'}`
+  }
+  const n = menuItemCount(pkg.menu)
+  return `${n} ${n === 1 ? 'item' : 'items'}`
 }
 
 /** Reusable field renderer for category-specific selectable fields */
