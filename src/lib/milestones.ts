@@ -83,13 +83,6 @@ const milestonesMap: Record<string, Milestone[]> = {
     { label: 'First Cut', description: 'Initial reels delivered for review', daysFromBooking: 7 },
     { label: 'Final Delivery', description: 'All reels delivered in agreed formats', daysFromBooking: 14 },
   ],
-  'Hair Stylist': [
-    { label: 'Slot Booked', description: 'Booking confirmed, advance paid', daysFromBooking: 0 },
-    { label: 'Trial Session', description: 'Bridal hair trial run', daysFromBooking: 14 },
-    { label: 'Look Finalized', description: 'Final hair looks confirmed', daysFromBooking: -14 },
-    { label: 'Full Payment', description: 'Balance payment due', daysFromBooking: -5 },
-    { label: 'Event Day', description: 'Stylist arrives for bridal prep', daysFromBooking: -1 },
-  ],
   'Saree Draping': [
     { label: 'Slot Booked', description: 'Booking confirmed, advance paid', daysFromBooking: 0 },
     { label: 'Style Consultation', description: 'Drape styles & saree details discussed', daysFromBooking: 10 },

@@ -16,7 +16,6 @@ const categoryVendorPrefix: Record<string, string> = {
   "Pandit": "v-pandit",
   "Invitations": "v-invite",
   "Saree Draping": "v-saree",
-  "Hair Stylist": "v-hair",
 };
 
 export function getCategoriesForEvent(eventName: string): string[] {
@@ -25,8 +24,8 @@ export function getCategoriesForEvent(eventName: string): string[] {
   if (lower === 'sangeeth') return ["Venue", "Catering", "DJ / Music", "Photography", "Decor"];
   if (lower === 'haldi') return ["Venue", "Catering", "Decor", "Photography"];
   if (lower === 'bottu') return ["Venue", "Catering", "Decor", "Photography"];
-  if (lower === 'reception') return ["Venue", "Catering", "Decor", "Photography", "DJ / Music", "Saree Draping", "Hair Stylist"];
-  if (lower === 'pelli (wedding)') return ["Venue", "Catering", "Decor", "Photography", "Makeup", "Pandit", "Invitations", "Saree Draping", "Hair Stylist"];
+  if (lower === 'reception') return ["Venue", "Catering", "Decor", "Photography", "DJ / Music", "Saree Draping"];
+  if (lower === 'pelli (wedding)') return ["Venue", "Catering", "Decor", "Photography", "Makeup", "Pandit", "Invitations", "Saree Draping"];
   if (lower === 'engagement' || lower === 'pelli choopulu') return ["Venue", "Catering", "Decor", "Photography", "Makeup"];
   return [...defaultCategories];
 }
@@ -371,20 +370,6 @@ export const mockVendors: Record<string, Vendor> = {
     sareeDrapingPricing: { bridalPricePerLook: 2500, guestPricePerPerson: 1200, prePleatingPricePerSaree: 600 },
   },
 
-  // === HAIR STYLIST ===
-  "v-hair-1": {
-    id: "v-hair-1", code: "Hair 001", name: "Tress & Glam", photo: img("makeup", 1),
-    style: "Bridal Hair", area: "Banjara Hills, Hyderabad", price: 1500,
-    rating: 4.8, packageTier: "Bridal + guests", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
-    hairStylingPricing: { bridalPricePerLook: 3500, groomPricePerLook: 1500, guestPricePerPerson: 1000 },
-  },
-  "v-hair-2": {
-    id: "v-hair-2", code: "Hair 002", name: "The Hair Lounge", photo: img("makeup", 2),
-    style: "Modern Updos", area: "Kondapur, Hyderabad", price: 1200,
-    rating: 4.4, packageTier: "Bridal + guests", likes: [], booked: false, amountPaid: 0,
-    hairStylingPricing: { bridalPricePerLook: 3000, guestPricePerPerson: 800 },
-  },
-
   // === DJ/MUSIC ===
   "v-dj-1": {
     id: "v-dj-1", code: "DJ 001", name: "DJ Sunil", photo: img("dj", 1),
@@ -485,11 +470,6 @@ export const mockDesigns: Design[] = [
   { id: "d-saree-1b", vendorId: "v-saree-1", name: "Bride + Family Package", photo: img("makeup", 6), style: "Bridal + Guests", price: 15000, rating: 4.7, description: "Bridal draping + groom panche + family drapes, full event coverage" },
   { id: "d-saree-2a", vendorId: "v-saree-2", name: "Modern Drape Look", photo: img("makeup", 3), style: "Modern Draping", price: 6000, rating: 4.5, description: "Contemporary draping styles — lehenga saree, mermaid, butterfly pleats" },
 
-  // === HAIR STYLIST LISTINGS ===
-  { id: "d-hair-1a", vendorId: "v-hair-1", name: "Bridal Hair Signature", photo: img("makeup", 1), style: "Bridal Hair", price: 9000, rating: 4.8, description: "Bridal hairstyling — intricate updos, braids, accessories setting, on-site touch-up" },
-  { id: "d-hair-1b", vendorId: "v-hair-1", name: "Bride + Family Hair", photo: img("makeup", 2), style: "Bridal + Guests", price: 16000, rating: 4.7, description: "Bridal hair + groom + family styling across events" },
-  { id: "d-hair-2a", vendorId: "v-hair-2", name: "Modern Updo Look", photo: img("makeup", 4), style: "Modern Updos", price: 7000, rating: 4.4, description: "Contemporary updos, soft curls, sleek styles for the modern bride" },
-
   // === DJ / MUSIC LISTINGS ===
   { id: "d-dj-1a", vendorId: "v-dj-1", name: "Bollywood + EDM Night", photo: img("dj", 1), style: "Bollywood + EDM", price: 95000, rating: 4.7, description: "Full night DJ, 10K watts sound, LED dance floor, fog machine, live dhol entry" },
   { id: "d-dj-1b", vendorId: "v-dj-1", name: "Sangeeth Special Setup", photo: img("dj", 2), style: "Sangeeth", price: 65000, rating: 4.5, description: "6-hour sangeeth package — wireless mics for performances, curated Bollywood + Telugu playlist" },
@@ -514,7 +494,7 @@ const designPrefixMap: Record<string, string> = {
   "Venue": "d-venue", "Decor": "d-decor", "Catering": "d-catering",
   "Photography": "d-photo", "Mehendi": "d-mehendi", "Makeup": "d-makeup",
   "DJ / Music": "d-dj", "Pandit": "d-pandit", "Invitations": "d-invite",
-  "Saree Draping": "d-saree", "Hair Stylist": "d-hair",
+  "Saree Draping": "d-saree",
 };
 
 export function getDesignsForCategory(categoryLabel: string): Design[] {

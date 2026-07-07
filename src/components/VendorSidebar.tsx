@@ -55,7 +55,7 @@ export default function VendorSidebar() {
   const { pathname } = useLocation()
   const { vendorProfile } = useVendorStore()
 
-  // Single-listing categories (Mehendi/Makeup/Saree Draping/Hair Stylist) manage
+  // Single-listing categories (Mehendi/Makeup/Saree Draping) manage
   // their one listing from the dashboard — no separate Listings page.
   const visible = isSingleListingCategory(vendorProfile?.category)
     ? items.filter((i) => i.href !== '/vendor/listings')

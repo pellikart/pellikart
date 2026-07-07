@@ -74,7 +74,7 @@ export interface Vendor {
   makeupPricing?: import('./vendor-category-config').MakeupPricing;
   /** Saree Draping-only: bridal/groom per-look + guest pricing. */
   sareeDrapingPricing?: import('./vendor-category-config').SareeDrapingPricing;
-  /** Hair Stylist-only (or a Makeup add-on): bridal/groom per-look + guest pricing. */
+  /** Makeup add-on only: bridal/groom per-look + guest hair-styling pricing. */
   hairStylingPricing?: import('./vendor-category-config').HairStylingPricing;
   rituals?: string[];
   transportIncluded?: boolean;
@@ -156,7 +156,7 @@ export interface Category {
   makeupSelection?: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] };
   /** Saree Draping-only: the couple's selection — bridal looks, groom looks, guests, pre-pleated sarees. */
   sareeSelection?: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number };
-  /** Hair Stylist-only (or Makeup add-on): the couple's selection — bridal looks, groom looks, guests. */
+  /** Makeup add-on only: the couple's hair-styling selection — bridal looks, groom looks, guests. */
   hairSelection?: { bridalLooks?: number; groomLooks?: number; guests?: number };
   /** Catering/Venue menu picks. Keyed by vendor/listing id → package id (or
    *  'listing' for a package-less catering menu) → section name → picked dish

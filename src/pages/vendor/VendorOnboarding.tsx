@@ -4,7 +4,7 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { VendorProfile, VendorPackage, VendorListing } from '@/lib/vendor-types'
 import { uploadPhotos, setVendorLive, setVendorLiveById } from '@/lib/supabase-db'
 import { emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, isSingleListingCategory, MAKEUP_EVENTS, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
-import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
+import { getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
 import MehendiPricingEditor from '@/components/MehendiPricingEditor'
 import MakeupPricingEditor from '@/components/MakeupPricingEditor'
 import MakeupAddonsEditor from '@/components/MakeupAddonsEditor'
@@ -12,8 +12,8 @@ import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
 import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
 import VendorAddListing from './VendorAddListing'
 
-export const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
-const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
+export const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
+const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet', 'Kokapet', 'Narsingi', 'Manikonda', 'Tolichowki', 'Mehdipatnam', 'Financial District', 'Nanakramguda', 'Miyapur', 'Nizampet', 'Bachupally', 'Kompally', 'Uppal', 'LB Nagar', 'Dilsukhnagar', 'Somajiguda', 'Panjagutta', 'KPHB', 'Malkajgiri', 'Sainikpuri', 'Shamshabad', 'Abids', 'Tellapur', 'Patancheru', 'Shamirpet', 'Medchal']
 const TEAM_SIZES_DEFAULT = ['Solo', '2-5', '5-10', '10+']
 // Decor crews are usually larger — start at 5 and step up by 5 to 30+.
 const TEAM_SIZES_DECOR = ['5', '10', '15', '20', '25', '30+']
@@ -141,8 +141,6 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
   // fill all text/number fields first and finish with the upload.
   const isMehendi = category === 'Mehendi'
   const isMakeup = category === 'Makeup'
-  const isSaree = category === 'Saree Draping'
-  const isHair = category === 'Hair Stylist'
   const isSingleListing = isSingleListingCategory(category)
   // The detailed makeup add-on steps only exist in 'detailed' mode. In 'simple'
   // mode the pricing step captures everything, so those steps collapse away and
@@ -287,9 +285,7 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
         ? { ...base, name: `${profile.businessName} — Mehendi`, category: 'Mehendi', price: getMehendiFromPrice(mehendiPricing), mehendiPricing, rituals: ['Mehendi'] }
         : isMakeup
         ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricingOut), makeupPricing: makeupPricingOut, mehendiPricing: makeupDetailed && mehendiAvailable ? mehendiPricing : undefined, sareeDrapingPricing: makeupDetailed && sareeAvailable ? sareePricing : undefined, hairStylingPricing: makeupDetailed && hairAvailable ? hairPricing : undefined, rituals: [] }
-        : isSaree
-        ? { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
-        : { ...base, name: `${profile.businessName} — Hair Stylist`, category: 'Hair Stylist', price: getHairStylingFromPrice(hairPricing), hairStylingPricing: hairPricing, rituals: [] }
+        : { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
       const ok = await useVendorStore.getState().addListing(listing)
       if (!ok) {
         // The listing row didn't save — don't leave the vendor stranded as
@@ -450,12 +446,26 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
               </div>
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1">Years of experience</label>
-                <div className="flex gap-2">
-                  {['1', '2', '3', '5', '7', '10', '15', '20+'].map((y) => (
-                    <button key={y} onClick={() => setExperience(y)} className={`flex-1 py-2.5 rounded-xl text-[11px] font-medium transition-all ${experience === y ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>
-                      {y}
-                    </button>
-                  ))}
+                <div className="inline-flex items-stretch rounded-xl border border-card-border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setExperience(String(Math.max(1, (parseInt(experience) || 5) - 1)))}
+                    disabled={(parseInt(experience) || 5) <= 1}
+                    className="px-3.5 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+                  >−</button>
+                  <input
+                    type="number" min={1} max={70}
+                    value={parseInt(experience) || 5}
+                    onChange={(e) => setExperience(String(Math.min(70, Math.max(1, parseInt(e.target.value) || 1))))}
+                    className="w-16 text-center text-[13px] font-medium text-dark outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setExperience(String(Math.min(70, (parseInt(experience) || 5) + 1)))}
+                    disabled={(parseInt(experience) || 5) >= 70}
+                    className="px-3.5 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+                  >+</button>
+                  <span className="px-3 flex items-center text-[11px] text-gray-500 border-l border-card-border bg-empty-bg">years</span>
                 </div>
               </div>
               <div>
@@ -597,9 +607,7 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
                   )}
                 </div>
               )
-              : isSaree
-              ? <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />
-              : <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />}
+              : <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />}
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
           </div>
         )}

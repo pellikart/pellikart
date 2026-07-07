@@ -60,7 +60,7 @@ export const ONBOARDING_CONFIG: Record<string, CategoryOnboardingConfig> = {
       { key: 'setting', label: 'Setting', type: 'single', options: ['Indoor', 'Outdoor', 'Both'] },
       { key: 'maxCapacity', label: 'Max guest capacity', type: 'slider', sliderMin: 50, sliderMax: 2000, sliderStep: 50, sliderUnit: 'guests' },
       { key: 'foodPolicy', label: 'Food policy', type: 'single', options: ['Veg only', 'Non-veg allowed', 'Both'] },
-      { key: 'parkingCapacity', label: 'Parking', type: 'single', options: ['No parking', '20 cars', '50 cars', '100 cars', '200+ cars'] },
+      { key: 'parkingCapacity', label: 'Car parking', type: 'number', numberMin: 0, numberMax: 1000, numberStep: 5, numberUnit: 'cars' },
     ],
   },
   Catering: {
@@ -164,17 +164,6 @@ export const ONBOARDING_CONFIG: Record<string, CategoryOnboardingConfig> = {
       { key: 'musicLicensing', label: 'Music licensing', type: 'single', options: ['Royalty-free included', 'Couple provides', 'Add-on'] },
     ],
   },
-  'Hair Stylist': {
-    title: 'About your hair styling',
-    subtitle: 'Help brides understand your style and services.',
-    fields: [
-      { key: 'styleTypes', label: 'Specialities', type: 'multi', options: ['Traditional Braids', 'Updos & Buns', 'Curls', 'Sleek Straight', 'Hair Accessories Styling', 'Floral Hair Setup', 'Modern Glam'] },
-      { key: 'hairExtensions', label: 'Hair extensions', type: 'single', options: ['Included', 'Add-on', 'Couple provides', 'Not used'] },
-      { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Yes, included', 'Yes, extra charge', 'Studio only'] },
-      { key: 'productsUsed', label: 'Products used', type: 'multi', options: ['L\'Oréal', 'Schwarzkopf', 'Wella', 'Streax', 'Matrix', 'Olaplex', 'Mix of brands'] },
-      { key: 'familyHair', label: 'Family hair styling', type: 'single', options: ['Yes, included', 'Add-on', 'Not available'] },
-    ],
-  },
   'Saree Draping': {
     title: 'About your saree draping',
     subtitle: 'Tell brides about your draping styles and service.',
@@ -241,8 +230,8 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         title: 'Rooms & parking',
         subtitle: 'Let couples know what extras come with the venue.',
         fields: [
-          { key: 'parkingSpots', label: 'Parking', type: 'single', options: ['No parking', '20 cars', '50 cars', '100 cars', '200+ cars'] },
-          { key: 'valetParking', label: 'Is valet parking available?', type: 'single', options: ['Yes', 'No'], visibleWhen: { key: 'parkingSpots', notEquals: 'No parking' } },
+          { key: 'parkingSpots', label: 'Car parking', type: 'number', numberMin: 0, numberMax: 1000, numberStep: 5, numberUnit: 'cars' },
+          { key: 'valetParking', label: 'Is valet parking available?', type: 'single', options: ['Yes', 'No'], visibleWhen: { key: 'parkingSpots', notEquals: '0' } },
           { key: 'complimentaryRooms', label: 'Are complimentary rooms available?', type: 'single', options: ['Yes', 'No'] },
           { key: 'complimentaryRoomsCount', label: 'How many?', type: 'number', numberMin: 1, numberMax: 50, numberStep: 1, numberUnit: 'rooms', visibleWhen: { key: 'complimentaryRooms', equals: 'Yes' } },
         ],
@@ -566,36 +555,6 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
       },
     ],
   },
-  'Hair Stylist': {
-    styles: ['Traditional South Indian', 'Modern Glam', 'Boho Floral', 'Sleek & Polished', 'Vintage Curls'],
-    inclusions: ['Bridal Hair', 'Engagement Look', 'Reception Look', 'Hair Extensions', 'Floral Setup', 'Hair Accessories Setup', 'Family Hair', 'Touch-Up Kit', 'Pre-Bridal Hair Care', 'Travel to Venue'],
-    priceRange: { min: 5000, max: 80000, step: 2500 },
-    steps: [
-      {
-        title: 'Service details',
-        subtitle: 'What does this package include?',
-        fields: [
-          { key: 'looksIncluded', label: 'Looks included', type: 'single', options: ['1 look', '2 looks', '3 looks', '4 looks'] },
-          { key: 'styleTypes', label: 'Style', type: 'multi', options: ['Traditional Braids', 'Updos & Buns', 'Curls', 'Sleek Straight', 'Floral Hair Setup', 'Modern Glam'] },
-          { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['Solo', '2 stylists', '3 stylists', '4+ stylists'] },
-          { key: 'hairExtensions', label: 'Hair extensions', type: 'single', options: ['Included', 'Add-on', 'Couple provides', 'Not used'] },
-          { key: 'accessoriesIncluded', label: 'Hair accessories (pins, clips, jewellery)', type: 'single', options: ['Included', 'Add-on', 'Couple provides', 'Not used'] },
-          { key: 'accessorySetup', label: 'Accessory / floral setup', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
-        ],
-      },
-      {
-        title: 'Products & logistics',
-        subtitle: 'The finer details.',
-        fields: [
-          { key: 'products', label: 'Products used', type: 'multi', options: ['L\'Oréal', 'Schwarzkopf', 'Wella', 'Streax', 'Matrix', 'Olaplex', 'Mix of brands'] },
-          { key: 'trialSession', label: 'Trial session', type: 'single', options: ['Included', 'Extra cost', 'Not available'] },
-          { key: 'travelToVenue', label: 'Travel to venue', type: 'single', options: ['Included', 'Extra charge', 'Studio only'] },
-          { key: 'familyHair', label: 'Family hair styling', type: 'single', options: ['Available', 'Add-on', 'Not available'] },
-          { key: 'preBridalCare', label: 'Pre-bridal hair care', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
-        ],
-      },
-    ],
-  },
   'Live Stalls': {
     styles: ['Live Paintings / Portraits', 'Caricatures', 'Bangle Stall', 'Live Mehendi (guest)', 'Saree Draping', 'Tarot / Astrology', 'Pottery / Craft Station', 'Calligraphy / Name Personalization', 'Temporary Tattoo Artist', 'Photo Booth (Instant Prints)'],
     inclusions: ['Materials Included', 'Setup Table & Chairs', 'Backdrop / Signage', 'Take-Home Gift for Guests', 'Branded Attire', 'Live Demo', 'Custom Theme Setup', 'Background Music', 'Power Strip / Lighting', 'Travel Within City'],
@@ -903,9 +862,9 @@ export function emptySareeDrapingPricing(): SareeDrapingPricing {
 // ─── HAIR STYLING PRICING ───────────────────
 
 /**
- * Hair Stylist is a single-listing category (like Saree Draping): pricing is
- * authored in onboarding. Bridal and groom hairstyling are priced per look;
- * guest hairstyling is per guest.
+ * Hair styling pricing — offered as a Makeup add-on (the standalone "Hair Stylist"
+ * category was removed). Bridal and groom hairstyling are priced per look; guest
+ * hairstyling is per guest.
  */
 export interface HairStylingPricing {
   /** Bridal hairstyling price per look (₹). Omitted/0 = not offered. */
@@ -924,7 +883,7 @@ export function emptyHairStylingPricing(): HairStylingPricing {
 // ─── SINGLE-LISTING CATEGORIES ──────────────
 
 /** Categories whose one listing is authored in onboarding (no separate listing flow). */
-export const SINGLE_LISTING_CATEGORIES = ['Mehendi', 'Makeup', 'Saree Draping', 'Hair Stylist'] as const
+export const SINGLE_LISTING_CATEGORIES = ['Mehendi', 'Makeup', 'Saree Draping'] as const
 
 export function isSingleListingCategory(category?: string | null): boolean {
   return !!category && (SINGLE_LISTING_CATEGORIES as readonly string[]).includes(category)

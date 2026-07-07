@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
-import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice } from '@/lib/helpers'
+import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
@@ -294,7 +294,6 @@ export default function VendorEditListing() {
       : category === 'Mehendi' ? getMehendiFromPrice(mehendiPricing)
       : category === 'Makeup' ? getMakeupFromPrice(makeupPricingOut)
       : category === 'Saree Draping' ? getSareeDrapingFromPrice(sareePricing)
-      : category === 'Hair Stylist' ? getHairStylingFromPrice(hairPricing)
       : category === 'Venue' ? venueFrom
       : category === 'Decor' ? decorFrom
       : price
@@ -314,9 +313,7 @@ export default function VendorEditListing() {
       sareeDrapingPricing: category === 'Saree Draping' ? sareePricing
         : category === 'Makeup' && makeupDetailed && sareeAddon ? sareePricing
         : undefined,
-      hairStylingPricing: category === 'Hair Stylist' ? hairPricing
-        : category === 'Makeup' && makeupDetailed && hairAddon ? hairPricing
-        : undefined,
+      hairStylingPricing: category === 'Makeup' && makeupDetailed && hairAddon ? hairPricing : undefined,
       transportIncluded: transportIncluded === null ? undefined : transportIncluded,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
@@ -636,11 +633,6 @@ export default function VendorEditListing() {
           <div>
             <label className="text-[11px] font-medium text-dark block mb-2">Saree draping pricing</label>
             <SareeDrapingPricingEditor value={sareePricing} onChange={setSareePricing} />
-          </div>
-        ) : category === 'Hair Stylist' ? (
-          <div>
-            <label className="text-[11px] font-medium text-dark block mb-2">Hair styling pricing</label>
-            <HairStylingPricingEditor value={hairPricing} onChange={setHairPricing} />
           </div>
         ) : category === 'Venue' ? (
           <div className="space-y-4">

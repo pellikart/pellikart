@@ -337,7 +337,7 @@ export function bgStyle(photo: string): { background: string } {
 const CATEGORY_CODE: Record<string, string> = {
   Venue: 'VEN', Catering: 'CAT', Photography: 'PHO', Decor: 'DEC', Makeup: 'MUA',
   Mehendi: 'MEH', 'DJ / Music': 'DJ', Pandit: 'PAN', Invitations: 'INV',
-  Banjantrilu: 'BAN', Reels: 'REL', 'Hair Stylist': 'HAR', 'Saree Draping': 'SAR',
+  Banjantrilu: 'BAN', Reels: 'REL', 'Saree Draping': 'SAR',
   'Live Stalls': 'STL', 'Hosts / Entertainers': 'HOST', 'Wedding Props': 'PRP',
 }
 

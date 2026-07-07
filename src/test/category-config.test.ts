@@ -4,7 +4,7 @@ import {
   getListingConfig, getOnboardingConfig,
 } from '@/lib/vendor-category-config'
 
-const ALL_CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Hair Stylist', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
+const ALL_CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
 
 describe('Vendor Category Config', () => {
   describe('Onboarding Config', () => {
@@ -21,7 +21,7 @@ describe('Vendor Category Config', () => {
         for (const field of ONBOARDING_CONFIG[cat].fields) {
           expect(field.key).toBeTruthy()
           expect(field.label).toBeTruthy()
-          expect(['single', 'multi', 'toggle', 'slider']).toContain(field.type)
+          expect(['single', 'multi', 'toggle', 'slider', 'number']).toContain(field.type)
         }
       }
     })

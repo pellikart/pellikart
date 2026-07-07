@@ -44,7 +44,7 @@ export default function VendorBottomNav() {
   const mainPaths = ['/vendor', '/vendor/listings', '/vendor/calendar', '/vendor/profile']
   if (!mainPaths.includes(pathname)) return null
 
-  // Single-listing categories (Mehendi/Makeup/Saree Draping/Hair Stylist) author and
+  // Single-listing categories (Mehendi/Makeup/Saree Draping) author and
   // edit their one listing from onboarding + the dashboard — no Listings tab.
   const visibleTabs = isSingleListingCategory(vendorProfile?.category)
     ? tabs.filter((t) => t.href !== '/vendor/listings')

@@ -10,7 +10,7 @@ export default function VendorListings() {
   const base = useVendorBase()
   const { vendorListings, vendorProfile, deleteListing, _adminMode } = useVendorStore()
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
-  // Single-listing categories (Mehendi, Makeup, Saree Draping, Hair Stylist) have no
+  // Single-listing categories (Mehendi, Makeup, Saree Draping) have no
   // Listings page — they author + edit their one listing from onboarding + the dashboard.
   // (In admin mode there's no dashboard, so we keep the list visible.)
   const singleListing = isSingleListingCategory(vendorProfile?.category)
