@@ -433,7 +433,10 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
         } else if (field.type === 'slider' && field.sliderUnit) {
           display = `${raw} ${field.sliderUnit}`
         } else if (field.type === 'number' && field.numberUnit) {
-          display = `${raw} ${field.numberUnit}`
+          // Parse the leading number so legacy string values (e.g. "50 cars",
+          // "200+ cars") don't double up the unit into "50 cars cars".
+          const n = parseInt(String(raw), 10)
+          display = Number.isFinite(n) ? `${n} ${field.numberUnit}` : String(raw)
         } else {
           display = raw
         }

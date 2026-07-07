@@ -128,7 +128,9 @@ export function applyExploreFilters<T extends ExploreItem>(
       } else if (def.kind === 'range') {
         const r = val as { min?: number; max?: number } | undefined
         const vv = v?.categoryFields?.[def.key]
-        const n = typeof vv === 'string' ? Number(vv) : NaN
+        // parseFloat (not Number) so legacy string values like "50 cars" /
+        // "200+ cars" yield 50 / 200 instead of NaN and stay filterable.
+        const n = typeof vv === 'string' ? parseFloat(vv) : NaN
         if (r?.min != null && (isNaN(n) || n < r.min)) return false
         if (r?.max != null && (isNaN(n) || n > r.max)) return false
       } else if (def.kind === 'inclusions') {
