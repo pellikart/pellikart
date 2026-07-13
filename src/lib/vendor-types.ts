@@ -407,7 +407,7 @@ export interface VendorState {
   vendorAnalytics: VendorAnalytics
 
   // Actions
-  completeVendorOnboarding: (profile: VendorProfile, packages: VendorPackage[], markComplete?: boolean) => void | Promise<void>
+  completeVendorOnboarding: (profile: VendorProfile, packages: VendorPackage[], markComplete?: boolean) => Promise<string | null>
   toggleDateBlock: (date: string, listingIds: string[], blockedRanges: BlockedTimeRange[]) => void
   submitBid: (bidId: string, price: number, note: string) => void
   scheduleTrial: (trialId: string, date: string) => void
@@ -416,7 +416,7 @@ export interface VendorState {
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
   addNotification: (notification: VendorNotification) => void
-  addListing: (listing: VendorListing) => Promise<boolean>
+  addListing: (listing: VendorListing, vendorId?: string) => Promise<boolean>
   updateListing: (listing: VendorListing) => void
   deleteListing: (listingId: string) => void
   updateVendorProfile: (profile: Partial<VendorProfile>) => void

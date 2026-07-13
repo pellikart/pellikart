@@ -433,7 +433,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         vendorReviews: [],
         vendorEarnings: [],
       })
-      return
+      return _vendorDbId
     }
 
     if (_liveMode && _userId) {
@@ -472,6 +472,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         vendorReviews: [],
         vendorEarnings: [],
       })
+      return vendorData?.id ?? null
     } else {
       // Demo mode — use mock data
       const mockListings = getMockListingsForCategory(profile.category)
@@ -517,6 +518,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
         },
       }))
     }
+    return null
   },
 
   toggleDateBlock: (date, listingIds, blockedRanges) =>
@@ -614,8 +616,15 @@ export const useVendorStore = create<VendorState & LiveModeState & {
     set((s) => ({ vendorNotifications: [notification, ...s.vendorNotifications] }))
   },
 
-  addListing: async (listing) => {
+  addListing: async (listing, vendorId) => {
     const { _liveMode, _vendorDbId } = get()
+
+    // Bind the write to the caller's explicit vendor id when given, so the
+    // listing lands on the vendor actually being built — never on whatever the
+    // shared global happens to point at. The global (_vendorDbId) is a
+    // singleton, so onboarding several vendors in one session used to let a
+    // stale value redirect every new listing onto a previous vendor.
+    const targetVendorId = vendorId ?? _vendorDbId
 
     // Optimistically add to local state so the UI updates immediately.
     set((s) => ({
@@ -627,12 +636,17 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       // write fails (or there's no vendor DB id), roll back the optimistic add
       // and report failure so the caller can surface an error instead of
       // silently stranding the vendor as "live" with no discoverable listing.
-      if (!_vendorDbId) {
+      if (!targetVendorId) {
         set((s) => ({ vendorListings: s.vendorListings.filter((l) => l.id !== listing.id) }))
-        console.error('[vendor-store] addListing: no _vendorDbId in live mode')
+        console.error('[vendor-store] addListing: no target vendor id in live mode')
         return false
       }
-      const data = await insertListing(_vendorDbId, listing)
+      if (vendorId && _vendorDbId && vendorId !== _vendorDbId) {
+        // The explicit target and the global disagree — the exact condition that
+        // used to mis-file listings. Trust the explicit id; log so it's visible.
+        console.warn('[vendor-store] addListing: target vendor', vendorId, '≠ store _vendorDbId', _vendorDbId, '— using explicit target')
+      }
+      const data = await insertListing(targetVendorId, listing)
       if (!data) {
         set((s) => ({ vendorListings: s.vendorListings.filter((l) => l.id !== listing.id) }))
         return false
@@ -644,7 +658,7 @@ export const useVendorStore = create<VendorState & LiveModeState & {
       // right here so visibility never depends on a later setVendorLive landing.
       // Best-effort: the listing is already saved, so we still report success
       // even if this flip fails (it's retried by the onboarding flow too).
-      await setVendorLiveById(_vendorDbId)
+      await setVendorLiveById(targetVendorId)
     }
 
     return true

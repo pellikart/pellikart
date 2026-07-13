@@ -221,22 +221,24 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
     // For multi-listing categories we DEFER marking onboarding complete — the
     // vendor record is created (so we have a DB id for uploads) but onboarding
     // stays "in progress" so the embedded first-listing step is still shown.
-    await completeVendorOnboarding(profile, defaultPackages, isSingleListing)
+    // Bind everything below to the exact vendor this onboarding just persisted
+    // to (returned by completeVendorOnboarding), not the shared global — so a
+    // stale _vendorDbId from a previous vendor can't redirect this vendor's
+    // uploads/listing onto the wrong account.
+    const targetVendorId = await completeVendorOnboarding(profile, defaultPackages, isSingleListing)
 
-    // Now that completeVendorOnboarding has run upsertVendor, _vendorDbId
-    // is populated. Upload photos/videos and persist their public URLs.
-    const { _vendorDbId, _liveMode } = useVendorStore.getState()
+    const { _liveMode } = useVendorStore.getState()
     // Photos to attach to an auto-created listing (Mehendi). Demo uses blob previews;
     // live uses the uploaded public URLs once available. Upload keys off the
     // vendor DB id, so this path works for both a real vendor and an admin
     // building a vendor (user_id NULL) — the store re-keys the profile write.
     let listingPhotos: string[] = _liveMode ? [] : photoPreviews
-    if (_liveMode && _vendorDbId) {
+    if (_liveMode && targetVendorId) {
       const portfolioUrls = photoFiles.length > 0
-        ? await uploadPhotos(_vendorDbId, photoFiles, 'portfolio')
+        ? await uploadPhotos(targetVendorId, photoFiles, 'portfolio')
         : []
       const portfolioVideoUrls = videoFiles.length > 0
-        ? await uploadPhotos(_vendorDbId, videoFiles, 'portfolio')
+        ? await uploadPhotos(targetVendorId, videoFiles, 'portfolio')
         : []
       listingPhotos = portfolioUrls
 
@@ -286,7 +288,7 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
         : isMakeup
         ? { ...base, name: `${profile.businessName} — Makeup`, category: 'Makeup', price: getMakeupFromPrice(makeupPricingOut), makeupPricing: makeupPricingOut, mehendiPricing: makeupDetailed && mehendiAvailable ? mehendiPricing : undefined, sareeDrapingPricing: makeupDetailed && sareeAvailable ? sareePricing : undefined, hairStylingPricing: makeupDetailed && hairAvailable ? hairPricing : undefined, rituals: [] }
         : { ...base, name: `${profile.businessName} — Saree Draping`, category: 'Saree Draping', price: getSareeDrapingFromPrice(sareePricing), sareeDrapingPricing: sareePricing, rituals: [] }
-      const ok = await useVendorStore.getState().addListing(listing)
+      const ok = await useVendorStore.getState().addListing(listing, targetVendorId ?? undefined)
       if (!ok) {
         // The listing row didn't save — don't leave the vendor stranded as
         // "live" with nothing for couples to see. Surface the error so they can
@@ -297,8 +299,8 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
       }
       // Listing confirmed — now it's safe to flip the vendor live. (addListing
       // already flips via id; this is a belt-and-suspenders retry.)
-      const { _liveMode: lm, _adminMode: am, _userId: uid, _vendorDbId: vdbId } = useVendorStore.getState()
-      if (lm && am && vdbId) await setVendorLiveById(vdbId)
+      const { _liveMode: lm, _adminMode: am, _userId: uid } = useVendorStore.getState()
+      if (lm && am && targetVendorId) await setVendorLiveById(targetVendorId)
       else if (lm && uid) await setVendorLive(uid)
     }
 
