@@ -206,6 +206,21 @@ function LiveApp() {
     return <AuthPage />
   }
 
+  // Post-login intent. OAuth only reliably redirects back to /app (the callback
+  // that's allowlisted in Supabase), so the claim / admin entry buttons stamp
+  // where to go next and we route there here — BEFORE role resolution, so an
+  // invited vendor lands on the claim screen instead of flashing the
+  // couple/vendor chooser or the normal onboarding flow.
+  const postLogin = localStorage.getItem('pellikart_post_login')
+  if (postLogin === 'claim' && pathname !== '/claim') {
+    localStorage.removeItem('pellikart_post_login')
+    return <Navigate to="/claim" replace />
+  }
+  if (postLogin === 'admin' && pathname !== '/admin' && !pathname.startsWith('/admin/')) {
+    localStorage.removeItem('pellikart_post_login')
+    return <Navigate to="/admin" replace />
+  }
+
   // These routes don't depend on a chosen couple/vendor role: the admin panel
   // is gated independently (AdminGate), and claim is for pre-onboarded vendors.
   // Render them before the chooser so an undecided user can still reach them.

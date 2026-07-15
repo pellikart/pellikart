@@ -17,9 +17,13 @@ export default function ClaimPage() {
 
   async function signInWithGoogle() {
     if (!supabase) return
+    // Redirect to the allowlisted /app callback and let the stamped intent route
+    // back here after login — /app/claim as a direct OAuth target is dropped
+    // unless separately allowlisted in Supabase.
+    localStorage.setItem('pellikart_post_login', 'claim')
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/app/claim' },
+      options: { redirectTo: window.location.origin + '/app' },
     })
   }
 

@@ -25,9 +25,13 @@ export default function AuthPage() {
     if (!supabase) return
     setError(null)
     localStorage.removeItem('pellikart_pending_role')
+    // Redirect to /app (the allowlisted callback) and let the app route us to
+    // the claim screen from this stamped intent — deep redirect targets like
+    // /app/claim are silently dropped unless separately allowlisted in Supabase.
+    localStorage.setItem('pellikart_post_login', 'claim')
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/app/claim' },
+      options: { redirectTo: window.location.origin + '/app' },
     })
     if (err) setError(err.message)
   }
@@ -38,9 +42,11 @@ export default function AuthPage() {
     if (!supabase) return
     setError(null)
     localStorage.removeItem('pellikart_pending_role')
+    // Same as claim: land on /app, then route to /admin from the stamped intent.
+    localStorage.setItem('pellikart_post_login', 'admin')
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/app/admin' },
+      options: { redirectTo: window.location.origin + '/app' },
     })
     if (err) setError(err.message)
   }
@@ -48,6 +54,10 @@ export default function AuthPage() {
   async function handleGoogleSignIn() {
     if (!supabase) return
     setError(null)
+
+    // Normal login/registration is not a claim/admin entry — drop any stale
+    // intent so it can't divert this user to the claim or admin screen.
+    localStorage.removeItem('pellikart_post_login')
 
     // Only stamp a pending role when registering; logins inherit the role
     // stored on the existing account.
