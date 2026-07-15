@@ -179,10 +179,13 @@ interface Props {
   ritualId?: string
   categoryId?: string
   selectedTierHours?: number
+  /** Vendor-side preview: shows a "how couples see this" banner. Rendered with
+   *  no board context, so the couple-only board actions are already hidden. */
+  preview?: boolean
 }
 
 
-export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours }: Props) {
+export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours, preview = false }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
   // Photo lightbox: index into `gallery`, or null when closed.
   const [lightbox, setLightbox] = useState<number | null>(null)
@@ -472,6 +475,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
     <>
       <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center md:items-center md:p-6" onClick={onClose}>
         <div className="bg-white rounded-t-2xl w-full max-w-[480px] max-h-[85vh] overflow-y-auto md:rounded-2xl md:max-w-[880px] md:max-h-[88vh]" onClick={(e) => e.stopPropagation()}>
+          {preview && (
+            <div className="sticky top-0 z-30 bg-mustard text-white text-[11px] font-semibold px-4 py-2 flex items-center gap-2">
+              <span>👁</span>
+              <span>Preview — this is how couples see your listing</span>
+            </div>
+          )}
           {/* Hero */}
           <div
             className={`h-44 md:h-60 relative ${gallery.length > 0 ? 'cursor-pointer' : ''}`}

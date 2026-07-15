@@ -4,12 +4,16 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { useVendorBase } from '@/lib/vendor-nav'
 import { formatINR } from '@/lib/helpers'
 import { isSingleListingCategory } from '@/lib/vendor-category-config'
+import { vendorListingToPreviewVendor } from '@/lib/vendor-preview'
+import ListingDetailSheet from '@/components/ListingDetailSheet'
+import type { VendorListing } from '@/lib/vendor-types'
 
 export default function VendorListings() {
   const navigate = useNavigate()
   const base = useVendorBase()
   const { vendorListings, vendorProfile, deleteListing, _adminMode } = useVendorStore()
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [previewListing, setPreviewListing] = useState<VendorListing | null>(null)
   // Single-listing categories (Mehendi, Makeup, Saree Draping) have no
   // Listings page — they author + edit their one listing from onboarding + the dashboard.
   // (In admin mode there's no dashboard, so we keep the list visible.)
@@ -53,11 +57,21 @@ export default function VendorListings() {
           <div className="space-y-3">
             {vendorListings.map((l) => (
               <div key={l.id} className="rounded-xl border border-card-border overflow-hidden bg-white">
-                {l.photos.length > 0 ? (
-                  <img src={l.photos[0]} alt={l.name} className="w-full h-32 object-cover" />
-                ) : (
-                  <div className="w-full h-32 bg-empty-bg flex items-center justify-center text-gray-400 text-xs">No photo</div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setPreviewListing(l)}
+                  className="block w-full relative group"
+                  aria-label={`Preview ${l.name} as a couple sees it`}
+                >
+                  {l.photos.length > 0 ? (
+                    <img src={l.photos[0]} alt={l.name} className="w-full h-32 object-cover" />
+                  ) : (
+                    <div className="w-full h-32 bg-empty-bg flex items-center justify-center text-gray-400 text-xs">No photo</div>
+                  )}
+                  <span className="absolute top-2 right-2 bg-black/55 text-white text-[9px] font-semibold px-2 py-1 rounded-full backdrop-blur-sm flex items-center gap-1">
+                    👁 Preview
+                  </span>
+                </button>
                 <div className="p-3">
                   {l.inHouseDecor?.pending && (
                     <button
@@ -89,6 +103,12 @@ export default function VendorListings() {
                   )}
                   <div className="flex gap-2 mt-2">
                     <button
+                      onClick={() => setPreviewListing(l)}
+                      className="flex-1 py-1.5 rounded-lg border border-card-border text-dark text-[10px] font-medium active:bg-empty-bg transition-colors"
+                    >
+                      👁 Preview
+                    </button>
+                    <button
                       onClick={() => navigate(`${base}/listings/edit/${l.id}`)}
                       className="flex-1 py-1.5 rounded-lg border border-mustard text-mustard text-[10px] font-medium active:bg-mustard-light transition-colors"
                     >
@@ -110,6 +130,16 @@ export default function VendorListings() {
           </div>
         )}
       </div>
+
+      {/* Couple's-eye preview of the listing */}
+      {previewListing && (
+        <ListingDetailSheet
+          vendor={vendorListingToPreviewVendor(previewListing, vendorProfile)}
+          unlocked
+          preview
+          onClose={() => setPreviewListing(null)}
+        />
+      )}
 
       {/* Delete confirmation */}
       {deleteTarget && (
