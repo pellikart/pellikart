@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getVenuePlateFromPrice, getRateCardTotal, getPhotographyGuestFromPrice, getPhotographyPackagePrice, getPhotographyModels, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getVenuePlateFromPrice, getRateCardTotal, getPhotographyGuestFromPrice, getPhotographyPackagePrice, getPhotographyModels, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket } from '@/lib/helpers'
 import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_GUEST_BUCKETS, PHOTOGRAPHY_PACKAGE_HOURS, photographyGuestBucketLabel, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing, PhotographyPricingModel } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
@@ -428,7 +428,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
         if (raw === undefined || raw === null || raw === '') continue
         if (Array.isArray(raw) && raw.length === 0) continue
         let display: string
-        if (Array.isArray(raw)) {
+        if (field.type === 'range') {
+          // Stored as [min, max]; legacy single values render as a plain number.
+          const [lo, hi] = Array.isArray(raw) ? raw : [raw, raw]
+          const unit = field.numberUnit ? ` ${field.numberUnit}` : ''
+          display = String(lo) === String(hi) ? `${lo}${unit}` : `${lo}–${hi}${unit}`
+        } else if (Array.isArray(raw)) {
           display = raw.join(', ')
         } else if (field.type === 'slider' && field.sliderUnit) {
           display = `${raw} ${field.sliderUnit}`
@@ -453,6 +458,15 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const blockedDates = vendor.blockedDates || []
   const conflictDates = allDates.filter(d => blockedDates.includes(d))
   const isAvailable = conflictDates.length === 0
+
+  // Soft capacity match: for a venue opened from a board, flag it when its
+  // guest-capacity range covers the couple's guest count for that event.
+  const eventGuestBucket = (() => {
+    if (!ritualId) return undefined
+    const board = ritualBoards.find(b => b.id === ritualId)
+    return board ? onboardingData?.eventGuests?.[board.name] : undefined
+  })()
+  const capacityFits = derivedCategory === 'Venue' && venueFitsGuestBucket(categoryFields.capacity, eventGuestBucket)
 
   return (
     <>
@@ -1230,6 +1244,14 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                 ) : (
                   <p className="text-[10px] text-gray-500 italic">Decor details coming soon.</p>
                 )}
+              </div>
+            )}
+
+            {/* Soft capacity match — venue fits the couple's guest count for this event */}
+            {capacityFits && eventGuestBucket && (
+              <div className="mb-3 flex items-center gap-2 rounded-xl bg-green-50 border border-green-200 px-3 py-2">
+                <span className="text-green-600 text-[13px] leading-none">✓</span>
+                <p className="text-[12px] font-medium text-green-700">Fits your {eventGuestBucket} guests</p>
               </div>
             )}
 

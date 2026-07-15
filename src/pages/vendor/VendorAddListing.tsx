@@ -1775,6 +1775,47 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
     )
   }
 
+  if (field.type === 'range') {
+    const min = field.numberMin ?? 0
+    const max = field.numberMax ?? 9999
+    const step = field.numberStep ?? 1
+    // Stored as [lo, hi]. A legacy single value (old slider) was the venue's
+    // capacity, so read it as the MAX with the floor as min ([min, v]) —
+    // consistent with how display/matching treat it as "up to v". An untouched
+    // field defaults to the full [min, max] span.
+    const [loRaw, hiRaw] = Array.isArray(value)
+      ? value
+      : typeof value === 'string' && value ? [String(min), value] : [String(min), String(max)]
+    const lo = parseInt(loRaw) || min
+    const hi = parseInt(hiRaw) || max
+    // Keep lo ≤ hi without dragging the other end when the user crosses them.
+    const setLo = (n: number) => { let v = Math.max(min, Math.min(max, n)); if (v > hi) v = hi; onChange([String(v), String(hi)]) }
+    const setHi = (n: number) => { let v = Math.max(min, Math.min(max, n)); if (v < lo) v = lo; onChange([String(lo), String(v)]) }
+    const box = (val: number, onSet: (n: number) => void, label: string) => (
+      <div className="flex-1 min-w-0">
+        <span className="text-[10px] text-gray-400 block mb-1">{label}</span>
+        <div className="inline-flex items-stretch rounded-xl border border-card-border overflow-hidden w-full">
+          <button type="button" onClick={() => onSet(val - step)} disabled={val <= min}
+            className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
+          <input type="number" min={min} max={max} step={step} value={val}
+            onChange={(e) => onSet(parseInt(e.target.value) || min)}
+            className="w-full min-w-0 text-center text-[13px] font-medium text-dark outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+          <button type="button" onClick={() => onSet(val + step)} disabled={val >= max}
+            className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40">+</button>
+        </div>
+      </div>
+    )
+    return (
+      <div>
+        <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}{field.numberUnit ? ` (${field.numberUnit})` : ''}</label>
+        <div className="flex items-end gap-2">
+          {box(lo, setLo, 'Min')}
+          {box(hi, setHi, 'Max')}
+        </div>
+      </div>
+    )
+  }
+
   if (field.type === 'single') {
     const selected = typeof value === 'string' ? value : ''
     return (

@@ -390,3 +390,47 @@ export function formatDateRange(start?: string, end?: string): string {
   }
   return `${formatDate(start)} - ${formatDate(end)}`;
 }
+
+// ─── Venue guest-capacity matching ──────────────────────────────────────────
+// A couple picks a guest-count bucket per event (e.g. "200-500", "1000+"); a
+// venue listing stores its served capacity as a [min, max] range. These let the
+// couple-side UI softly flag venues whose capacity covers the couple's count.
+
+/** Parse a couple's guest bucket ("200-500", "1000+") into [min, max]. */
+export function parseGuestBucket(bucket: string | undefined): [number, number] | null {
+  if (!bucket) return null;
+  if (bucket.trim().endsWith("+")) {
+    const n = parseInt(bucket, 10);
+    return Number.isFinite(n) ? [n, Infinity] : null;
+  }
+  const m = bucket.match(/(\d+)\s*-\s*(\d+)/);
+  if (m) return [parseInt(m[1], 10), parseInt(m[2], 10)];
+  const n = parseInt(bucket, 10);
+  return Number.isFinite(n) ? [n, n] : null;
+}
+
+/** Parse a venue listing's stored capacity into [min, max]. New listings store
+ *  [min, max]; a legacy single value ("800") is read as "up to 800". */
+export function parseCapacityRange(capacity: string | string[] | undefined): [number, number] | null {
+  if (capacity === undefined || capacity === null) return null;
+  if (Array.isArray(capacity)) {
+    if (capacity.length === 0) return null;
+    const lo = parseInt(capacity[0], 10);
+    const hi = parseInt(capacity[1] ?? capacity[0], 10);
+    if (!Number.isFinite(lo) && !Number.isFinite(hi)) return null;
+    return [Number.isFinite(lo) ? lo : 0, Number.isFinite(hi) ? hi : Infinity];
+  }
+  const n = parseInt(capacity, 10);
+  return Number.isFinite(n) ? [0, n] : null;
+}
+
+/** True when the venue's capacity range overlaps the couple's guest bucket. */
+export function venueFitsGuestBucket(
+  capacity: string | string[] | undefined,
+  bucket: string | undefined,
+): boolean {
+  const v = parseCapacityRange(capacity);
+  const c = parseGuestBucket(bucket);
+  if (!v || !c) return false;
+  return v[0] <= c[1] && v[1] >= c[0];
+}

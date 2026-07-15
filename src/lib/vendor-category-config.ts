@@ -7,7 +7,10 @@
 export interface SelectField {
   key: string
   label: string
-  type: 'single' | 'multi' | 'toggle' | 'slider' | 'number'
+  // 'range' captures a min–max pair (stored as [min, max]) and reuses the
+  // number* bounds below — used e.g. for a venue's guest-capacity range so
+  // couples whose guest count falls inside it can be matched to the venue.
+  type: 'single' | 'multi' | 'toggle' | 'slider' | 'number' | 'range'
   options?: string[]
   /** For toggle fields */
   toggleLabels?: [string, string]
@@ -16,7 +19,7 @@ export interface SelectField {
   sliderMax?: number
   sliderStep?: number
   sliderUnit?: string
-  /** For number-stepper fields */
+  /** For number-stepper AND range fields (range uses both ends of these bounds) */
   numberMin?: number
   numberMax?: number
   numberStep?: number
@@ -223,7 +226,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         fields: [
           { key: 'venueType', label: 'Venue type', type: 'single', options: ['Banquet Hall', 'Farmhouse', 'Resort', 'Hotel', 'Lawn', 'Palace', 'Rooftop', 'Convention Center'] },
           { key: 'setting', label: 'Setting', type: 'single', options: ['Indoor', 'Outdoor', 'Both'] },
-          { key: 'capacity', label: 'Guest capacity', type: 'slider', sliderMin: 50, sliderMax: 2000, sliderStep: 50, sliderUnit: 'guests' },
+          { key: 'capacity', label: 'Guest capacity', type: 'range', numberMin: 50, numberMax: 5000, numberStep: 50, numberUnit: 'guests' },
         ],
       },
       {
