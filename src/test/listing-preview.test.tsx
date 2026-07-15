@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import VendorListings from '@/pages/vendor/VendorListings'
+import VendorDashboard from '@/pages/vendor/VendorDashboard'
 import { useVendorStore } from '@/lib/vendor-store'
 import { vendorListingToPreviewVendor } from '@/lib/vendor-preview'
 import type { VendorProfile, VendorListing } from '@/lib/vendor-types'
@@ -75,14 +76,55 @@ describe('VendorListings preview', () => {
     )
 
     // Preview sheet is not shown until asked for.
-    expect(screen.queryByText(/how couples see your listing/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/this is how couples see your listing/i)).not.toBeInTheDocument()
 
     // Click the Preview action (the labeled button in the card's action row).
     fireEvent.click(screen.getByRole('button', { name: /^👁 Preview$/ }))
 
     // The couple-facing sheet opens with the preview banner and the vendor's
     // business name (as a couple would see it).
-    expect(screen.getByText(/how couples see your listing/i)).toBeInTheDocument()
+    expect(screen.getByText(/this is how couples see your listing/i)).toBeInTheDocument()
     expect(screen.getAllByText(/Lens & Light Studio/).length).toBeGreaterThan(0)
+  })
+})
+
+describe('VendorDashboard preview (single-listing categories)', () => {
+  const mehendiProfile: VendorProfile = {
+    ...profile,
+    businessName: 'Henna by Asha',
+    category: 'Mehendi',
+  }
+  const mehendiListing: VendorListing = {
+    id: 'vl-mehendi-1',
+    name: 'Bridal Mehendi',
+    photos: ['/mehendi.jpg'],
+    category: 'Mehendi',
+    price: 12000,
+    style: 'Rajasthani',
+    includes: ['Bridal', 'Family'],
+    createdAt: '2026-07-15',
+  }
+
+  beforeEach(() => {
+    useVendorStore.setState({
+      vendorListings: [mehendiListing],
+      vendorProfile: mehendiProfile,
+      _adminMode: false,
+    })
+  })
+
+  it('opens the couple-view preview from the single-listing shortcut', () => {
+    render(
+      <MemoryRouter>
+        <VendorDashboard />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByText(/this is how couples see your listing/i)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Preview how couples see your listing/i }))
+
+    expect(screen.getByText(/this is how couples see your listing/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Henna by Asha/).length).toBeGreaterThan(0)
   })
 })

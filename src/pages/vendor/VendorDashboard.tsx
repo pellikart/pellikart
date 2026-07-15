@@ -4,6 +4,8 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { formatINR, formatDate } from '@/lib/helpers'
 import { getMilestones } from '@/lib/milestones'
 import { isSingleListingCategory } from '@/lib/vendor-category-config'
+import { vendorListingToPreviewVendor } from '@/lib/vendor-preview'
+import ListingDetailSheet from '@/components/ListingDetailSheet'
 import { VendorBooking } from '@/lib/vendor-types'
 
 export default function VendorDashboard() {
@@ -28,6 +30,7 @@ export default function VendorDashboard() {
     : vendorListings.find((l) => l.category !== 'Decor' && (!l.price || l.price <= 0))
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [bookingTab, setBookingTab] = useState<'active' | 'completed' | 'cancelled'>('active')
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const totalEarnings = vendorEarnings.reduce((s, e) => s + e.amount, 0)
   const thisMonth = vendorEarnings.filter((e) => e.date.startsWith('2026-04')).reduce((s, e) => s + e.amount, 0) || vendorEarnings.filter((e) => e.date.startsWith('2026-03')).reduce((s, e) => s + e.amount, 0)
@@ -83,18 +86,26 @@ export default function VendorDashboard() {
           </button>
         ) : null}
 
-        {/* Single-listing categories: edit pricing shortcut */}
+        {/* Single-listing categories: edit pricing shortcut + couple's-eye preview */}
         {pricingListing && (
-          <button
-            onClick={() => navigate(`/vendor/listings/edit/${pricingListing.id}`)}
-            className="w-full mb-4 p-3 rounded-xl bg-mustard-light border border-mustard/20 flex items-center justify-between text-left active:scale-[0.99] transition-transform"
-          >
-            <div>
-              <p className="text-[12px] font-semibold text-dark">Edit your {singleCategory} pricing</p>
-              <p className="text-[10px] text-gray-500 mt-0.5">Update bridal, groom &amp; guest prices couples see.</p>
-            </div>
-            <span className="text-mustard text-[18px]">›</span>
-          </button>
+          <div className="mb-4 space-y-2">
+            <button
+              onClick={() => navigate(`/vendor/listings/edit/${pricingListing.id}`)}
+              className="w-full p-3 rounded-xl bg-mustard-light border border-mustard/20 flex items-center justify-between text-left active:scale-[0.99] transition-transform"
+            >
+              <div>
+                <p className="text-[12px] font-semibold text-dark">Edit your {singleCategory} pricing</p>
+                <p className="text-[10px] text-gray-500 mt-0.5">Update bridal, groom &amp; guest prices couples see.</p>
+              </div>
+              <span className="text-mustard text-[18px]">›</span>
+            </button>
+            <button
+              onClick={() => setPreviewOpen(true)}
+              className="w-full py-2.5 rounded-xl border border-card-border text-dark text-[11px] font-semibold active:bg-empty-bg transition-colors"
+            >
+              👁 Preview how couples see your listing
+            </button>
+          </div>
         )}
 
         {/* Earnings Cards */}
@@ -194,6 +205,16 @@ export default function VendorDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Couple's-eye preview of the single listing */}
+      {previewOpen && pricingListing && (
+        <ListingDetailSheet
+          vendor={vendorListingToPreviewVendor(pricingListing, vendorProfile)}
+          unlocked
+          preview
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </div>
   )
 }
