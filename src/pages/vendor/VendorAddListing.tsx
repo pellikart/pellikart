@@ -82,8 +82,12 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const [slots, setSlots] = useState<PlateSlot[]>([])
   // Venue-only: which plate package's menu is currently being edited (catering-style sub-screen)
   const [menuEditPkgId, setMenuEditPkgId] = useState<string | null>(null)
-  // Venue-only: in-house decor — is it compulsory, and (if so) its details
+  // Venue-only: in-house decor. Outside-decorator policy drives compulsory:
+  //  'notAllowed' ⇒ in-house compulsory; 'royalty'/'allowedFree' ⇒ optional.
+  const [inHouseDecorPolicy, setInHouseDecorPolicy] = useState<'notAllowed' | 'royalty' | 'allowedFree' | null>(null)
   const [inHouseDecorCompulsory, setInHouseDecorCompulsory] = useState<boolean | null>(null)
+  const [inHouseDecorStartingPrice, setInHouseDecorStartingPrice] = useState(0)
+  const [inHouseDecorOutsideRoyalty, setInHouseDecorOutsideRoyalty] = useState(0)
   // When compulsory: 'now' = add details in this flow, 'skip' = add later (reminder)
   const [inHouseDecorMode, setInHouseDecorMode] = useState<'now' | 'skip' | null>(null)
   // Whether the decor details form has been opened (via Continue) — gates the form reveal
@@ -129,7 +133,10 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setHourlyPricing([])
     setPlatePackages([])
     setMenuEditPkgId(null)
+    setInHouseDecorPolicy(null)
     setInHouseDecorCompulsory(null)
+    setInHouseDecorStartingPrice(0)
+    setInHouseDecorOutsideRoyalty(0)
     setInHouseDecorMode(null)
     setDecorFormOpen(false)
     setInHouseDecorFields({})
@@ -373,9 +380,10 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
 
     // In-house decor — upload design media in live mode, then build the payload object.
     let inHouseDecorForPayload: InHouseDecor | undefined = undefined
-    if (category === 'Venue' && inHouseDecorCompulsory !== null) {
-      const addingNow = inHouseDecorCompulsory && inHouseDecorMode === 'now'
-      const pending = inHouseDecorCompulsory && inHouseDecorMode === 'skip'
+    if (category === 'Venue' && inHouseDecorPolicy !== null) {
+      const compulsory = inHouseDecorPolicy === 'notAllowed'
+      const addingNow = inHouseDecorMode === 'now'
+      const pending = compulsory && inHouseDecorMode === 'skip'
       let decorDesigns = inHouseDecorDesigns
       if (addingNow && decorDesigns.length > 0 && _liveMode && _vendorDbId) {
         decorDesigns = await Promise.all(decorDesigns.map(async d => {
@@ -394,11 +402,14 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         }))
       }
       inHouseDecorForPayload = {
-        compulsory: inHouseDecorCompulsory,
+        compulsory,
+        outsideDecorPolicy: inHouseDecorPolicy,
         pending: pending || undefined,
         fields: addingNow && Object.keys(inHouseDecorFields).length > 0 ? inHouseDecorFields : undefined,
         designs: addingNow && decorDesigns.length > 0 ? decorDesigns : undefined,
-        decoratorPhone: addingNow && inHouseDecorDecoratorPhone.trim() ? inHouseDecorDecoratorPhone.trim() : undefined,
+        decoratorPhone: inHouseDecorDecoratorPhone.trim() || undefined,
+        startingPrice: inHouseDecorStartingPrice > 0 ? inHouseDecorStartingPrice : undefined,
+        outsideDecorRoyalty: inHouseDecorPolicy === 'royalty' && inHouseDecorOutsideRoyalty > 0 ? inHouseDecorOutsideRoyalty : undefined,
       }
     }
 
@@ -1183,20 +1194,21 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                   <path d="M12 3l2.3 4.7 5.2.8-3.8 3.7.9 5.1L12 15.6 7.4 17l.9-5.1L4.5 8.5l5.2-.8z" />
                 </svg>
               </div>
-              <h1 className="text-[20px] font-bold text-dark">Is in-house decor compulsory?</h1>
-              <p className="text-[11px] text-gray-400 mt-1 mb-5">Do couples booking this venue have to take your in-house decor?</p>
+              <h1 className="text-[20px] font-bold text-dark">Can couples bring an outside decorator?</h1>
+              <p className="text-[11px] text-gray-400 mt-1 mb-5">This sets whether your in-house decor is compulsory.</p>
 
               <div className="flex flex-col gap-2.5 mb-5">
                 {([
-                  { val: true, title: 'Yes, compulsory', desc: 'Couples must take your in-house decor with the venue.' },
-                  { val: false, title: 'No', desc: 'Couples can bring their own decor or arrange it elsewhere.' },
+                  { val: 'notAllowed', title: 'No — in-house decor is compulsory', desc: 'Couples must take your in-house decor with the venue.' },
+                  { val: 'royalty', title: 'Yes, but we charge a royalty', desc: 'Couples can bring their own decorator for a fee.' },
+                  { val: 'allowedFree', title: 'Yes, no royalty', desc: 'Couples can freely bring their own decorator.' },
                 ] as const).map(opt => {
-                  const selected = inHouseDecorCompulsory === opt.val
+                  const selected = inHouseDecorPolicy === opt.val
                   return (
                     <button
-                      key={String(opt.val)}
+                      key={opt.val}
                       type="button"
-                      onClick={() => { setInHouseDecorCompulsory(opt.val); setInHouseDecorMode(opt.val ? 'now' : null); setDecorFormOpen(false) }}
+                      onClick={() => { setInHouseDecorPolicy(opt.val); setInHouseDecorCompulsory(opt.val === 'notAllowed'); setInHouseDecorMode('now'); setDecorFormOpen(false) }}
                       className={`w-full text-left p-3.5 rounded-xl border transition-all ${selected ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border bg-white'}`}
                     >
                       <div className="flex items-start gap-2.5">
@@ -1213,12 +1225,43 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                 })}
               </div>
 
-              {inHouseDecorCompulsory === true && (
+              {/* Royalty + starting price — captured up front so they hold even
+                  if the vendor skips adding designs now. */}
+              {inHouseDecorPolicy !== null && (
+                <div className="space-y-4 mb-5">
+                  {inHouseDecorPolicy === 'royalty' && (
+                    <div>
+                      <label className="text-[12px] font-medium text-dark block mb-1">Outside-decorator royalty (₹)</label>
+                      <input
+                        type="number" inputMode="numeric" min={0} value={inHouseDecorOutsideRoyalty || ''}
+                        onChange={(e) => setInHouseDecorOutsideRoyalty(Math.max(0, parseInt(e.target.value) || 0))} placeholder="e.g. 50000"
+                        className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-[12px] font-medium text-dark block mb-1">
+                      Starting price of decor designs (₹) <span className="text-[10px] text-gray-400 font-normal">(shown as "from")</span>
+                    </label>
+                    <input
+                      type="number" inputMode="numeric" min={0} value={inHouseDecorStartingPrice || ''}
+                      onChange={(e) => setInHouseDecorStartingPrice(Math.max(0, parseInt(e.target.value) || 0))} placeholder="e.g. 75000"
+                      className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {inHouseDecorPolicy !== null && (
                 <div className="animate-fadeIn">
                   {inHouseDecorMode === 'skip' ? (
                     <div className="p-3 rounded-xl bg-mustard-light/50 border border-mustard/30">
                       <p className="text-[11px] text-mustard font-semibold">You'll add decor details later</p>
-                      <p className="text-[10px] text-gray-600 mt-0.5">Couples will see this venue requires in-house decor; the designs appear once you add them. We'll remind you with a notification and a banner on this listing.</p>
+                      <p className="text-[10px] text-gray-600 mt-0.5">
+                        {inHouseDecorPolicy === 'notAllowed'
+                          ? "Couples will see this venue requires in-house decor; the designs appear once you add them. We'll remind you with a notification and a banner on this listing."
+                          : 'You can add your decor designs anytime from Edit listing. Your starting price still shows couples a "from" figure.'}
+                      </p>
                       <button
                         type="button"
                         onClick={() => { setInHouseDecorMode('now'); setDecorFormOpen(true) }}
@@ -1681,19 +1724,23 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
             )}
 
             {/* Venue-only: in-house decor summary */}
-            {category === 'Venue' && inHouseDecorCompulsory !== null && (
+            {category === 'Venue' && inHouseDecorPolicy !== null && (
               <div className="mb-4 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-[12px] font-semibold text-dark">In-house decor</p>
                   <button onClick={() => setStep(decorCompulsoryStep)} className="text-[10px] font-medium text-mustard">Edit</button>
                 </div>
-                {inHouseDecorCompulsory === false ? (
-                  <p className="text-[10px] text-gray-500">Not compulsory.</p>
-                ) : inHouseDecorMode === 'skip' ? (
-                  <p className="text-[10px] text-gray-500">Compulsory · details to be added later (you'll be reminded).</p>
+                <p className="text-[10px] text-gray-500 mb-1">
+                  {inHouseDecorPolicy === 'notAllowed' ? 'Outside decor not allowed (compulsory)'
+                    : inHouseDecorPolicy === 'royalty' ? `Outside decor allowed · royalty ${inHouseDecorOutsideRoyalty > 0 ? formatINR(inHouseDecorOutsideRoyalty) : '—'}`
+                    : 'Outside decor allowed · no royalty'}
+                  {inHouseDecorStartingPrice > 0 ? ` · from ${formatINR(inHouseDecorStartingPrice)}` : ''}
+                </p>
+                {inHouseDecorMode === 'skip' && inHouseDecorDesigns.length === 0 ? (
+                  <p className="text-[10px] text-gray-500">Designs to be added later.</p>
                 ) : (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] text-gray-500">Compulsory · {inHouseDecorDesigns.length} {inHouseDecorDesigns.length === 1 ? 'design' : 'designs'}</p>
+                    <p className="text-[10px] text-gray-500">{inHouseDecorDesigns.length} {inHouseDecorDesigns.length === 1 ? 'design' : 'designs'}</p>
                     {inHouseDecorDesigns.filter(d => d.price > 0 || (d.sizes?.length || 0) > 0).map((d) => {
                       const from = (d.sizes?.length || 0) > 0 ? Math.min(...(d.sizes || []).map(s => s.price).filter(p => p > 0)) : d.price
                       return (

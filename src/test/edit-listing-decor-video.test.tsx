@@ -91,4 +91,28 @@ describe('VendorEditListing — videos + in-house decor', () => {
     // The "How many?" count follow-up must appear because complimentaryRooms = Yes.
     expect(screen.getByText(/How many\?/i)).toBeInTheDocument()
   })
+
+  it('exposes the outside-decor policy options and the starting-price field', () => {
+    renderEdit('vl-venue-1')
+    // The 3-way outside-decorator policy select replaces the old compulsory toggle.
+    expect(screen.getByText(/in-house decor is compulsory/i)).toBeInTheDocument()
+    expect(screen.getByText(/but we charge a royalty/i)).toBeInTheDocument()
+    expect(screen.getByText(/no royalty/i)).toBeInTheDocument()
+    // Starting price is always available (useful even when designs are added later).
+    expect(screen.getByText(/Starting price of decor designs/i)).toBeInTheDocument()
+  })
+
+  it('shows the royalty amount field when the "royalty" policy is loaded', () => {
+    useVendorStore.setState({
+      vendorListings: [{
+        ...venueListing,
+        inHouseDecor: { compulsory: false, outsideDecorPolicy: 'royalty', outsideDecorRoyalty: 50000, designs: [] },
+      }],
+      vendorProfile: venueProfile,
+      _adminMode: false,
+    })
+    renderEdit('vl-venue-1')
+    const royalty = screen.getByPlaceholderText('e.g. 50000') as HTMLInputElement
+    expect(royalty.value).toBe('50000')
+  })
 })

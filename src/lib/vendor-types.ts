@@ -26,8 +26,12 @@ export interface DesignDraft {
 
 /** Venue-only: in-house decor offering attached to a venue listing. */
 export interface InHouseDecor {
-  /** Whether couples booking this venue must take the in-house decor. */
+  /** Whether couples booking this venue must take the in-house decor.
+   *  Kept in sync with outsideDecorPolicy (true ⇔ 'notAllowed') for back-compat. */
   compulsory: boolean
+  /** Outside-decorator policy: 'notAllowed' (in-house compulsory), 'royalty'
+   *  (allowed for a fee), or 'allowedFree' (allowed, no charge). */
+  outsideDecorPolicy?: 'notAllowed' | 'royalty' | 'allowedFree'
   /** True when compulsory but the vendor skipped adding details (reminder pending). */
   pending?: boolean
   /** Decor detail field values (reuses the Decor listing's detail fields). */
@@ -36,6 +40,11 @@ export interface InHouseDecor {
   designs?: DesignDraft[]
   /** Direct contact number for the venue's dedicated decor person. */
   decoratorPhone?: string
+  /** Starting ("from") price of the in-house decor — useful when designs are
+   *  added later so couples still see a price. */
+  startingPrice?: number
+  /** Royalty/fee (₹) charged when a couple brings an outside decorator instead. */
+  outsideDecorRoyalty?: number
 }
 
 /** How a catering / plate-package menu is presented to couples:

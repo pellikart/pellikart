@@ -89,11 +89,15 @@ export default function VendorEditListing() {
   // mirrors the add flow (compulsory, detail fields, per-design entries) plus the
   // dedicated decorator's contact number.
   const [offersDecor, setOffersDecor] = useState(false)
-  const [decorCompulsory, setDecorCompulsory] = useState(false)
+  // Outside-decorator policy: couples must use in-house ('notAllowed'), may bring
+  // their own for a royalty ('royalty'), or freely ('allowedFree').
+  const [decorPolicy, setDecorPolicy] = useState<'notAllowed' | 'royalty' | 'allowedFree'>('notAllowed')
   const [decorFields, setDecorFields] = useState<Record<string, string | string[]>>({})
   const [decorDesigns, setDecorDesigns] = useState<DesignDraft[]>([])
   const [decorFiles, setDecorFiles] = useState<Record<string, { photos: File[]; videos: File[] }>>({})
   const [decoratorPhone, setDecoratorPhone] = useState('')
+  const [decorStartingPrice, setDecorStartingPrice] = useState(0)
+  const [decorOutsideRoyalty, setDecorOutsideRoyalty] = useState(0)
   // Venue-only: paid lodging rooms (+ pending per-room photo uploads).
   const [paidRooms, setPaidRooms] = useState<PaidRoom[]>([])
   const [paidRoomFiles, setPaidRoomFiles] = useState<Record<string, File[]>>({})
@@ -155,10 +159,14 @@ export default function VendorEditListing() {
       // In-house decor (Venue). Presence of the object means the venue offers it.
       const ihd = listing.inHouseDecor
       setOffersDecor(!!ihd)
-      setDecorCompulsory(ihd?.compulsory ?? false)
+      // Derive the policy: explicit field wins; else fall back to the legacy
+      // compulsory flag (true ⇒ outside not allowed, false ⇒ allowed free).
+      setDecorPolicy(ihd?.outsideDecorPolicy ?? (ihd?.compulsory ? 'notAllowed' : 'allowedFree'))
       setDecorFields(ihd?.fields || {})
       setDecorDesigns(ihd?.designs || [])
       setDecoratorPhone(ihd?.decoratorPhone || '')
+      setDecorStartingPrice(ihd?.startingPrice || 0)
+      setDecorOutsideRoyalty(ihd?.outsideDecorRoyalty || 0)
       setPaidRooms(listing.paidRooms || [])
     }
   }, [listing])
@@ -356,12 +364,16 @@ export default function VendorEditListing() {
           }))
         }
         const hasDetails = designs.length > 0 || Object.keys(decorFields).length > 0
+        const compulsory = decorPolicy === 'notAllowed'
         inHouseDecorOut = {
-          compulsory: decorCompulsory,
-          pending: decorCompulsory && !hasDetails ? true : undefined,
+          compulsory,
+          outsideDecorPolicy: decorPolicy,
+          pending: compulsory && !hasDetails ? true : undefined,
           fields: Object.keys(decorFields).length > 0 ? decorFields : undefined,
           designs: designs.length > 0 ? designs : undefined,
           decoratorPhone: decoratorPhone.trim() || undefined,
+          startingPrice: decorStartingPrice > 0 ? decorStartingPrice : undefined,
+          outsideDecorRoyalty: decorPolicy === 'royalty' && decorOutsideRoyalty > 0 ? decorOutsideRoyalty : undefined,
         }
       }
     }
@@ -572,13 +584,52 @@ export default function VendorEditListing() {
 
             {offersDecor && (
               <div className="mt-3 space-y-4">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" className="accent-mustard mt-0.5" checked={decorCompulsory} onChange={() => setDecorCompulsory((v) => !v)} />
-                  <div>
-                    <span className="text-[11px] font-medium text-dark">Compulsory with the venue</span>
-                    <p className="text-[10px] text-gray-500">Couples must take your in-house decor to book.</p>
+                {/* Outside-decorator policy */}
+                <div>
+                  <label className="text-[11px] font-medium text-dark block mb-1.5">Can couples bring an outside decorator?</label>
+                  <div className="flex flex-col gap-1.5">
+                    {([
+                      { val: 'notAllowed' as const, title: 'No — in-house decor is compulsory', desc: 'Couples must take your in-house decor.' },
+                      { val: 'royalty' as const, title: 'Yes, but we charge a royalty', desc: 'Couples can bring their own decorator for a fee.' },
+                      { val: 'allowedFree' as const, title: 'Yes, no royalty', desc: 'Couples can freely bring their own decorator.' },
+                    ]).map((opt) => {
+                      const selected = decorPolicy === opt.val
+                      return (
+                        <button
+                          key={opt.val} type="button" onClick={() => setDecorPolicy(opt.val)}
+                          className={`w-full text-left p-2.5 rounded-xl border transition-all ${selected ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border bg-white'}`}
+                        >
+                          <span className="text-[11px] font-semibold text-dark">{opt.title}</span>
+                          <p className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</p>
+                        </button>
+                      )
+                    })}
                   </div>
-                </label>
+                </div>
+
+                {/* Royalty amount — only when outside decor is allowed for a fee */}
+                {decorPolicy === 'royalty' && (
+                  <div>
+                    <label className="text-[11px] font-medium text-dark block mb-1">Outside-decorator royalty (₹)</label>
+                    <input
+                      type="number" inputMode="numeric" min={0} value={decorOutsideRoyalty || ''}
+                      onChange={(e) => setDecorOutsideRoyalty(Math.max(0, parseInt(e.target.value) || 0))} placeholder="e.g. 50000"
+                      className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard"
+                    />
+                  </div>
+                )}
+
+                {/* Starting price of decor designs — useful even before designs are added */}
+                <div>
+                  <label className="text-[11px] font-medium text-dark block mb-1">
+                    Starting price of decor designs (₹) <span className="text-[10px] text-gray-400 font-normal">(shown as "from")</span>
+                  </label>
+                  <input
+                    type="number" inputMode="numeric" min={0} value={decorStartingPrice || ''}
+                    onChange={(e) => setDecorStartingPrice(Math.max(0, parseInt(e.target.value) || 0))} placeholder="e.g. 75000"
+                    className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard"
+                  />
+                </div>
 
                 <div>
                   <label className="text-[11px] font-medium text-dark block mb-1">

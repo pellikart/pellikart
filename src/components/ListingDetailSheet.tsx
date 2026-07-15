@@ -1230,19 +1230,33 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </div>
             )}
 
-            {/* In-house decor (Venue) — required, priced separately */}
-            {vendor.category === 'Venue' && vendor.inHouseDecor?.compulsory && (
+            {/* In-house decor (Venue) — priced separately; policy governs outside decorators */}
+            {vendor.category === 'Venue' && vendor.inHouseDecor && (() => {
+              const ihd = vendor.inHouseDecor
+              const policy = ihd.outsideDecorPolicy ?? (ihd.compulsory ? 'notAllowed' : 'allowedFree')
+              return (
               <div className="mb-4 p-3 rounded-xl bg-magenta-light/40 border border-magenta/20">
-                <p className="text-[11px] font-semibold text-dark">In-house decor — required</p>
-                <p className="text-[10px] text-gray-600 mb-2">This venue requires its in-house decor, priced separately from the venue.</p>
-                {unlocked && vendor.inHouseDecor.decoratorPhone && (
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-dark">
+                    {policy === 'notAllowed' ? 'In-house decor — required' : 'In-house decor'}
+                  </p>
+                  {ihd.startingPrice ? <p className="text-[11px] font-semibold text-magenta">From {formatINR(ihd.startingPrice)}</p> : null}
+                </div>
+                <p className="text-[10px] text-gray-600 mb-2">
+                  {policy === 'notAllowed'
+                    ? 'This venue requires its in-house decor, priced separately from the venue.'
+                    : policy === 'royalty'
+                    ? `You may bring an outside decorator${ihd.outsideDecorRoyalty ? ` for a ${formatINR(ihd.outsideDecorRoyalty)} royalty` : ' for a royalty'}, or use the venue's in-house decor.`
+                    : "You may bring your own decorator, or use the venue's in-house decor."}
+                </p>
+                {unlocked && ihd.decoratorPhone && (
                   <p className="text-[10px] text-gray-700 mb-2">
-                    Decorator: <a href={`tel:${vendor.inHouseDecor.decoratorPhone}`} className="font-medium text-magenta">{vendor.inHouseDecor.decoratorPhone}</a>
+                    Decorator: <a href={`tel:${ihd.decoratorPhone}`} className="font-medium text-magenta">{ihd.decoratorPhone}</a>
                   </p>
                 )}
-                {vendor.inHouseDecor.designs && vendor.inHouseDecor.designs.length > 0 ? (
+                {ihd.designs && ihd.designs.length > 0 ? (
                   <div className="space-y-1.5">
-                    {vendor.inHouseDecor.designs.map((d) => {
+                    {ihd.designs.map((d) => {
                       const from = (d.sizes?.length || 0) > 0
                         ? Math.min(...(d.sizes || []).map(s => s.price).filter(p => p > 0))
                         : d.price
@@ -1259,7 +1273,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                   <p className="text-[10px] text-gray-500 italic">Decor details coming soon.</p>
                 )}
               </div>
-            )}
+              )
+            })()}
 
             {/* Soft capacity match — venue fits the couple's guest count for this event */}
             {capacityFits && eventGuestBucket && (
