@@ -34,6 +34,8 @@ export interface InHouseDecor {
   fields?: Record<string, string | string[]>
   /** Per-design entries, each separately priced. */
   designs?: DesignDraft[]
+  /** Direct contact number for the venue's dedicated decor person. */
+  decoratorPhone?: string
 }
 
 /** How a catering / plate-package menu is presented to couples:

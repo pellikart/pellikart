@@ -1235,6 +1235,11 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               <div className="mb-4 p-3 rounded-xl bg-magenta-light/40 border border-magenta/20">
                 <p className="text-[11px] font-semibold text-dark">In-house decor — required</p>
                 <p className="text-[10px] text-gray-600 mb-2">This venue requires its in-house decor, priced separately from the venue.</p>
+                {unlocked && vendor.inHouseDecor.decoratorPhone && (
+                  <p className="text-[10px] text-gray-700 mb-2">
+                    Decorator: <a href={`tel:${vendor.inHouseDecor.decoratorPhone}`} className="font-medium text-magenta">{vendor.inHouseDecor.decoratorPhone}</a>
+                  </p>
+                )}
                 {vendor.inHouseDecor.designs && vendor.inHouseDecor.designs.length > 0 ? (
                   <div className="space-y-1.5">
                     {vendor.inHouseDecor.designs.map((d) => {

@@ -89,6 +89,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   // Whether the decor details form has been opened (via Continue) — gates the form reveal
   const [decorFormOpen, setDecorFormOpen] = useState(false)
   const [inHouseDecorFields, setInHouseDecorFields] = useState<Record<string, string | string[]>>({})
+  // Direct contact for the venue's dedicated decor person.
+  const [inHouseDecorDecoratorPhone, setInHouseDecorDecoratorPhone] = useState('')
   const [inHouseDecorDesigns, setInHouseDecorDesigns] = useState<DesignDraft[]>([])
   // Per-design pending File uploads for in-house decor (live mode replaces blob URLs)
   const [inHouseDecorFiles, setInHouseDecorFiles] = useState<Record<string, { photos: File[]; videos: File[] }>>({})
@@ -131,6 +133,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setInHouseDecorMode(null)
     setDecorFormOpen(false)
     setInHouseDecorFields({})
+    setInHouseDecorDecoratorPhone('')
     setInHouseDecorDesigns([])
     setInHouseDecorFiles({})
     setPaidRooms([])
@@ -395,6 +398,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         pending: pending || undefined,
         fields: addingNow && Object.keys(inHouseDecorFields).length > 0 ? inHouseDecorFields : undefined,
         designs: addingNow && decorDesigns.length > 0 ? decorDesigns : undefined,
+        decoratorPhone: addingNow && inHouseDecorDecoratorPhone.trim() ? inHouseDecorDecoratorPhone.trim() : undefined,
       }
     }
 
@@ -1111,6 +1115,18 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
               <p className="text-[11px] text-gray-400 mt-1 mb-5">Add your decor style and designs. Couples booking this venue will see these.</p>
 
               <div className="space-y-5">
+                {/* Decorator contact — dedicated decor person */}
+                <div>
+                  <label className="text-[12px] font-medium text-dark block mb-1">
+                    Decorator contact number <span className="text-[10px] text-gray-400 font-normal">(dedicated decor person)</span>
+                  </label>
+                  <input
+                    type="tel" inputMode="tel" value={inHouseDecorDecoratorPhone}
+                    onChange={(e) => setInHouseDecorDecoratorPhone(e.target.value)} placeholder="+91…"
+                    className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard"
+                  />
+                </div>
+
                 {/* Decor detail fields (reused from the Decor listing flow) */}
                 <div className="space-y-5">
                   {decorFieldDefs.map(field => (

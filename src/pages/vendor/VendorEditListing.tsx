@@ -5,7 +5,9 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
-import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice } from '@/lib/vendor-types'
+import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice, InHouseDecor, PaidRoom } from '@/lib/vendor-types'
+import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
+import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
 import MenuEditor from '@/components/MenuEditor'
 import SizesEditor from '@/components/SizesEditor'
@@ -32,6 +34,9 @@ export default function VendorEditListing() {
   // Newly-added photos are blob: previews; keep their File so we can upload them
   // on save (otherwise the un-loadable blob URL gets persisted).
   const [photoFiles, setPhotoFiles] = useState<Record<string, File>>({})
+  // Videos mirror photos: blob: previews with their File kept for upload on save.
+  const [videos, setVideos] = useState<string[]>([])
+  const [videoFiles, setVideoFiles] = useState<Record<string, File>>({})
   const [saving, setSaving] = useState(false)
   const [style, setStyle] = useState('')
   const [price, setPrice] = useState(pr.min)
@@ -80,11 +85,24 @@ export default function VendorEditListing() {
   const [venueLocation, setVenueLocation] = useState<VenueLocation>({ address: '' })
   const [venuePricingModels, setVenuePricingModels] = useState<VenuePricingModel[]>([])
   const [hourlyPricing, setHourlyPricing] = useState<{ hours: number; price: number }[]>([])
+  // Venue-only: in-house decor. offersDecor toggles the whole block; the rest
+  // mirrors the add flow (compulsory, detail fields, per-design entries) plus the
+  // dedicated decorator's contact number.
+  const [offersDecor, setOffersDecor] = useState(false)
+  const [decorCompulsory, setDecorCompulsory] = useState(false)
+  const [decorFields, setDecorFields] = useState<Record<string, string | string[]>>({})
+  const [decorDesigns, setDecorDesigns] = useState<DesignDraft[]>([])
+  const [decorFiles, setDecorFiles] = useState<Record<string, { photos: File[]; videos: File[] }>>({})
+  const [decoratorPhone, setDecoratorPhone] = useState('')
+  // Venue-only: paid lodging rooms (+ pending per-room photo uploads).
+  const [paidRooms, setPaidRooms] = useState<PaidRoom[]>([])
+  const [paidRoomFiles, setPaidRoomFiles] = useState<Record<string, File[]>>({})
 
   useEffect(() => {
     if (listing) {
       setName(listing.name)
       setPhotos(listing.photos)
+      setVideos(listing.videos || [])
       setCoverIndex(listing.coverPhotoIndex ?? 0)
       setStyle(listing.style)
       setPrice(listing.price)
@@ -134,6 +152,14 @@ export default function VendorEditListing() {
       setVenueLocation(listing.venueLocation && listing.venueLocation.address ? listing.venueLocation : { address: '' })
       setVenuePricingModels(listing.venuePricingModels || [])
       setHourlyPricing(listing.hourlyPricing || [])
+      // In-house decor (Venue). Presence of the object means the venue offers it.
+      const ihd = listing.inHouseDecor
+      setOffersDecor(!!ihd)
+      setDecorCompulsory(ihd?.compulsory ?? false)
+      setDecorFields(ihd?.fields || {})
+      setDecorDesigns(ihd?.designs || [])
+      setDecoratorPhone(ihd?.decoratorPhone || '')
+      setPaidRooms(listing.paidRooms || [])
     }
   }, [listing])
 
@@ -167,6 +193,27 @@ export default function VendorEditListing() {
     // Drop the pending-upload file mapping if this was a newly-added blob.
     if (url && photoFiles[url]) {
       setPhotoFiles((prev) => { const n = { ...prev }; delete n[url]; return n })
+    }
+  }
+
+  function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) {
+      const fileMap: Record<string, File> = {}
+      const newVideos = Array.from(e.target.files).map((f) => {
+        const url = URL.createObjectURL(f)
+        fileMap[url] = f
+        return url
+      })
+      setVideos((prev) => [...prev, ...newVideos].slice(0, 5))
+      setVideoFiles((prev) => ({ ...prev, ...fileMap }))
+    }
+  }
+
+  function removeVideo(idx: number) {
+    const url = videos[idx]
+    setVideos((prev) => prev.filter((_, i) => i !== idx))
+    if (url && videoFiles[url]) {
+      setVideoFiles((prev) => { const n = { ...prev }; delete n[url]; return n })
     }
   }
 
@@ -274,6 +321,62 @@ export default function VendorEditListing() {
       // Drop any leftover blobs (e.g. a failed upload) so we never save them.
       finalPhotos = [...existing, ...uploaded]
     }
+    // Videos — same upload flow as photos.
+    let finalVideos = videos
+    if (_liveMode && _vendorDbId) {
+      const existing = videos.filter((v) => !v.startsWith('blob:'))
+      const newFiles = videos.filter((v) => v.startsWith('blob:')).map((v) => videoFiles[v]).filter(Boolean)
+      const uploaded = newFiles.length > 0 ? await uploadPhotos(_vendorDbId, newFiles, 'listing') : []
+      finalVideos = [...existing, ...uploaded]
+    }
+
+    // In-house decor (Venue) — upload each design's newly-added media, then
+    // assemble the payload. offersDecor off ⇒ clear it; non-venue keeps whatever
+    // was there via the ...listing spread below.
+    let inHouseDecorOut: InHouseDecor | undefined = listing.inHouseDecor
+    if (category === 'Venue') {
+      if (!offersDecor) {
+        inHouseDecorOut = undefined
+      } else {
+        let designs = decorDesigns
+        if (decorDesigns.length > 0 && _liveMode && _vendorDbId) {
+          designs = await Promise.all(decorDesigns.map(async (d) => {
+            const files = decorFiles[d.id]
+            let dPhotos = d.photos
+            let dVideos = d.videos
+            if (files?.photos.length) {
+              const up = await uploadPhotos(_vendorDbId, files.photos, 'listing')
+              if (up.length > 0) dPhotos = [...(d.photos || []).filter((p) => !p.startsWith('blob:')), ...up]
+            }
+            if (files?.videos.length) {
+              const up = await uploadPhotos(_vendorDbId, files.videos, 'listing')
+              if (up.length > 0) dVideos = [...(d.videos || []).filter((v) => !v.startsWith('blob:')), ...up]
+            }
+            return { ...d, photos: dPhotos, videos: dVideos }
+          }))
+        }
+        const hasDetails = designs.length > 0 || Object.keys(decorFields).length > 0
+        inHouseDecorOut = {
+          compulsory: decorCompulsory,
+          pending: decorCompulsory && !hasDetails ? true : undefined,
+          fields: Object.keys(decorFields).length > 0 ? decorFields : undefined,
+          designs: designs.length > 0 ? designs : undefined,
+          decoratorPhone: decoratorPhone.trim() || undefined,
+        }
+      }
+    }
+
+    // Paid rooms (Venue) — upload each room's newly-added photos, then assemble.
+    let paidRoomsOut: PaidRoom[] | undefined = category === 'Venue' ? paidRooms : listing.paidRooms
+    if (category === 'Venue' && paidRooms.length > 0 && _liveMode && _vendorDbId) {
+      paidRoomsOut = await Promise.all(paidRooms.map(async (room) => {
+        const files = paidRoomFiles[room.id] || []
+        if (files.length === 0) return room
+        const uploaded = await uploadPhotos(_vendorDbId, files, 'listing')
+        const existing = (room.photos || []).filter((p) => !p.startsWith('blob:'))
+        return uploaded.length > 0 ? { ...room, photos: [...existing, ...uploaded] } : room
+      }))
+    }
     const safeCover = Math.min(coverIndex, Math.max(0, finalPhotos.length - 1))
     // Photography: prefer the hourly "₹X/hr" board figure; fall back to the cheapest
     // guest-package cell when only guest-based pricing is offered.
@@ -299,7 +402,9 @@ export default function VendorEditListing() {
       : price
     updateListing({
       ...listing,
-      name, photos: finalPhotos, coverPhotoIndex: safeCover, style, price: effectivePrice, rituals, includes, categoryFields,
+      name, photos: finalPhotos, videos: finalVideos.length > 0 ? finalVideos : undefined, coverPhotoIndex: safeCover, style, price: effectivePrice, rituals, includes, categoryFields,
+      inHouseDecor: category === 'Venue' ? inHouseDecorOut : listing.inHouseDecor,
+      paidRooms: category === 'Venue' ? (paidRoomsOut && paidRoomsOut.length > 0 ? paidRoomsOut : undefined) : listing.paidRooms,
       rateCard: category === 'Photography' && photoOffersHourly ? rateCard : undefined,
       availableHours: category === 'Photography' && photoOffersHourly && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
       photographyPricingModels: category === 'Photography' && photographyPricingModels.length > 0 ? photographyPricingModels : undefined,
@@ -425,6 +530,122 @@ export default function VendorEditListing() {
             )}
           </div>
         </div>
+
+        {/* Videos */}
+        <div>
+          <label className="text-[11px] font-medium text-dark block mb-1">Videos <span className="text-[10px] text-gray-400 font-normal">(optional)</span></label>
+          <p className="text-[10px] text-gray-400 mb-1.5">Add short clips of your work · tap × to remove.</p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {videos.map((v, i) => (
+              <div key={i} className="aspect-square rounded-lg overflow-hidden relative bg-black">
+                <video src={v} className="w-full h-full object-cover" muted playsInline />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeVideo(i)}
+                  aria-label="Remove video"
+                  className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px] leading-none active:bg-red-500"
+                >×</button>
+              </div>
+            ))}
+            {videos.length < 5 && (
+              <label className="aspect-square rounded-lg border-2 border-dashed border-mustard/30 flex items-center justify-center cursor-pointer">
+                <span className="text-mustard text-lg">+</span>
+                <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideoUpload} />
+              </label>
+            )}
+          </div>
+        </div>
+
+        {/* In-house decor (Venue only) */}
+        {category === 'Venue' && (
+          <div className="p-3 rounded-xl border border-mustard/20 bg-mustard-light/20">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" className="accent-mustard mt-0.5" checked={offersDecor} onChange={() => setOffersDecor((v) => !v)} />
+              <div>
+                <span className="text-[12px] font-semibold text-dark">Offer in-house decor</span>
+                <p className="text-[10px] text-gray-500">Add the decor designs &amp; details couples see with this venue.</p>
+              </div>
+            </label>
+
+            {offersDecor && (
+              <div className="mt-3 space-y-4">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" className="accent-mustard mt-0.5" checked={decorCompulsory} onChange={() => setDecorCompulsory((v) => !v)} />
+                  <div>
+                    <span className="text-[11px] font-medium text-dark">Compulsory with the venue</span>
+                    <p className="text-[10px] text-gray-500">Couples must take your in-house decor to book.</p>
+                  </div>
+                </label>
+
+                <div>
+                  <label className="text-[11px] font-medium text-dark block mb-1">
+                    Decorator contact number <span className="text-[10px] text-gray-400 font-normal">(dedicated decor person)</span>
+                  </label>
+                  <input
+                    type="tel" inputMode="tel" value={decoratorPhone}
+                    onChange={(e) => setDecoratorPhone(e.target.value)} placeholder="+91…"
+                    className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard"
+                  />
+                </div>
+
+                {/* Decor detail fields (reused from the Decor listing flow) */}
+                <div className="space-y-4">
+                  {getListingConfig('Decor').steps[0].fields.map((field) => (
+                    <FieldRenderer
+                      key={field.key}
+                      field={field}
+                      value={decorFields[field.key]}
+                      onChange={(val) => setDecorFields((prev) => ({ ...prev, [field.key]: val }))}
+                      onToggleMulti={(val) => setDecorFields((prev) => {
+                        const cur = (prev[field.key] as string[]) || []
+                        return { ...prev, [field.key]: cur.includes(val) ? cur.filter((x) => x !== val) : [...cur, val] }
+                      })}
+                    />
+                  ))}
+                </div>
+
+                <div>
+                  <p className="text-[12px] font-semibold text-dark mb-1">Decor designs</p>
+                  <p className="text-[10px] text-gray-500 mb-2">Add each decor design with its own photos and price.</p>
+                  <DesignsEditor
+                    value={decorDesigns}
+                    onChange={setDecorDesigns}
+                    showSizes={false}
+                    onFilesAdded={(designId, kind, files) =>
+                      setDecorFiles((prev) => {
+                        const entry = prev[designId] || { photos: [], videos: [] }
+                        return {
+                          ...prev,
+                          [designId]: kind === 'photo'
+                            ? { ...entry, photos: [...entry.photos, ...files] }
+                            : { ...entry, videos: [...entry.videos, ...files] },
+                        }
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Paid rooms (Venue only) */}
+        {category === 'Venue' && (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-1">Paid rooms <span className="text-[10px] text-gray-400 font-normal">(optional)</span></label>
+            <p className="text-[10px] text-gray-400 mb-2">Rooms you rent out for guests — each with its own occupancy, price, amenities, and photos.</p>
+            <PaidRoomsEditor
+              value={paidRooms}
+              onChange={setPaidRooms}
+              onFilesAdded={(roomId, files) =>
+                setPaidRoomFiles((prev) => ({ ...prev, [roomId]: [...(prev[roomId] || []), ...files] }))
+              }
+            />
+          </div>
+        )}
 
         {/* Style (not used for single-listing pricing-only categories) */}
         {!isSingleListingCategory(category) && (
@@ -1007,6 +1228,41 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
           })}
         </div>
         {selected.length > 0 && <p className="text-[9px] text-gray-400 mt-1">{selected.length} selected</p>}
+      </div>
+    )
+  }
+
+  if (field.type === 'number') {
+    const min = field.numberMin ?? 0
+    const max = field.numberMax ?? 999
+    const step = field.numberStep ?? 1
+    const numVal = typeof value === 'string' ? (parseInt(value) || min) : min
+    const dec = () => onChange(String(Math.max(min, numVal - step)))
+    const inc = () => onChange(String(Math.min(max, numVal + step)))
+    return (
+      <div>
+        <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
+        <div className="inline-flex items-stretch rounded-xl border border-card-border overflow-hidden">
+          <button
+            type="button" onClick={dec} disabled={numVal <= min}
+            className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+          >−</button>
+          <input
+            type="number"
+            min={min} max={max} step={step}
+            value={numVal}
+            onChange={(e) => {
+              const n = parseInt(e.target.value) || min
+              onChange(String(Math.min(max, Math.max(min, n))))
+            }}
+            className="w-14 text-center text-[13px] font-medium text-dark outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <button
+            type="button" onClick={inc} disabled={numVal >= max}
+            className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+          >+</button>
+          {field.numberUnit && <span className="px-3 flex items-center text-[11px] text-gray-500 border-l border-card-border bg-empty-bg">{field.numberUnit}</span>}
+        </div>
       </div>
     )
   }
