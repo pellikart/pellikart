@@ -76,6 +76,11 @@ export interface VenueLocation {
   city?: string
   /** Optional Google Maps link/pin the vendor pastes. */
   mapsLink?: string
+  /** Coordinates resolved from mapsLink (see resolveVenueGeo). Used to measure
+   *  how far the venue is from the couple. Ride along inside the venue_location
+   *  jsonb — no separate column. */
+  lat?: number
+  lng?: number
 }
 
 /** Venue-only: which pricing model(s) a venue offers. */

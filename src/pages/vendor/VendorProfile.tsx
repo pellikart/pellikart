@@ -8,7 +8,7 @@ import RoleSwitch from '@/components/RoleSwitch'
 import AdminLink from '@/components/AdminLink'
 
 const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props', 'Other']
-const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet']
+const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet', 'Chandanagar', 'Sanath Nagar', 'Moosapet']
 const TEAM_SIZES = ['Solo', '2-5', '5-10', '10+']
 
 /**

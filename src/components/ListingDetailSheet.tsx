@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
+import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
 import { formatINR, bgStyle, getEffectivePrice, getVenuePlateFromPrice, getRateCardTotal, getPhotographyGuestFromPrice, getPhotographyPackagePrice, getPhotographyModels, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket } from '@/lib/helpers'
 import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_GUEST_BUCKETS, PHOTOGRAPHY_PACKAGE_HOURS, photographyGuestBucketLabel, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
@@ -1216,6 +1217,16 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                 {(vendor.venueLocation.area || vendor.venueLocation.city) && (
                   <p className="text-[10px] text-gray-500 mt-0.5">{[vendor.venueLocation.area, vendor.venueLocation.city].filter(Boolean).join(', ')}</p>
                 )}
+                {(() => {
+                  const cc = onboardingData?.locationLat != null && onboardingData?.locationLng != null
+                    ? { lat: onboardingData.locationLat, lng: onboardingData.locationLng } : null
+                  const loc = vendor.venueLocation!
+                  const vc = loc.lat != null && loc.lng != null
+                    ? { lat: loc.lat, lng: loc.lng }
+                    : parseCoordsFromMapLink(loc.mapsLink)
+                  const label = distanceLabel(cc, vc)
+                  return label ? <p className="text-[10px] font-semibold text-magenta mt-1">📍 {label} from you</p> : null
+                })()}
                 {vendor.venueLocation.mapsLink && (
                   <a
                     href={vendor.venueLocation.mapsLink}

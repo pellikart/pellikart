@@ -546,6 +546,9 @@ export async function upsertCouple(userId: string, onboarding: OnboardingData) {
       event_guests: onboarding.eventGuests,
       budget: onboarding.budget,
       style_preference: onboarding.style,
+      location: onboarding.location ?? null,
+      location_lat: onboarding.locationLat ?? null,
+      location_lng: onboarding.locationLng ?? null,
       onboarding_complete: true,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })

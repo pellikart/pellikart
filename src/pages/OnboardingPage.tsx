@@ -27,6 +27,10 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [partner1, setPartner1] = useState('')
   const [partner2, setPartner2] = useState('')
+  const [location, setLocation] = useState('')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [locating, setLocating] = useState(false)
+  const [geoError, setGeoError] = useState<string | null>(null)
   const [selectedEvents, setSelectedEvents] = useState<string[]>([])
   const [customEvent, setCustomEvent] = useState('')
   const [customEvents, setCustomEvents] = useState<string[]>([])
@@ -37,6 +41,44 @@ export default function OnboardingPage() {
   const totalSteps = 7
   const allEvents = [...selectedEvents, ...customEvents]
   const totalBudget = allEvents.reduce((sum, e) => sum + (eventBudgets[e] ?? defaultBudgetFor(e)), 0)
+
+  function detectLocation() {
+    if (!('geolocation' in navigator)) {
+      setGeoError("Location isn't available on this device — please type it in.")
+      return
+    }
+    setGeoError(null)
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords
+          // Keep the exact coordinates — these drive the "X km away" distance
+          // badge on venue cards. The reverse-geocode below is just for a
+          // human-readable label.
+          setCoords({ lat: latitude, lng: longitude })
+          // Free, no-API-key reverse geocode → a readable locality that plugs
+          // into our area-based vendor matching.
+          const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
+          const data = await res.json()
+          const parts = [data.locality, data.city, data.principalSubdivision].filter(Boolean)
+          const label = [...new Set(parts)].slice(0, 2).join(', ')
+          setLocation(label || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`)
+        } catch {
+          setGeoError("Couldn't look up your area — please type it in.")
+        } finally {
+          setLocating(false)
+        }
+      },
+      (err) => {
+        setLocating(false)
+        setGeoError(err.code === err.PERMISSION_DENIED
+          ? 'Location permission denied — please type it in.'
+          : "Couldn't get your location — please type it in.")
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    )
+  }
 
   function next() { setStep((s) => Math.min(s + 1, totalSteps)) }
   function back() { setStep((s) => Math.max(s - 1, 1)) }
@@ -70,6 +112,9 @@ export default function OnboardingPage() {
       budget: totalBudget,
       eventBudgets: finalEventBudgets,
       style: null,
+      location: location.trim() || null,
+      locationLat: coords?.lat ?? null,
+      locationLng: coords?.lng ?? null,
     }
     completeOnboarding(data)
     navigate('/')
@@ -126,6 +171,23 @@ export default function OnboardingPage() {
                   type="text" value={partner2} onChange={(e) => setPartner2(e.target.value)}
                   placeholder="Enter name" className="w-full px-4 py-3 rounded-xl border border-card-border text-[14px] text-dark outline-none focus:border-magenta transition-colors"
                 />
+              </div>
+              <div>
+                <label className="text-[13px] font-medium text-dark block mb-1.5">
+                  Where do you live? <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text" value={location} onChange={(e) => { setLocation(e.target.value); setCoords(null) }}
+                  placeholder="Locality or home address" className="w-full px-4 py-3 rounded-xl border border-card-border text-[14px] text-dark outline-none focus:border-magenta transition-colors"
+                />
+                <button
+                  type="button" onClick={detectLocation} disabled={locating}
+                  className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-medium text-magenta disabled:text-gray-400"
+                >
+                  <span>📍</span>{locating ? 'Locating…' : 'Use current location'}
+                </button>
+                {geoError && <p className="text-[11px] text-red-500 mt-1">{geoError}</p>}
+                <p className="text-[12px] text-gray-400 mt-1.5">Sharing your location helps us show venues and vendors near you.</p>
               </div>
             </div>
             <p className="text-[12px] text-gray-400 mt-4">This personalizes your wedding boards and sharing invites.</p>

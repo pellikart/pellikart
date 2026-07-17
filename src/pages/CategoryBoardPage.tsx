@@ -9,6 +9,7 @@ import ExploreFilterBar, { buildFilterDefs, applyExploreFilters, getCardSpecFiel
 import { trackEvent, trackImpressions, selectBidDb, createBids, fetchCoupleBids } from '@/lib/supabase-db'
 import { getListingConfig, type SelectField } from '@/lib/vendor-category-config'
 import { shouldShowBundlePopup, buildBundleEntries, planBundleApplication } from '@/lib/bundle'
+import { parseCoordsFromMapLink, distanceLabel, type LatLng } from '@/lib/geo'
 
 const SETTING_OPTIONS = ['Indoor', 'Outdoor', 'Both']
 const COVERAGE_OPTIONS = ['Mandap only', 'Stage only', 'Entrance + Stage', 'Full venue', 'Specific area']
@@ -27,7 +28,7 @@ export default function CategoryBoardPage() {
   const navigate = useNavigate()
 
   const {
-    ritualBoards, vendors, subscription,
+    ritualBoards, vendors, subscription, onboardingData,
     selectVendor, addToShortlist, addVenueToBoard, removeFromShortlist, toggleLike,
     trialSessions, trialsUsed, requestTrial, markTrialDone, confirmReschedule,
     addDesignAsVendor, setDecorBrief, restoreCategory,
@@ -115,6 +116,25 @@ export default function CategoryBoardPage() {
     return cands.find((c) => c && (c.categoryFields || c.includes)) || cands.find(Boolean)
   }
   const exploreVendors = exploreDesigns.map(getExploreVendor).filter(Boolean) as Vendor[]
+
+  // Distance badge: how far a venue is from the couple's home location.
+  // Couple coords come from the onboarding "use current location" button; venue
+  // coords are resolved from the vendor's Google Maps link (stored on save, or
+  // parsed live here from a full link). Only venues carry a venueLocation.
+  const coupleCoords: LatLng | null =
+    onboardingData?.locationLat != null && onboardingData?.locationLng != null
+      ? { lat: onboardingData.locationLat, lng: onboardingData.locationLng }
+      : null
+  const venueDistanceLabel = (v: Vendor | undefined): string => {
+    if (!coupleCoords || !v?.venueLocation) return ''
+    const loc = v.venueLocation
+    const venueCoords: LatLng | null =
+      loc.lat != null && loc.lng != null
+        ? { lat: loc.lat, lng: loc.lng }
+        : parseCoordsFromMapLink(loc.mapsLink)
+    return distanceLabel(coupleCoords, venueCoords)
+  }
+
   const { primary: exploreFilterDefs, more: exploreMoreDefs } = buildFilterDefs(category.label, exploreVendors)
   const filteredExplore = applyExploreFilters(exploreDesigns, filterValues, [...exploreFilterDefs, ...exploreMoreDefs], getExploreVendor)
   // Two key parameters to show as a compact spec box under each card's cover photo.
@@ -489,6 +509,7 @@ export default function CategoryBoardPage() {
                         unlocked={unlocked}
                         vendorName={pv?.name || d.name}
                         specs={specs}
+                        distance={venueDistanceLabel(pv)}
                         onAdd={() => handleAddToBoard(d.id, d)}
                         onTap={() => { addDesignAsVendor(d); setDetailVendorId(d.id) }}
                       />
@@ -1065,13 +1086,18 @@ function CompareTable({
   )
 }
 
-function DesignFeedCard({ design, title, unlocked, vendorName, specs, onAdd, onTap }: { design: Design; title: string; unlocked: boolean; vendorName: string; specs?: { label: string; value: string }[]; onAdd: () => void; onTap?: () => void }) {
+function DesignFeedCard({ design, title, unlocked, vendorName, specs, distance, onAdd, onTap }: { design: Design; title: string; unlocked: boolean; vendorName: string; specs?: { label: string; value: string }[]; distance?: string; onAdd: () => void; onTap?: () => void }) {
   return (
     <div className="rounded-xl overflow-hidden border border-card-border bg-white cursor-pointer transition-shadow hover:shadow-md" onClick={onTap}>
       <div className="relative aspect-square" style={bgStyle(design.photo)}>
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         <div className="relative z-10 h-full flex flex-col justify-between p-2">
-          <span className="self-end bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full">★ {design.rating}</span>
+          <div className="flex items-start justify-between gap-1">
+            {distance
+              ? <span className="bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full">📍 {distance}</span>
+              : <span />}
+            <span className="bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full">★ {design.rating}</span>
+          </div>
           <div>
             <p className="text-white font-semibold text-[11px] leading-tight truncate">{title}</p>
             {unlocked && <p className="text-white/60 text-[8px] mt-0.5 truncate">by {vendorName}</p>}

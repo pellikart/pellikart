@@ -13,7 +13,7 @@ import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
 import VendorAddListing from './VendorAddListing'
 
 export const CATEGORIES = ['Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music', 'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Saree Draping', 'Live Stalls', 'Hosts / Entertainers', 'Wedding Props']
-const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet', 'Kokapet', 'Narsingi', 'Manikonda', 'Tolichowki', 'Mehdipatnam', 'Financial District', 'Nanakramguda', 'Miyapur', 'Nizampet', 'Bachupally', 'Kompally', 'Uppal', 'LB Nagar', 'Dilsukhnagar', 'Somajiguda', 'Panjagutta', 'KPHB', 'Malkajgiri', 'Sainikpuri', 'Shamshabad', 'Abids', 'Tellapur', 'Patancheru', 'Shamirpet', 'Medchal']
+const AREAS = ['Jubilee Hills', 'Banjara Hills', 'Madhapur', 'Gachibowli', 'Kukatpally', 'Secunderabad', 'Kondapur', 'Hitech City', 'Begumpet', 'Ameerpet', 'Kokapet', 'Narsingi', 'Manikonda', 'Tolichowki', 'Mehdipatnam', 'Financial District', 'Nanakramguda', 'Miyapur', 'Nizampet', 'Bachupally', 'Kompally', 'Uppal', 'LB Nagar', 'Dilsukhnagar', 'Somajiguda', 'Panjagutta', 'KPHB', 'Malkajgiri', 'Sainikpuri', 'Shamshabad', 'Abids', 'Tellapur', 'Patancheru', 'Shamirpet', 'Medchal', 'Chandanagar', 'Sanath Nagar', 'Moosapet']
 const TEAM_SIZES_DEFAULT = ['Solo', '2-5', '5-10', '10+']
 // Decor crews are usually larger — start at 5 and step up by 5 to 30+.
 const TEAM_SIZES_DECOR = ['5', '10', '15', '20', '25', '30+']

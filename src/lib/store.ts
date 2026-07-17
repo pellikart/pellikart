@@ -323,6 +323,9 @@ export const useStore = create<AppState & LiveModeState & {
           eventGuests: couple.event_guests || {},
           budget: couple.budget || 0,
           style: couple.style_preference,
+          location: couple.location ?? null,
+          locationLat: couple.location_lat ?? null,
+          locationLng: couple.location_lng ?? null,
         }
 
         // Fetch boards from DB

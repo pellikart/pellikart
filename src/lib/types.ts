@@ -10,6 +10,12 @@ export interface OnboardingData {
   budget: number;
   eventBudgets?: Record<string, number>;
   style: string | null;
+  /** Optional: couple's home locality or address. Used to surface vendors near them. */
+  location?: string | null;
+  /** Optional: couple's home coordinates (from the "use current location" button).
+   *  Paired with venue coordinates to show "X km away" on explore cards. */
+  locationLat?: number | null;
+  locationLng?: number | null;
 }
 
 export interface Vendor {

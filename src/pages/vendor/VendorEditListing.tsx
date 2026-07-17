@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
+import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyGuestPackages, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice, InHouseDecor, PaidRoom } from '@/lib/vendor-types'
@@ -412,6 +413,20 @@ export default function VendorEditListing() {
       : category === 'Venue' ? venueFrom
       : category === 'Decor' ? decorFrom
       : price
+    // Venue: keep the map-link coordinates fresh. Re-resolve only when the link
+    // changed; otherwise reuse the coords already stored. Best-effort.
+    let resolvedVenueLocation = venueLocation
+    if (category === 'Venue' && venueLocation.address.trim() && venueLocation.mapsLink?.trim()) {
+      const prev = listing.venueLocation
+      const linkUnchanged = prev?.mapsLink === venueLocation.mapsLink && prev?.lat != null && prev?.lng != null
+      if (linkUnchanged) {
+        resolvedVenueLocation = { ...venueLocation, lat: prev!.lat, lng: prev!.lng }
+      } else {
+        const c = await resolveMapLinkCoords(venueLocation.mapsLink)
+        if (c) resolvedVenueLocation = { ...venueLocation, lat: c.lat, lng: c.lng }
+      }
+    }
+
     updateListing({
       ...listing,
       name, photos: finalPhotos, videos: finalVideos.length > 0 ? finalVideos : undefined, coverPhotoIndex: safeCover, style, price: effectivePrice, rituals, includes, categoryFields,
@@ -442,7 +457,7 @@ export default function VendorEditListing() {
       platePackages: category === 'Venue' ? platePackages : listing.platePackages,
       slots: category === 'Venue' ? slots : listing.slots,
       sizes: category === 'Decor' ? (sizes.length > 0 ? sizes : undefined) : listing.sizes,
-      venueLocation: category === 'Venue' ? (venueLocation.address.trim() ? venueLocation : undefined) : listing.venueLocation,
+      venueLocation: category === 'Venue' ? (resolvedVenueLocation.address.trim() ? resolvedVenueLocation : undefined) : listing.venueLocation,
       venuePricingModels: category === 'Venue' ? (venuePricingModels.length > 0 ? venuePricingModels : undefined) : listing.venuePricingModels,
       hourlyPricing: category === 'Venue' && venuePricingModels.includes('rent') ? (hourlyPricing.length > 0 ? hourlyPricing : undefined) : (category === 'Venue' ? undefined : listing.hourlyPricing),
     })

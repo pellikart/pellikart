@@ -6,6 +6,7 @@ import { VendorListing } from '@/lib/vendor-types'
 import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, isSingleListingCategory, emptyPhotographyGuestPackages, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
+import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuEditor from '@/components/MenuEditor'
@@ -491,6 +492,15 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       return
     }
 
+    // Venue: turn the pasted Google Maps link into coordinates so couples see
+    // how far the venue is from them. Best-effort — a failed lookup never blocks
+    // the save; the venue just won't show a distance until coords resolve.
+    let resolvedVenueLocation = venueLocation
+    if (category === 'Venue' && venueLocation.address.trim() && venueLocation.mapsLink?.trim()) {
+      const c = await resolveMapLinkCoords(venueLocation.mapsLink)
+      if (c) resolvedVenueLocation = { ...venueLocation, lat: c.lat, lng: c.lng }
+    }
+
     const listing: VendorListing = {
       id: `vl-${Date.now()}`,
       name: effectiveName,
@@ -506,7 +516,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       createdAt,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
-      venueLocation: category === 'Venue' && venueLocation.address.trim() ? venueLocation : undefined,
+      venueLocation: category === 'Venue' && resolvedVenueLocation.address.trim() ? resolvedVenueLocation : undefined,
       venuePricingModels: category === 'Venue' && venuePricingModels.length > 0 ? venuePricingModels : undefined,
       hourlyPricing: category === 'Venue' && venueOffersRent && hourlyPricing.length > 0 ? hourlyPricing : undefined,
       platePackages: category === 'Venue' && venueOffersPerPlate && platePackages.length > 0 ? platePackages : undefined,
