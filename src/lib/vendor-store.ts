@@ -70,6 +70,7 @@ function mapDbListingToVendorListing(l: Record<string, unknown>): VendorListing 
     guestPackages: obj(l.guest_packages) as import('./vendor-category-config').PhotographyGuestPackages | undefined,
     guestPackagePhotographers: obj(l.guest_package_photographers) as Record<string, number> | undefined,
     guestPackageVideographers: obj(l.guest_package_videographers) as Record<string, number> | undefined,
+    eventPackages: arr(l.event_packages) as import('./vendor-category-config').PhotographyEventPackage[] | undefined,
     mehendiPricing: obj(l.mehendi_pricing) as import('./vendor-category-config').MehendiPricing | undefined,
     makeupPricing: obj(l.makeup_pricing) as import('./vendor-category-config').MakeupPricing | undefined,
     sareeDrapingPricing: obj(l.saree_draping_pricing) as import('./vendor-category-config').SareeDrapingPricing | undefined,

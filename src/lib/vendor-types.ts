@@ -248,6 +248,9 @@ export interface VendorListing {
   guestPackagePhotographers?: Record<string, number>
   /** Photography guest-based: videographers present per guest bucket (informational). */
   guestPackageVideographers?: Record<string, number>
+  /** Photography event-based: one or more pricing cards — each covers a set of
+   *  events with a flat per-service price for the whole event. */
+  eventPackages?: import('./vendor-category-config').PhotographyEventPackage[]
   /** Mehendi-only: bridal coverage×design matrix + groom/guest pricing.
    *  Authored in onboarding; `price` holds the cheapest bridal "from" price. */
   mehendiPricing?: import('./vendor-category-config').MehendiPricing

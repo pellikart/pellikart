@@ -173,6 +173,10 @@ export function buildLiveVendorMap(
         const gp = l.guest_packages as import('./vendor-category-config').PhotographyGuestPackages | null
         return gp && Object.keys(gp).length > 0 ? gp : undefined
       })(),
+      eventPackages: (() => {
+        const ep = l.event_packages as import('./vendor-category-config').PhotographyEventPackage[] | null
+        return Array.isArray(ep) && ep.length > 0 ? ep : undefined
+      })(),
       guestPackagePhotographers: (() => {
         const gpp = l.guest_package_photographers as Record<string, number> | null
         return gpp && Object.keys(gpp).length > 0 ? gpp : undefined

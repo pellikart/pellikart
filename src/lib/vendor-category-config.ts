@@ -706,14 +706,17 @@ export const PHOTOGRAPHY_HOUR_OPTIONS = [2, 4, 6, 8, 10] as const
 // ─── PHOTOGRAPHY GUEST-BASED PACKAGES ───────
 
 /**
- * Photographers price one of two ways (like a venue's rent vs per-plate choice) —
- * they can offer either or both:
+ * Photographers price one of three ways (like a venue's rent vs per-plate choice) —
+ * they can offer any combination:
  *   - 'hourly'     → the per-role rate card above.
  *   - 'guestBased' → flat all-inclusive packages priced by guest count × coverage
  *                    hours. Each (guest bucket × hours) cell is one flat price.
+ *   - 'eventBased' → one or more "pricing cards" (see PhotographyEventPackage): a
+ *                    card covers a set of events (multi-select) and holds a flat
+ *                    per-service price for the whole event (not per hour).
  * The couple picks whichever model the vendor offers.
  */
-export type PhotographyPricingModel = 'hourly' | 'guestBased'
+export type PhotographyPricingModel = 'hourly' | 'guestBased' | 'eventBased'
 
 /** Guest-count buckets a guest-based photography package is priced against.
  *  Stored as stable keys; use photographyGuestBucketLabel() for display. */
@@ -741,6 +744,49 @@ export type PhotographyGuestPackages = Record<string, Record<string, number>>
 /** A fresh, empty guest-based packages object. */
 export function emptyPhotographyGuestPackages(): PhotographyGuestPackages {
   return {}
+}
+
+// ─── PHOTOGRAPHY EVENT-BASED PACKAGES ───────
+
+/**
+ * The 'eventBased' pricing model. A photographer builds one or more "pricing
+ * cards"; each card covers a set of events (multi-selected from RITUALS + any
+ * custom-added events) and holds a flat price per service. The price is for the
+ * whole event (NOT per hour), and it's a flat bundle for every event the card
+ * covers (selecting more events on a card does not multiply the price).
+ *
+ * Vendors can create multiple cards to price different event groups differently
+ * (e.g. one card for Haldi + Mehendi, another for Wedding + Reception).
+ */
+
+/** The services a single event-based pricing card can charge for, each a flat
+ *  price for the whole event. Stored keys — use the label for display. */
+export const PHOTOGRAPHY_EVENT_SERVICES = [
+  { key: 'traditionalPhotography', label: 'Traditional Photography' },
+  { key: 'traditionalVideography', label: 'Traditional Videography' },
+  { key: 'candidPhotography', label: 'Candid Photography' },
+  { key: 'candidVideography', label: 'Candid Videography' },
+  { key: 'ledScreens', label: 'LED Screens' },
+  { key: 'drone', label: 'Drone' },
+  { key: 'album', label: 'Album' },
+  { key: 'liveStreaming', label: 'Live Streaming' },
+] as const
+
+export type PhotographyEventServiceKey = typeof PHOTOGRAPHY_EVENT_SERVICES[number]['key']
+
+/** One event-based pricing card. */
+export interface PhotographyEventPackage {
+  /** Stable id (used as the React key + for edit/remove). */
+  id: string
+  /** Events this card's pricing applies to (RITUALS values and/or custom strings). */
+  events: string[]
+  /** service key → flat price (₹) for the whole event. Missing/0 = not offered. */
+  prices: Partial<Record<PhotographyEventServiceKey, number>>
+}
+
+/** A fresh, empty list of event-based pricing cards. */
+export function emptyPhotographyEventPackages(): PhotographyEventPackage[] {
+  return []
 }
 
 // ─── MEHENDI PRICING ────────────────────────
