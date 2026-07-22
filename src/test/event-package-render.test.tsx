@@ -49,4 +49,33 @@ describe('Photography event-package render (couple side)', () => {
     fireEvent.click(screen.getByText('Candid Photography'))
     expect(screen.getAllByText(/₹25,000/).length).toBeGreaterThan(0)
   })
+
+  it('vendor preview (multiple packages) shows every package read-only', () => {
+    // The vendor's own preview carries the whole authored listing — all packages.
+    const previewVendor = {
+      ...(mockVendors['v-photo-1'] as Vendor),
+      id: 'v-photo-1',
+      rateCard: undefined,
+      guestPackages: undefined,
+      availableHours: undefined,
+      photographyPricingModels: ['eventBased'],
+      eventPackages: [
+        { id: 'p1', events: ['Pelli (Wedding)', 'Reception'], prices: { traditionalPhotography: 55000, drone: 25000 } },
+        { id: 'p2', events: ['Haldi', 'Mehendi'], prices: { candidPhotography: 45000, album: 20000 } },
+      ],
+    } as Vendor
+    render(
+      <MemoryRouter>
+        <ListingDetailSheet vendor={previewVendor} unlocked onClose={() => {}} />
+      </MemoryRouter>
+    )
+    // Both packages' events + their services are shown.
+    expect(screen.getByText('2 event packages · flat per-service pricing')).toBeTruthy()
+    expect(screen.getAllByText('Reception').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Mehendi').length).toBeGreaterThan(0)
+    expect(screen.getByText('Traditional Photography')).toBeTruthy()
+    expect(screen.getByText('Album')).toBeTruthy()
+    // Read-only: no per-service checkboxes/"Add to my board" total flow.
+    expect(screen.queryByText(/Estimated total/)).toBeNull()
+  })
 })

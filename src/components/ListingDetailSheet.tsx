@@ -757,6 +757,44 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
             {photoModel === 'eventBased' && eventPkg && (() => {
               const fromPrice = getPhotographyEventFromPrice(vendor.eventPackages)
+              const pkgs = vendor.eventPackages ?? []
+
+              // Vendor preview shows the whole authored listing (multiple packages) —
+              // render them all read-only. Couples only ever see a single package
+              // (each is fanned out into its own listing), which stays interactive.
+              if (pkgs.length > 1) {
+                return (
+                  <div>
+                    <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
+                    <p className="text-[10px] text-gray-400 mb-3">{pkgs.length} event packages · flat per-service pricing</p>
+                    <div className="space-y-3">
+                      {pkgs.map(pkg => {
+                        const services = getOfferedEventServices(pkg)
+                        return (
+                          <div key={pkg.id} className="p-3 rounded-xl border border-card-border bg-white">
+                            {pkg.events.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mb-2">
+                                {pkg.events.map(ev => (
+                                  <span key={ev} className="bg-empty-bg text-gray-600 text-[10px] font-medium px-2 py-1 rounded-full">{ev}</span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="divide-y divide-card-border">
+                              {services.map(service => (
+                                <div key={service.key} className="flex items-center justify-between py-1.5">
+                                  <span className="text-[12px] text-dark">{service.label}</span>
+                                  <span className="text-[12px] font-semibold text-dark">{formatINR(pkg.prices[service.key] ?? 0)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              }
+
               const total = getPhotographyEventSelectionTotal(vendor, { services: eventServices }) ?? 0
               return (
                 <div>
