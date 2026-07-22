@@ -1325,7 +1325,10 @@ export async function createBooking(
   const { data, error } = await supabase
     .from('bookings')
     .insert({
-      couple_id: coupleId, vendor_id: vendorId, listing_id: baseListingId(listingId),
+      // Keep the full (possibly event-package `::evt::`) id — bookings.listing_id is
+      // a text column, so the couple's card re-marks as booked on reload. The vendor
+      // side resolves the base listing when displaying (see fetchVendorBookingsDb).
+      couple_id: coupleId, vendor_id: vendorId, listing_id: listingId,
       ritual_board_id: ritualBoardId, category_label: categoryLabel,
       total_value: totalValue, slot_amount: slotAmount, slot_percentage: slotPercentage,
     })
@@ -1353,7 +1356,7 @@ export async function cancelBookingDb(coupleId: string, listingId: string) {
     .from('bookings')
     .update({ status: 'cancelled' })
     .eq('couple_id', coupleId)
-    .eq('listing_id', baseListingId(listingId))
+    .eq('listing_id', listingId)
     .eq('status', 'active')
   if (error) console.error('[db] cancelBookingDb failed:', error.message)
 }
