@@ -427,7 +427,9 @@ export const useStore = create<AppState & LiveModeState & {
           if (!board) continue
           const cat = board.categories.find(c => c.label === t.category_label)
           if (!cat) continue
-          const listingId = t.listing_id || ''
+          // Prefer the full card id (carries the `::evt::` suffix for event packages)
+          // so the trialKey matches the couple's actual card; fall back to base id.
+          const listingId = t.listing_card_id || t.listing_id || ''
           const trialKey = `${board.id}-${cat.id}-${listingId}`
           const catKey = `${board.id}-${cat.id}`
           trialSessions[trialKey] = {

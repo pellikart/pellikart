@@ -1064,6 +1064,9 @@ export interface TrialRow {
   couple_id: string
   vendor_id: string
   listing_id: string | null
+  /** Full couple-facing card id (may carry a `::evt::` event-package suffix). Used to
+   *  re-attach trial state to the exact card on reload; listing_id stays the base uuid. */
+  listing_card_id: string | null
   ritual_name: string
   category_label: string
   status: 'requested' | 'accepted' | 'rescheduled' | 'confirmed' | 'done'
@@ -1086,7 +1089,10 @@ export async function createTrial(
     .insert({
       couple_id: coupleId,
       vendor_id: vendorId,
+      // listing_id is a uuid FK → store the base id; listing_card_id (text) keeps the
+      // full card id so an event-package trial re-attaches to its card on reload.
       listing_id: baseListingId(listingId),
+      listing_card_id: listingId,
       ritual_name: ritualName,
       category_label: categoryLabel,
       requested_date: date,
