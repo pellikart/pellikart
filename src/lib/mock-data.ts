@@ -282,6 +282,20 @@ export const mockVendors: Record<string, Vendor> = {
     availableHours: [6, 8, 10],
     categoryFields: { liveCoverage: "Yes, included", editedPhotos: "1000", highlightReel: "Included", cinematicTrailer: "Available", fullVideo: "Yes", sameDayEdit: "No", deliveryFormat: "Google Drive", deliveryDays: "30 days", albums: "2", albumSheets: "30" },
   },
+  // Event-based photographer — prices per event as flat "pricing cards". Each of
+  // its event packages is fanned out into its own couple-facing listing (the
+  // d-photo-4* designs below), mirroring the live event-package expansion.
+  "v-photo-4": {
+    id: "v-photo-4", code: "Photo 004", name: "Muhurtham Films", photo: img("photo", 4),
+    style: "Event-based Packages", area: "Kondapur, Hyderabad", price: 55000,
+    rating: 4.7, packageTier: "Per-event pricing", likes: [], booked: false, amountPaid: 0,
+    photographyPricingModels: ["eventBased"],
+    eventPackages: [
+      { id: "evt-wed", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 55000, candidPhotography: 75000, candidVideography: 85000, ledScreens: 40000, drone: 25000, album: 30000, liveStreaming: 20000 } },
+      { id: "evt-fun", events: ["Haldi", "Mehendi", "Sangeeth"], prices: { candidPhotography: 45000, candidVideography: 50000, drone: 18000, album: 20000 } },
+    ],
+    categoryFields: { liveCoverage: "Yes, included", editedPhotos: "1200", highlightReel: "Included", cinematicTrailer: "Available", fullVideo: "Yes", sameDayEdit: "Yes", deliveryFormat: "Both", deliveryDays: "30 days", albums: "2", albumSheets: "30" },
+  },
 
   // === MEHENDI ===
   "v-mehendi-1": {
@@ -452,6 +466,10 @@ export const mockDesigns: Design[] = [
   { id: "d-photo-2b", vendorId: "v-photo-2", name: "Budget Candid Package", photo: img("photo", 4), style: "Candid", price: 80000, rating: 4.1, description: "1 photographer, 8 hours, 300 edited candid photos, USB delivery" },
   { id: "d-photo-3a", vendorId: "v-photo-3", name: "Documentary Wedding Film", photo: img("photo", 5), style: "Documentary", price: 170000, rating: 4.7, description: "Full documentary-style coverage, 20-min wedding film, raw footage included" },
   { id: "d-photo-3b", vendorId: "v-photo-3", name: "Intimate Ceremony Coverage", photo: img("photo", 6), style: "Intimate", price: 100000, rating: 4.5, description: "Small wedding specialist — 1 photographer, 6 hours, 200 edited photos" },
+  // Event-based packages (Muhurtham Films) — each is its own event listing. Price is
+  // the cheapest service; the couple ticks the services they want in the detail sheet.
+  { id: "d-photo-4a", vendorId: "v-photo-4", name: "Wedding & Reception Package", photo: img("photo", 4), style: "Event-based", price: 20000, rating: 4.7, description: "Flat per-service pricing for Wedding + Reception — pick photo, video, LED, drone, album, live streaming", eventPackage: { id: "evt-wed", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 55000, candidPhotography: 75000, candidVideography: 85000, ledScreens: 40000, drone: 25000, album: 30000, liveStreaming: 20000 } } },
+  { id: "d-photo-4b", vendorId: "v-photo-4", name: "Haldi · Mehendi · Sangeeth Package", photo: img("photo", 5), style: "Event-based", price: 18000, rating: 4.6, description: "Flat per-service pricing for the fun events — candid photo & video, drone, album", eventPackage: { id: "evt-fun", events: ["Haldi", "Mehendi", "Sangeeth"], prices: { candidPhotography: 45000, candidVideography: 50000, drone: 18000, album: 20000 } } },
 
   // === MEHENDI LISTINGS ===
   { id: "d-mehendi-1a", vendorId: "v-mehendi-1", name: "Bridal Rajasthani Full", photo: img("mehendi", 1), style: "Rajasthani Bridal", price: 40000, rating: 4.9, description: "Full hands + feet bridal mehendi, intricate Rajasthani patterns, 4-hour session" },

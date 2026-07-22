@@ -121,6 +121,10 @@ export interface Design {
   price: number;
   rating: number;
   description: string;
+  /** Demo-only: for a Photography event-based design, the single event package this
+   *  design represents (so it renders as its own event listing on the couple side,
+   *  mirroring how live event packages are fanned out). */
+  eventPackage?: import('./vendor-category-config').PhotographyEventPackage;
 }
 
 export type SizeUnit = 'ft' | 'm' | 'cm';

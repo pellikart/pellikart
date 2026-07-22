@@ -655,6 +655,15 @@ export const useStore = create<AppState & LiveModeState & {
               transportIncluded: parentVendor?.transportIncluded,
               transportExtra: parentVendor?.transportExtra,
             }
+            // Event-based design → carry only its single event package, priced at
+            // its cheapest service (so the card "from" matches the detail sheet).
+            if (design.eventPackage) {
+              scaledVendors[design.id].eventPackages = [design.eventPackage]
+              scaledVendors[design.id].photographyPricingModels = ['eventBased']
+              scaledVendors[design.id].price = getPhotographyEventFromPrice([design.eventPackage])
+              scaledVendors[design.id].rateCard = undefined
+              scaledVendors[design.id].guestPackages = undefined
+            }
           }
           set({ vendors: scaledVendors, ritualBoards: mockBoards })
         }
@@ -715,6 +724,15 @@ export const useStore = create<AppState & LiveModeState & {
           transportIncluded: parentVendor?.transportIncluded,
           transportExtra: parentVendor?.transportExtra,
         };
+        // Event-based design → carry only its single event package, priced at
+        // its cheapest service (so the card "from" matches the detail sheet).
+        if (design.eventPackage) {
+          scaledVendors[design.id].eventPackages = [design.eventPackage]
+          scaledVendors[design.id].photographyPricingModels = ['eventBased']
+          scaledVendors[design.id].price = getPhotographyEventFromPrice([design.eventPackage])
+          scaledVendors[design.id].rateCard = undefined
+          scaledVendors[design.id].guestPackages = undefined
+        }
       }
 
       set({
