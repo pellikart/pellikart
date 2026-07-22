@@ -3,11 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
-import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, isSingleListingCategory, emptyPhotographyGuestPackages, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages } from '@/lib/vendor-category-config'
+import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getPhotographyEventFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, isSingleListingCategory, emptyPhotographyGuestPackages, emptyPhotographyEventPackages, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type PhotographyEventPackage } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
+import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuEditor from '@/components/MenuEditor'
 import PlateSlotsEditor from '@/components/PlateSlotsEditor'
@@ -57,6 +58,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const [guestPackagePhotographers, setGuestPackagePhotographers] = useState<Record<string, number>>({})
   // Photography-only: videographers present per guest bucket (informational).
   const [guestPackageVideographers, setGuestPackageVideographers] = useState<Record<string, number>>({})
+  // Photography-only: event-based pricing cards (flat per-service price per event group).
+  const [eventPackages, setEventPackages] = useState<PhotographyEventPackage[]>(emptyPhotographyEventPackages())
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
@@ -123,6 +126,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setPrice(nextConfig.priceRange.min + Math.floor((nextConfig.priceRange.max - nextConfig.priceRange.min) / 3))
     setRateCard({})
     setAvailableHours([])
+    setEventPackages([])
     setIncludes([])
     setCategoryFields({})
     setBundledListings([])
@@ -225,12 +229,19 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   // Photography pricing model — derived helpers (mirror the venue ones)
   const photoOffersHourly = photographyPricingModels.includes('hourly')
   const photoOffersGuest = photographyPricingModels.includes('guestBased')
+  const photoOffersEvent = photographyPricingModels.includes('eventBased')
   const photoHourlyBase = getRateCardBaseHourly(rateCard)
   const photoGuestFrom = getPhotographyGuestFromPrice(guestPackages)
+  const photoEventFrom = getPhotographyEventFromPrice(eventPackages)
+  // Only cards with at least one event AND one priced service are kept on save.
+  const validEventPackages = eventPackages.filter(
+    c => c.events.length > 0 && Object.values(c.prices).some(p => (p ?? 0) > 0),
+  )
   // True once the photographer has at least one model with valid pricing entered.
   const photoPricingReady =
     (photoOffersHourly && photoHourlyBase > 0) ||
-    (photoOffersGuest && photoGuestFrom > 0)
+    (photoOffersGuest && photoGuestFrom > 0) ||
+    (photoOffersEvent && validEventPackages.length > 0)
   // Number of dishes (dish-bank + custom) configured in a plate package's menu.
   const menuItemCount = (menu?: MenuSection[]) =>
     (menu || []).reduce((s, sec) => s + sec.dishIds.length + (sec.customDishes?.length || 0), 0)
@@ -362,9 +373,11 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         : price)
       : category === 'Decor' ? 0
       // Photography: prefer the hourly "₹X/hr" board figure; fall back to the
-      // cheapest guest-package cell when only guest-based pricing is offered.
+      // cheapest guest-package cell, then the cheapest event-package service.
       : category === 'Photography'
-        ? (photoOffersHourly && photoHourlyBase > 0 ? photoHourlyBase : photoGuestFrom)
+        ? (photoOffersHourly && photoHourlyBase > 0 ? photoHourlyBase
+          : photoOffersGuest && photoGuestFrom > 0 ? photoGuestFrom
+          : photoEventFrom)
       : price
 
     // Upload paid-room photos in live mode and replace blob URLs with public URLs.
@@ -527,6 +540,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       guestPackages: category === 'Photography' && photoOffersGuest && photoGuestFrom > 0 ? guestPackages : undefined,
       guestPackagePhotographers: category === 'Photography' && photoOffersGuest && Object.keys(guestPackagePhotographers).length > 0 ? guestPackagePhotographers : undefined,
       guestPackageVideographers: category === 'Photography' && photoOffersGuest && Object.keys(guestPackageVideographers).length > 0 ? guestPackageVideographers : undefined,
+      eventPackages: category === 'Photography' && photoOffersEvent && validEventPackages.length > 0 ? validEventPackages : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
       inHouseDecor: category === 'Venue' ? inHouseDecorForPayload : undefined,
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
@@ -1339,6 +1353,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
               {([
                 { key: 'hourly' as const, title: 'Hourly rates', desc: 'Couples build a team (per role) and pick coverage hours. Priced per hour.' },
                 { key: 'guestBased' as const, title: 'Guest-based packages', desc: 'Flat all-inclusive prices by guest count and coverage hours.' },
+                { key: 'eventBased' as const, title: 'Event-based packages', desc: 'Pricing cards per event — a flat price per service (photo, video, drone, album…) for the whole event.' },
               ]).map(m => {
                 const selected = photographyPricingModels.includes(m.key)
                 return (
@@ -1428,6 +1443,18 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                 <PhotographyGuestPackagesEditor value={guestPackages} onChange={setGuestPackages} photographers={guestPackagePhotographers} onPhotographersChange={setGuestPackagePhotographers} videographers={guestPackageVideographers} onVideographersChange={setGuestPackageVideographers} />
                 {photoGuestFrom > 0 && (
                   <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(photoGuestFrom)}</span> when guest-based is your only model.</p>
+                )}
+              </div>
+            )}
+
+            {/* Event-based model — one or more pricing cards */}
+            {photoOffersEvent && (
+              <div className="mb-4">
+                <p className="text-[12px] font-semibold text-dark mb-0.5">Event-based packages</p>
+                <p className="text-[10px] text-gray-400 mb-3">Create a card per event group, pick the events it covers, and set a flat price per service.</p>
+                <PhotographyEventPackagesEditor value={eventPackages} onChange={setEventPackages} />
+                {photoEventFrom > 0 && (
+                  <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(photoEventFrom)}</span> when event-based is your only model.</p>
                 )}
               </div>
             )}

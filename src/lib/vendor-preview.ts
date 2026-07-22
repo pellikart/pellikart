@@ -51,6 +51,7 @@ export function vendorListingToPreviewVendor(
     guestPackages: listing.guestPackages,
     guestPackagePhotographers: listing.guestPackagePhotographers,
     guestPackageVideographers: listing.guestPackageVideographers,
+    eventPackages: listing.eventPackages,
     mehendiPricing: listing.mehendiPricing,
     makeupPricing: listing.makeupPricing,
     sareeDrapingPricing: listing.sareeDrapingPricing,

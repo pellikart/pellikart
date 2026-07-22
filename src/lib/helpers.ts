@@ -1,5 +1,5 @@
 import type { Vendor, Category } from './types'
-import { PHOTOGRAPHY_RATE_ROLES, type PhotographyRateCard, type PhotographyGuestPackages, type PhotographyPricingModel, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
+import { PHOTOGRAPHY_RATE_ROLES, type PhotographyRateCard, type PhotographyGuestPackages, type PhotographyEventPackage, type PhotographyPricingModel, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
 
 /**
  * Per-hour total for a Photography rate card assuming 1 person in every offered
@@ -105,15 +105,34 @@ export function getPhotographyPackageSelectionTotal(
 }
 
 /**
+ * The "from" price for a Photography event-based listing — the cheapest single
+ * priced service across every pricing card. Returns 0 when nothing is priced.
+ */
+export function getPhotographyEventFromPrice(packages?: PhotographyEventPackage[]): number {
+  if (!packages || packages.length === 0) return 0
+  let min = Infinity
+  for (const card of packages) {
+    for (const price of Object.values(card.prices || {})) {
+      if (price && price > 0 && price < min) min = price
+    }
+  }
+  return min === Infinity ? 0 : min
+}
+
+/**
  * Which pricing model(s) a photographer offers. Prefers the explicit
  * `photographyPricingModels` field, but falls back to inferring from the presence
  * of a rate card / guest packages for back-compat with listings authored before
  * the model selector existed.
+ *
+ * The event-based model is intentionally NOT surfaced here yet — the couple-side
+ * booking UI for it is a later pass — so consumers (the detail sheet) keep
+ * behaving exactly as before. The model is still persisted on the listing.
  */
 export function getPhotographyModels(vendor: Vendor | undefined): PhotographyPricingModel[] {
   if (!vendor) return []
   if (vendor.photographyPricingModels && vendor.photographyPricingModels.length > 0) {
-    return vendor.photographyPricingModels
+    return vendor.photographyPricingModels.filter(m => m === 'hourly' || m === 'guestBased')
   }
   const models: PhotographyPricingModel[] = []
   if (getRateCardBaseHourly(vendor.rateCard) > 0) models.push('hourly')
