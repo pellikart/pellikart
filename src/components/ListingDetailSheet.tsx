@@ -3,7 +3,7 @@ import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getVenuePlateFromPrice, getRateCardTotal, getPhotographyGuestFromPrice, getPhotographyPackagePrice, getPhotographyModels, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getVenuePlateFromPrice, getRateCardTotal, getPhotographyGuestFromPrice, getPhotographyPackagePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket } from '@/lib/helpers'
 import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_GUEST_BUCKETS, PHOTOGRAPHY_PACKAGE_HOURS, photographyGuestBucketLabel, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing, PhotographyPricingModel } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
@@ -192,7 +192,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const [lightbox, setLightbox] = useState<number | null>(null)
   // Menu-photo zoom: a single menu image URL to show full-screen, or null.
   const [menuPhotoZoom, setMenuPhotoZoom] = useState<string | null>(null)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, addVenueToBoard, selectPhotographyTeam, selectPhotographyPackage, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, addVenueToBoard, selectPhotographyTeam, selectPhotographyPackage, selectPhotographyEventServices, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -270,7 +270,9 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const savedPackage = currentCategory?.photographyPackage
   // Which model the couple is currently viewing. Seeded from any saved selection,
   // else the first model the vendor offers.
+  const savedEventSel = currentCategory?.photographyEventSelection
   const [photoModel, setPhotoModel] = useState<PhotographyPricingModel>(() => {
+    if (savedEventSel) return 'eventBased'
     if (savedPackage) return 'guestBased'
     if (savedTeam) return 'hourly'
     return photoModels[0] ?? 'hourly'
@@ -308,6 +310,28 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   function addPhotographerPackage() {
     if (!ritualId || !categoryId) return
     persistPackage(pkgBucket, pkgHours)
+    selectVendor(ritualId, categoryId, vendor.id)
+  }
+
+  // ── Photography event-based package (the third pricing model) ──
+  // Each event package is its own couple-facing listing, so this vendor carries a
+  // single package. Couples tick the services they want; the total is their sum.
+  const eventPkg = vendor.eventPackages?.[0]
+  const offeredEventServices = getOfferedEventServices(eventPkg)
+  const [eventServices, setEventServices] = useState<string[]>(() =>
+    savedEventSel?.services ?? offeredEventServices.map(s => s.key),
+  )
+  function persistEventServices(services: string[]) {
+    if (ritualId && categoryId) selectPhotographyEventServices(ritualId, categoryId, services)
+  }
+  function toggleEventService(key: string) {
+    const next = eventServices.includes(key) ? eventServices.filter(k => k !== key) : [...eventServices, key]
+    setEventServices(next)
+    persistEventServices(next)
+  }
+  function addPhotographerEvent() {
+    if (!ritualId || !categoryId) return
+    persistEventServices(eventServices)
     selectVendor(ritualId, categoryId, vendor.id)
   }
 
@@ -523,8 +547,15 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               <div className="mb-4">
                 {photoModels.length > 1 && (
                   <div className="bg-empty-bg rounded-lg p-[3px] flex mb-3">
-                    <button type="button" onClick={() => setPhotoModel('hourly')} className={`flex-1 py-1.5 text-xs rounded-md transition-all ${photoModel === 'hourly' ? 'bg-white font-bold shadow-sm' : 'text-gray-500'}`}>By hours</button>
-                    <button type="button" onClick={() => setPhotoModel('guestBased')} className={`flex-1 py-1.5 text-xs rounded-md transition-all ${photoModel === 'guestBased' ? 'bg-white font-bold shadow-sm' : 'text-gray-500'}`}>By guest count</button>
+                    {photoModels.includes('hourly') && (
+                      <button type="button" onClick={() => setPhotoModel('hourly')} className={`flex-1 py-1.5 text-xs rounded-md transition-all ${photoModel === 'hourly' ? 'bg-white font-bold shadow-sm' : 'text-gray-500'}`}>By hours</button>
+                    )}
+                    {photoModels.includes('guestBased') && (
+                      <button type="button" onClick={() => setPhotoModel('guestBased')} className={`flex-1 py-1.5 text-xs rounded-md transition-all ${photoModel === 'guestBased' ? 'bg-white font-bold shadow-sm' : 'text-gray-500'}`}>By guest count</button>
+                    )}
+                    {photoModels.includes('eventBased') && (
+                      <button type="button" onClick={() => setPhotoModel('eventBased')} className={`flex-1 py-1.5 text-xs rounded-md transition-all ${photoModel === 'eventBased' ? 'bg-white font-bold shadow-sm' : 'text-gray-500'}`}>By event</button>
+                    )}
                   </div>
                 )}
 
@@ -717,6 +748,77 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                         {isAddedToBoard
                           ? '✓ Added to your board'
                           : cellPrice > 0 ? `Add to my board · ${formatINR(cellPrice)}` : 'Add to my board'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {photoModel === 'eventBased' && eventPkg && (() => {
+              const fromPrice = getPhotographyEventFromPrice(vendor.eventPackages)
+              const total = getPhotographyEventSelectionTotal(vendor, { services: eventServices }) ?? 0
+              return (
+                <div>
+                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
+                  <p className="text-[10px] text-gray-400 mb-2">Event package · pick the services you want</p>
+
+                  {/* Which events this package covers */}
+                  {eventPkg.events.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {eventPkg.events.map(ev => (
+                        <span key={ev} className="bg-empty-bg text-gray-600 text-[10px] font-medium px-2 py-1 rounded-full">{ev}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                    <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Services</p>
+                    <div className="space-y-1.5">
+                      {offeredEventServices.map(service => {
+                        const price = eventPkg.prices[service.key] ?? 0
+                        const on = eventServices.includes(service.key)
+                        return (
+                          <button
+                            key={service.key}
+                            type="button"
+                            onClick={() => toggleEventService(service.key)}
+                            className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all ${on ? 'border-magenta bg-white' : 'border-card-border bg-white/60'}`}
+                          >
+                            <span className="flex items-center gap-2 min-w-0">
+                              <span className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${on ? 'border-magenta bg-magenta' : 'border-gray-300 bg-white'}`}>
+                                {on && <span className="text-white text-[9px] leading-none">✓</span>}
+                              </span>
+                              <span className="text-[12px] font-medium text-dark truncate">{service.label}</span>
+                            </span>
+                            <span className="text-[12px] font-semibold text-dark shrink-0">{formatINR(price)}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {total > 0 && (
+                      <div className="mt-3 pt-3 border-t border-mustard/20 flex items-center justify-between">
+                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                      </div>
+                    )}
+
+                    {/* Add to board — lock in this photographer + event package for the category */}
+                    {ritualId && categoryId && (
+                      <button
+                        type="button"
+                        onClick={addPhotographerEvent}
+                        disabled={total <= 0}
+                        className={`mt-3 w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all disabled:opacity-40 ${
+                          isAddedToBoard
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-magenta text-white active:scale-[0.98]'
+                        }`}
+                      >
+                        {isAddedToBoard
+                          ? '✓ Added to your board'
+                          : total > 0 ? `Add to my board · ${formatINR(total)}` : 'Add to my board'}
                       </button>
                     )}
                   </div>

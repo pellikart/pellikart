@@ -633,6 +633,7 @@ export async function fetchRitualBoards(coupleId: string) {
         platePackageByVendor: (c.plate_package_by_vendor as Record<string, string> | null) ?? undefined,
         photographyTeam: (c.photography_team as { counts: Record<string, number>; hours: number } | null) ?? undefined,
         photographyPackage: (c.photography_package as { bucket: string; hours: number } | null) ?? undefined,
+        photographyEventSelection: (c.photography_event_selection as { services: string[] } | null) ?? undefined,
         mehendiSelection: (c.mehendi_selection as { coverage?: string; design?: string; groom?: boolean; guests?: number } | null) ?? undefined,
         makeupSelection: (c.makeup_selection as { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] } | null) ?? undefined,
         sareeSelection: (c.saree_selection as { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number } | null) ?? undefined,
@@ -722,6 +723,7 @@ export async function updateBoardCategory(categoryId: string, updates: Partial<C
   // clears the sibling column rather than silently leaving it set.
   if ('photographyTeam' in updates) mapped.photography_team = updates.photographyTeam ?? null
   if ('photographyPackage' in updates) mapped.photography_package = updates.photographyPackage ?? null
+  if ('photographyEventSelection' in updates) mapped.photography_event_selection = updates.photographyEventSelection ?? null
   if (updates.mehendiSelection !== undefined) mapped.mehendi_selection = updates.mehendiSelection ?? null
   if (updates.makeupSelection !== undefined) mapped.makeup_selection = updates.makeupSelection ?? null
   if (updates.sareeSelection !== undefined) mapped.saree_selection = updates.sareeSelection ?? null
@@ -845,6 +847,14 @@ export type AnalyticsEventType =
  * Fire-and-forget analytics event. Never blocks UI.
  * vendorId = the vendors table UUID (not a listing ID).
  */
+/** Strip the `::evt::<pkgId>` suffix a Photography event-package card carries, so
+ *  writes to columns that reference the real listing (uuid FKs) use the base id. */
+export function baseListingId(id?: string | null): string | null {
+  if (!id) return id ?? null
+  const i = id.indexOf('::evt::')
+  return i >= 0 ? id.slice(0, i) : id
+}
+
 export function trackEvent(
   vendorId: string,
   eventType: AnalyticsEventType,
@@ -857,7 +867,7 @@ export function trackEvent(
     .from('analytics_events')
     .insert({
       vendor_id: vendorId,
-      listing_id: listingId || null,
+      listing_id: baseListingId(listingId),
       actor_id: actorId || null,
       event_type: eventType,
       metadata: metadata || {},
@@ -1006,7 +1016,9 @@ export async function fetchListingPerformance(vendorId: string): Promise<Listing
   }
 
   for (const e of events) {
-    const lid = e.listing_id as string
+    // Attribute event-package card interactions back to their parent listing.
+    const rawLid = e.listing_id as string
+    const lid = rawLid.includes('::evt::') ? rawLid.split('::evt::')[0] : rawLid
     if (!perfMap[lid]) perfMap[lid] = { listingId: lid, listingName: nameMap[lid] || 'Unknown', views: 0, shortlists: 0 }
     if (e.event_type === 'detail_view') perfMap[lid].views++
     else if (e.event_type === 'shortlist_add') perfMap[lid].shortlists++
@@ -1074,7 +1086,7 @@ export async function createTrial(
     .insert({
       couple_id: coupleId,
       vendor_id: vendorId,
-      listing_id: listingId,
+      listing_id: baseListingId(listingId),
       ritual_name: ritualName,
       category_label: categoryLabel,
       requested_date: date,
@@ -1114,17 +1126,22 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
   //    resolve which package a couple picked.
   const { data: listings } = await supabase
     .from('vendor_listings')
-    .select('id, name, category, plate_packages')
+    .select('id, name, category, plate_packages, event_packages')
     .eq('vendor_id', vendorId)
   if (!listings || listings.length === 0) return []
   const listingById = new Map(listings.map(l => [l.id as string, l]))
   const listingIds = listings.map(l => l.id as string)
 
-  // 2. Board categories that picked one of these listings.
+  // 2. Board categories that picked one of these listings — either directly, or a
+  //    Photography event package whose selected id is `<listingId>::evt::<pkgId>`.
+  const orExpr = [
+    `selected_vendor_id.in.(${listingIds.join(',')})`,
+    ...listingIds.map(id => `selected_vendor_id.like.${id}::evt::*`),
+  ].join(',')
   const { data: cats } = await supabase
     .from('board_categories')
     .select('id, ritual_board_id, label, selected_vendor_id, selected_plate_package_id, selected_tier_hours')
-    .in('selected_vendor_id', listingIds)
+    .or(orExpr)
     .eq('is_removed', false)
   if (!cats || cats.length === 0) return []
 
@@ -1137,19 +1154,27 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
   const boardById = new Map((boards || []).map(b => [b.id as string, b]))
 
   return cats.map(c => {
-    const l = listingById.get(c.selected_vendor_id as string)
+    // Resolve the real listing behind a Photography event-package pick.
+    const rawSel = c.selected_vendor_id as string
+    const isEventPick = rawSel.includes('::evt::')
+    const baseId = isEventPick ? rawSel.split('::evt::')[0] : rawSel
+    const evtPkgId = isEventPick ? rawSel.split('::evt::')[1] : undefined
+    const l = listingById.get(baseId)
     const board = boardById.get(c.ritual_board_id as string)
     const pkgs = (l?.plate_packages as import('./vendor-types').PlatePackage[] | null) || []
     const pkg = c.selected_plate_package_id ? pkgs.find(p => p.id === c.selected_plate_package_id) : undefined
+    // For an event-package pick, name the package by the events it covers.
+    const evtPkgs = (l?.event_packages as import('./vendor-category-config').PhotographyEventPackage[] | null) || []
+    const evtPkg = evtPkgId ? evtPkgs.find(p => p.id === evtPkgId) : undefined
     return {
       id: c.id as string,
-      listingId: c.selected_vendor_id as string,
+      listingId: baseId,
       listingName: (l?.name as string) || 'Listing',
       category: (l?.category as string) || '',
       boardName: (board?.name as string) || 'Wedding',
       eventDate: (board?.date_start as string) || undefined,
       categoryLabel: c.label as string,
-      packageName: pkg?.name || undefined,
+      packageName: pkg?.name || (evtPkg ? evtPkg.events.join(' · ') : undefined),
       packagePrice: pkg?.pricePerPlate,
       tierHours: (c.selected_tier_hours as number | null) ?? undefined,
     }
@@ -1300,7 +1325,7 @@ export async function createBooking(
   const { data, error } = await supabase
     .from('bookings')
     .insert({
-      couple_id: coupleId, vendor_id: vendorId, listing_id: listingId,
+      couple_id: coupleId, vendor_id: vendorId, listing_id: baseListingId(listingId),
       ritual_board_id: ritualBoardId, category_label: categoryLabel,
       total_value: totalValue, slot_amount: slotAmount, slot_percentage: slotPercentage,
     })
@@ -1328,7 +1353,7 @@ export async function cancelBookingDb(coupleId: string, listingId: string) {
     .from('bookings')
     .update({ status: 'cancelled' })
     .eq('couple_id', coupleId)
-    .eq('listing_id', listingId)
+    .eq('listing_id', baseListingId(listingId))
     .eq('status', 'active')
   if (error) console.error('[db] cancelBookingDb failed:', error.message)
 }

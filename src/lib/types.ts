@@ -159,6 +159,9 @@ export interface Category {
   /** Photography guest-based model: the couple's picked guest bucket + coverage hours.
    *  Mutually exclusive with photographyTeam (the hourly model). */
   photographyPackage?: { bucket: string; hours: number };
+  /** Photography event-based model: which services the couple picked from the event
+   *  package. Mutually exclusive with photographyTeam / photographyPackage. */
+  photographyEventSelection?: { services: string[] };
   /** Mehendi-only: the couple's selection — bridal coverage + design, groom, guests. */
   mehendiSelection?: { coverage?: string; design?: string; groom?: boolean; guests?: number };
   /** Makeup-only: the couple's selection — bridal looks per category, groom, guests, add-ons. */
@@ -232,6 +235,7 @@ export interface AppState {
   addVenueToBoard: (ritualId: string, categoryId: string, vendorId: string, packageId: string) => void;
   selectPhotographyTeam: (ritualId: string, categoryId: string, counts: Record<string, number>, hours: number) => void;
   selectPhotographyPackage: (ritualId: string, categoryId: string, bucket: string, hours: number) => void;
+  selectPhotographyEventServices: (ritualId: string, categoryId: string, services: string[]) => void;
   selectMehendiOptions: (ritualId: string, categoryId: string, selection: { coverage?: string; design?: string; groom?: boolean; guests?: number }) => void;
   selectMakeupOptions: (ritualId: string, categoryId: string, selection: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] }) => void;
   selectSareeOptions: (ritualId: string, categoryId: string, selection: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number }) => void;

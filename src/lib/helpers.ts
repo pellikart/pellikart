@@ -1,5 +1,5 @@
 import type { Vendor, Category } from './types'
-import { PHOTOGRAPHY_RATE_ROLES, type PhotographyRateCard, type PhotographyGuestPackages, type PhotographyEventPackage, type PhotographyPricingModel, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
+import { PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_EVENT_SERVICES, type PhotographyRateCard, type PhotographyGuestPackages, type PhotographyEventPackage, type PhotographyPricingModel, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
 
 /**
  * Per-hour total for a Photography rate card assuming 1 person in every offered
@@ -120,23 +120,53 @@ export function getPhotographyEventFromPrice(packages?: PhotographyEventPackage[
 }
 
 /**
+ * The couple's selected total for a Photography event-based listing — the sum of
+ * the flat prices of the services they ticked, from the listing's (single) event
+ * package. Returns null when nothing priced is selected.
+ *
+ * On the couple side each event package is surfaced as its own listing (see the
+ * store's event-package expansion), so a couple-facing vendor carries exactly one
+ * package in `eventPackages`.
+ */
+export function getPhotographyEventSelectionTotal(
+  vendor: Vendor | undefined,
+  sel: { services: string[] } | undefined,
+): number | null {
+  const pkg = vendor?.eventPackages?.[0]
+  if (!pkg || !sel?.services?.length) return null
+  let total = 0
+  let any = false
+  for (const key of sel.services) {
+    const price = pkg.prices[key as keyof typeof pkg.prices]
+    if (price && price > 0) { total += price; any = true }
+  }
+  return any ? total : null
+}
+
+/** The services a Photography event package actually prices (offered = price > 0). */
+export function getOfferedEventServices(pkg: PhotographyEventPackage | undefined) {
+  if (!pkg) return []
+  return PHOTOGRAPHY_EVENT_SERVICES.filter(s => (pkg.prices[s.key] ?? 0) > 0)
+}
+
+/**
  * Which pricing model(s) a photographer offers. Prefers the explicit
  * `photographyPricingModels` field, but falls back to inferring from the presence
- * of a rate card / guest packages for back-compat with listings authored before
- * the model selector existed.
- *
- * The event-based model is intentionally NOT surfaced here yet — the couple-side
- * booking UI for it is a later pass — so consumers (the detail sheet) keep
- * behaving exactly as before. The model is still persisted on the listing.
+ * of a rate card / guest packages / event packages for back-compat with listings
+ * authored before the model selector existed.
  */
 export function getPhotographyModels(vendor: Vendor | undefined): PhotographyPricingModel[] {
   if (!vendor) return []
   if (vendor.photographyPricingModels && vendor.photographyPricingModels.length > 0) {
-    return vendor.photographyPricingModels.filter(m => m === 'hourly' || m === 'guestBased')
+    // Only surface eventBased when there's an actual package to render.
+    return vendor.photographyPricingModels.filter(m =>
+      m === 'hourly' || m === 'guestBased' || (m === 'eventBased' && (vendor.eventPackages?.length ?? 0) > 0),
+    )
   }
   const models: PhotographyPricingModel[] = []
   if (getRateCardBaseHourly(vendor.rateCard) > 0) models.push('hourly')
   if (getPhotographyGuestFromPrice(vendor.guestPackages) > 0) models.push('guestBased')
+  if (getPhotographyEventFromPrice(vendor.eventPackages) > 0) models.push('eventBased')
   return models
 }
 
@@ -309,9 +339,11 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
   })()
   const parts = [
     venuePlate,
-    // Photography is one model at a time: a guest-based package (if picked) takes
-    // precedence over the hourly rate-card team so the two never double-count.
-    getPhotographyPackageSelectionTotal(vendor, category.photographyPackage)
+    // Photography is one model at a time: an event-based selection (if any) wins,
+    // then a guest-based package, then the hourly rate-card team, so the models
+    // never double-count.
+    getPhotographyEventSelectionTotal(vendor, category.photographyEventSelection)
+      ?? getPhotographyPackageSelectionTotal(vendor, category.photographyPackage)
       ?? getPhotographySelectionTotal(vendor, category.photographyTeam),
     getMehendiSelectionTotal(vendor, category.mehendiSelection),
     getMakeupSelectionTotal(vendor, category.makeupSelection),

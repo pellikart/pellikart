@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { fetchSharedBoard, fetchAllListings, fetchAllLiveVendors, addBoardSuggestion } from '@/lib/supabase-db'
+import { expandEventPackageListings } from '@/lib/store'
 import { formatINR, formatDateRange, bgStyle } from '@/lib/helpers'
 
 interface SharedCategory {
@@ -63,7 +64,8 @@ export default function SharedBoardPage() {
       // Anonymize vendor names to codes (recipient is unauthenticated/not the owner)
       const vendorById: Record<string, Record<string, unknown>> = {}
       for (const v of allVendors) vendorById[(v as Record<string, unknown>).id as string] = v as Record<string, unknown>
-      const mapped: ListingLite[] = allListings.map((l, i) => {
+      // Expand Photography event packages so a shared board's per-package picks resolve.
+      const mapped: ListingLite[] = expandEventPackageListings(allListings as Record<string, unknown>[]).map((l, i) => {
         const row = l as Record<string, unknown>
         const vendorRow = vendorById[row.vendor_id as string]
         const photos = (row.photos as string[]) || []

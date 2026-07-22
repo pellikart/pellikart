@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard, MenuSelection } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
-import { getRateCardBaseHourly, getPhotographyGuestFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
+import { getRateCardBaseHourly, getPhotographyGuestFromPrice, getPhotographyEventFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
+import type { PhotographyEventPackage } from "./vendor-category-config";
 import { resolveVenueSlots } from "./vendor-types";
 import {
   fetchCouple, upsertCouple,
@@ -40,12 +41,75 @@ function cloneBoards() {
   }));
 }
 
+/**
+ * On the couple side, each Photography event-based "pricing card" becomes its own
+ * listing (the vendor still authors them as cards within one listing). This
+ * expands a raw listings array so every valid event package is a separate pseudo
+ * listing row — matched to its own events, priced at its cheapest service — while
+ * hourly/guest-based pricing stays on the original row (dropped only when the
+ * vendor offers event-based exclusively).
+ *
+ * Idempotent: already-expanded rows (id contains '::evt::') pass through unchanged,
+ * so it's safe to call more than once on the same array.
+ */
+const EVT_ID_SEP = '::evt::'
+export function expandEventPackageListings(
+  listings: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = []
+  for (const l of listings) {
+    const id = l.id as string
+    // Not photography, or already an expanded package row → leave untouched.
+    if ((l.category as string) !== 'Photography' || (id || '').includes(EVT_ID_SEP)) {
+      out.push(l)
+      continue
+    }
+    const models = (l.photography_pricing_models as string[]) || []
+    const rawPkgs = (l.event_packages as PhotographyEventPackage[]) || []
+    const validPkgs = rawPkgs.filter(
+      p => Array.isArray(p.events) && p.events.length > 0 && Object.values(p.prices || {}).some(v => (v ?? 0) > 0),
+    )
+    const offersEvent = models.includes('eventBased') && validPkgs.length > 0
+    if (!offersEvent) { out.push(l); continue }
+
+    // One pseudo row per event package.
+    for (const pkg of validPkgs) {
+      out.push({
+        ...l,
+        id: `${id}${EVT_ID_SEP}${pkg.id}`,
+        rituals: pkg.events,
+        price: getPhotographyEventFromPrice([pkg]),
+        event_packages: [pkg],
+        photography_pricing_models: ['eventBased'],
+        // A package row is purely event-based — hide the other models on it.
+        rate_card: {},
+        available_hours: [],
+        guest_packages: {},
+      })
+    }
+
+    // Keep the original row only if the vendor also offers hourly/guest-based —
+    // then it carries just those models. Otherwise the package rows replace it.
+    const otherModels = models.filter(m => m !== 'eventBased')
+    const offersOther =
+      otherModels.length > 0 ||
+      (l.rate_card && Object.keys(l.rate_card as object).length > 0) ||
+      (l.guest_packages && Object.keys(l.guest_packages as object).length > 0)
+    if (offersOther) {
+      out.push({ ...l, event_packages: [], photography_pricing_models: otherModels })
+    }
+  }
+  return out
+}
+
 /** Build enriched vendor map from live Supabase data */
 export function buildLiveVendorMap(
   liveVendors: Record<string, unknown>[],
   listings: Record<string, unknown>[],
   availability: Record<string, unknown>[]
 ): { vendorMap: Record<string, Vendor>; lvMap: Record<string, string> } {
+  // Fan each Photography event package out into its own couple-facing listing.
+  listings = expandEventPackageListings(listings)
   const vendorMap: Record<string, Vendor> = {}
   const lvMap: Record<string, string> = {}
   const categoryCounts: Record<string, number> = {}
@@ -434,6 +498,9 @@ export const useStore = create<AppState & LiveModeState & {
 
       // Fetch live listings, build vendor map, pre-populate boards, then save to DB
       Promise.all([fetchAllLiveVendors(), fetchAllListings(), fetchAllAvailability()]).then(async ([liveVendors, listings, availability]) => {
+        // Expand event packages so the board auto-pick below sees each as its own
+        // listing (buildLiveVendorMap expands too — the helper is idempotent).
+        listings = expandEventPackageListings(listings)
         const { vendorMap, lvMap } = buildLiveVendorMap(liveVendors, listings, availability)
 
         // Pre-populate boards with live vendors (same logic as demo)
@@ -771,13 +838,13 @@ export const useStore = create<AppState & LiveModeState & {
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          // Picking the hourly model clears any guest-based package so the two never coexist.
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyTeam, photographyPackage: undefined } : c) }
+          // Picking the hourly model clears the other two photography models so they never coexist.
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyTeam, photographyPackage: undefined, photographyEventSelection: undefined } : c) }
           : b
       ),
     }))
     if (_liveMode) {
-      updateBoardCategory(categoryId, { photographyTeam, photographyPackage: undefined })
+      updateBoardCategory(categoryId, { photographyTeam, photographyPackage: undefined, photographyEventSelection: undefined })
     }
   },
 
@@ -787,13 +854,29 @@ export const useStore = create<AppState & LiveModeState & {
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          // Picking the guest-based model clears any hourly team selection.
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyPackage, photographyTeam: undefined } : c) }
+          // Picking the guest-based model clears the other two photography models.
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyPackage, photographyTeam: undefined, photographyEventSelection: undefined } : c) }
           : b
       ),
     }))
     if (_liveMode) {
-      updateBoardCategory(categoryId, { photographyPackage, photographyTeam: undefined })
+      updateBoardCategory(categoryId, { photographyPackage, photographyTeam: undefined, photographyEventSelection: undefined })
+    }
+  },
+
+  selectPhotographyEventServices: (ritualId, categoryId, services) => {
+    const { _liveMode } = get()
+    const photographyEventSelection = { services }
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          // Picking the event-based model clears the hourly/guest selections.
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyEventSelection, photographyTeam: undefined, photographyPackage: undefined } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { photographyEventSelection, photographyTeam: undefined, photographyPackage: undefined })
     }
   },
 
