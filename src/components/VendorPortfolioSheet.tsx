@@ -1,4 +1,5 @@
 import { Vendor } from '@/lib/types'
+import ExpandableText from '@/components/ExpandableText'
 import { mockDesigns } from '@/lib/mock-data'
 import { formatINR, bgStyle } from '@/lib/helpers'
 
@@ -65,11 +66,13 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
           {/* About */}
           <div className="mb-4">
             <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1.5">About</p>
-            <p className="text-[11px] text-gray-600 leading-relaxed">
-              {vendor.description || (
+            <ExpandableText
+              className="text-[11px] text-gray-600 leading-relaxed"
+              text={
+                vendor.description ||
                 `${unlocked ? vendor.name : 'This vendor'} specializes in ${vendor.style.toLowerCase()} wedding services in ${vendor.area}. With ${experience} years of experience and a team of ${teamSize}, they've successfully delivered ${totalBookings}+ events. Known for attention to detail and personalized service.`
-              )}
-            </p>
+              }
+            />
           </div>
 
           {/* Portfolio photos (live mode) */}

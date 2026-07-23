@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Vendor } from '@/lib/types'
+import ExpandableText from '@/components/ExpandableText'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
@@ -1296,7 +1297,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {vendor.description && (
               <div className="mb-4">
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1">About</p>
-                <p className="text-[11px] text-gray-600 leading-relaxed">{vendor.description}</p>
+                <ExpandableText text={vendor.description} className="text-[11px] text-gray-600 leading-relaxed" />
+
               </div>
             )}
 
