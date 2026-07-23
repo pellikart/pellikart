@@ -320,12 +320,14 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       menu_photos: listing.menuPhotos || [],
       menu_mode: listing.menuMode || 'items',
       sizes: listing.sizes || [],
-      rate_card: listing.rateCard || {},
-      available_hours: listing.availableHours || [],
+      // Photography hourly/guest models were removed — these columns are kept in the
+      // schema but no longer populated (written empty so existing writes never break).
+      rate_card: {},
+      available_hours: [],
+      guest_packages: {},
+      guest_package_photographers: {},
+      guest_package_videographers: {},
       photography_pricing_models: listing.photographyPricingModels || [],
-      guest_packages: listing.guestPackages || {},
-      guest_package_photographers: listing.guestPackagePhotographers || {},
-      guest_package_videographers: listing.guestPackageVideographers || {},
       event_packages: listing.eventPackages || [],
       mehendi_pricing: listing.mehendiPricing || {},
       makeup_pricing: listing.makeupPricing || {},
@@ -368,12 +370,14 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
       menu_photos: listing.menuPhotos || [],
       menu_mode: listing.menuMode || 'items',
       sizes: listing.sizes || [],
-      rate_card: listing.rateCard || {},
-      available_hours: listing.availableHours || [],
+      // Photography hourly/guest models were removed — these columns are kept in the
+      // schema but no longer populated (written empty so existing writes never break).
+      rate_card: {},
+      available_hours: [],
+      guest_packages: {},
+      guest_package_photographers: {},
+      guest_package_videographers: {},
       photography_pricing_models: listing.photographyPricingModels || [],
-      guest_packages: listing.guestPackages || {},
-      guest_package_photographers: listing.guestPackagePhotographers || {},
-      guest_package_videographers: listing.guestPackageVideographers || {},
       event_packages: listing.eventPackages || [],
       mehendi_pricing: listing.mehendiPricing || {},
       makeup_pricing: listing.makeupPricing || {},
@@ -631,8 +635,6 @@ export async function fetchRitualBoards(coupleId: string) {
         selectedTierHours: c.selected_tier_hours ?? undefined,
         selectedPlatePackageId: (c.selected_plate_package_id as string | null) ?? undefined,
         platePackageByVendor: (c.plate_package_by_vendor as Record<string, string> | null) ?? undefined,
-        photographyTeam: (c.photography_team as { counts: Record<string, number>; hours: number } | null) ?? undefined,
-        photographyPackage: (c.photography_package as { bucket: string; hours: number } | null) ?? undefined,
         photographyEventSelection: (c.photography_event_selection as { services: string[] } | null) ?? undefined,
         mehendiSelection: (c.mehendi_selection as { coverage?: string; design?: string; groom?: boolean; guests?: number } | null) ?? undefined,
         makeupSelection: (c.makeup_selection as { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] } | null) ?? undefined,
@@ -718,11 +720,8 @@ export async function updateBoardCategory(categoryId: string, updates: Partial<C
   // actively clears any previously-picked plate package rather than leaving it set.
   if ('selectedPlatePackageId' in updates) mapped.selected_plate_package_id = updates.selectedPlatePackageId ?? null
   if (updates.platePackageByVendor !== undefined) mapped.plate_package_by_vendor = updates.platePackageByVendor
-  // Photography fields use an `in` check (not !== undefined) so a model switch that
-  // passes `photographyPackage: undefined` / `photographyTeam: undefined` actively
-  // clears the sibling column rather than silently leaving it set.
-  if ('photographyTeam' in updates) mapped.photography_team = updates.photographyTeam ?? null
-  if ('photographyPackage' in updates) mapped.photography_package = updates.photographyPackage ?? null
+  // Photography is event-based only — the `in` check (not !== undefined) lets a
+  // clear pass `photographyEventSelection: undefined` to null the column.
   if ('photographyEventSelection' in updates) mapped.photography_event_selection = updates.photographyEventSelection ?? null
   if (updates.mehendiSelection !== undefined) mapped.mehendi_selection = updates.mehendiSelection ?? null
   if (updates.makeupSelection !== undefined) mapped.makeup_selection = updates.makeupSelection ?? null

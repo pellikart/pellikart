@@ -287,33 +287,9 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
     styles: ['Candid + Cinematic', 'Traditional + Posed', 'Documentary', 'Fine Art', 'Photojournalistic'],
     inclusions: ['Candid Photos', 'Traditional Photos', 'Drone Shots', 'Pre-Wedding Shoot', 'Album', 'Highlight Reel', 'Full Video', 'Photo Booth', 'Same-Day Edit', 'USB Drive', 'Google Drive', 'Raw Files'],
     priceRange: { min: 30000, max: 500000, step: 10000 },
-    steps: [
-      {
-        // Photographers/videographers/coverage-hours are no longer asked here — they're
-        // driven by the per-hour rate card (PHOTOGRAPHY_RATE_ROLES) and the couple's
-        // team + hours selection on the listing detail sheet.
-        title: 'Video & coverage',
-        subtitle: 'What does this package cover?',
-        fields: [
-          { key: 'liveCoverage', label: 'Live coverage / streaming', type: 'single', options: ['Yes, included', 'Add-on', 'Not available'] },
-          { key: 'fullVideo', label: 'Full ceremony video', type: 'single', options: ['Yes', 'No'] },
-          { key: 'highlightReel', label: 'Highlight reel', type: 'single', options: ['Included', 'Not included'] },
-          { key: 'sameDayEdit', label: 'Same-day reel edit', type: 'single', options: ['Yes', 'No'] },
-          { key: 'cinematicTrailer', label: 'Cinematic trailer', type: 'single', options: ['Available', 'Not available'] },
-        ],
-      },
-      {
-        title: 'Photos & delivery',
-        subtitle: 'What do couples get?',
-        fields: [
-          { key: 'editedPhotos', label: 'Edited photos', type: 'number', numberMin: 0, numberMax: 5000, numberStep: 5, numberUnit: 'photos' },
-          { key: 'albums', label: 'Albums included', type: 'single', options: ['Not included', '1', '2', '3', '4'] },
-          { key: 'albumSheets', label: 'Sheets per album', type: 'number', numberMin: 1, numberMax: 200, numberStep: 1, numberUnit: 'sheets', visibleWhen: { key: 'albums', notEquals: 'Not included' } },
-          { key: 'deliveryFormat', label: 'Delivery format', type: 'single', options: ['USB Drive', 'Google Drive', 'Both'] },
-          { key: 'deliveryDays', label: 'Delivery timeline', type: 'single', options: ['15 days', '30 days', '45 days', '60 days'] },
-        ],
-      },
-    ],
+    // No spec steps — coverage/deliverables (duration, cinematic trailer, delivery
+    // time, etc.) are now captured per event package in the event-based pricing step.
+    steps: [],
   },
   Decor: {
     styles: ['Floral Luxury', 'Modern Minimalist', 'Traditional', 'Rustic', 'Royal Heritage', 'Bohemian', 'Temple Traditional'],
@@ -673,78 +649,16 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
   },
 }
 
-// ─── PHOTOGRAPHY RATE CARD ──────────────────
+// ─── PHOTOGRAPHY PRICING MODEL ──────────────
 
 /**
- * Photography is priced as a per-hour rate card instead of a single package
- * price. The vendor sets a ₹/hr rate for each role they offer (leaving a role
- * at 0 / blank means "not offered"); the couple then picks how many people
- * they want in each role plus one shared number of hours for the whole booking.
- *
- *   booking total = hours × Σ(role rate/hr × people in that role)
- *
- * The listing's stored `price` is the per-hour total assuming 1 person in every
- * offered role — this is the "₹X/hr" figure shown on browse/board cards.
+ * Photographers price by event: one or more "pricing cards" (see
+ * PhotographyEventPackage). A card covers a set of events (multi-select) and holds
+ * a flat per-service price for the whole event (not per hour). `eventBased` is the
+ * only supported pricing model; the field is retained for back-compat with stored
+ * listings (older listings may carry now-removed models in the DB — ignored on read).
  */
-export const PHOTOGRAPHY_RATE_ROLES = [
-  { key: 'candidPhotographer', label: 'Candid Photographer' },
-  { key: 'candidVideographer', label: 'Candid Videographer' },
-  { key: 'traditionalPhotographer', label: 'Traditional Photographer' },
-  { key: 'traditionalVideographer', label: 'Traditional Videographer' },
-  { key: 'drone', label: 'Drone' },
-] as const
-
-export type PhotographyRoleKey = typeof PHOTOGRAPHY_RATE_ROLES[number]['key']
-
-/** Per-hour rate (₹) keyed by role. A missing/0 entry means the role isn't offered. */
-export type PhotographyRateCard = Partial<Record<PhotographyRoleKey, number>>
-
-/** Hour blocks a Photography vendor can mark themselves willing to work. The couple
- *  picks their coverage hours from whichever of these the vendor selects. */
-export const PHOTOGRAPHY_HOUR_OPTIONS = [2, 4, 6, 8, 10] as const
-
-// ─── PHOTOGRAPHY GUEST-BASED PACKAGES ───────
-
-/**
- * Photographers price one of three ways (like a venue's rent vs per-plate choice) —
- * they can offer any combination:
- *   - 'hourly'     → the per-role rate card above.
- *   - 'guestBased' → flat all-inclusive packages priced by guest count × coverage
- *                    hours. Each (guest bucket × hours) cell is one flat price.
- *   - 'eventBased' → one or more "pricing cards" (see PhotographyEventPackage): a
- *                    card covers a set of events (multi-select) and holds a flat
- *                    per-service price for the whole event (not per hour).
- * The couple picks whichever model the vendor offers.
- */
-export type PhotographyPricingModel = 'hourly' | 'guestBased' | 'eventBased'
-
-/** Guest-count buckets a guest-based photography package is priced against.
- *  Stored as stable keys; use photographyGuestBucketLabel() for display. */
-export const PHOTOGRAPHY_GUEST_BUCKETS = ['<200', '200-500', '500-1000', '1000+'] as const
-export type PhotographyGuestBucket = typeof PHOTOGRAPHY_GUEST_BUCKETS[number]
-
-const PHOTOGRAPHY_GUEST_BUCKET_LABELS: Record<string, string> = {
-  '<200': 'Less than 200',
-  '200-500': '200–500',
-  '500-1000': '500–1,000',
-  '1000+': '1,000+',
-}
-/** Display label for a guest bucket (the stored key differs from the shown text). */
-export function photographyGuestBucketLabel(bucket: string): string {
-  return PHOTOGRAPHY_GUEST_BUCKET_LABELS[bucket] || bucket
-}
-
-/** Coverage-hour options offered within each guest bucket of a guest-based package. */
-export const PHOTOGRAPHY_PACKAGE_HOURS = [4, 6, 8, 10] as const
-
-/** guest bucket → hours (as a string key) → flat price (₹).
- *  A missing/0 cell means that guest×hours combo isn't offered. */
-export type PhotographyGuestPackages = Record<string, Record<string, number>>
-
-/** A fresh, empty guest-based packages object. */
-export function emptyPhotographyGuestPackages(): PhotographyGuestPackages {
-  return {}
-}
+export type PhotographyPricingModel = 'eventBased'
 
 // ─── PHOTOGRAPHY EVENT-BASED PACKAGES ───────
 
@@ -782,6 +696,12 @@ export interface PhotographyEventPackage {
   events: string[]
   /** service key → flat price (₹) for the whole event. Missing/0 = not offered. */
   prices: Partial<Record<PhotographyEventServiceKey, number>>
+  /** Event coverage duration in hours (informational; 0/undefined = not specified). */
+  durationHours?: number
+  /** Whether a cinematic trailer is included (informational). */
+  cinematicTrailer?: boolean
+  /** Approximate delivery time in days (informational; 0/undefined = not specified). */
+  deliveryDays?: number
 }
 
 /** A fresh, empty list of event-based pricing cards. */

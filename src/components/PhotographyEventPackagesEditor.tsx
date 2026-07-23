@@ -152,6 +152,37 @@ export default function PhotographyEventPackagesEditor({
                 ))}
               </div>
             </div>
+
+            {/* Package details — duration, cinematic trailer, delivery (informational) */}
+            <div className="mt-3 pt-3 border-t border-card-border space-y-2.5">
+              <label className="text-[11px] font-medium text-dark block mb-0.5">Package details</label>
+
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[12px] text-dark">Event duration <span className="text-gray-400">(hours)</span></span>
+                <Stepper
+                  value={card.durationHours ?? 0}
+                  onChange={(n) => updateCard(card.id, { durationHours: n || undefined })}
+                  unit="hr"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[12px] text-dark">Cinematic trailer included</span>
+                <YesNoToggle
+                  value={!!card.cinematicTrailer}
+                  onChange={(v) => updateCard(card.id, { cinematicTrailer: v })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[12px] text-dark">Approx delivery time <span className="text-gray-400">(days)</span></span>
+                <Stepper
+                  value={card.deliveryDays ?? 0}
+                  onChange={(n) => updateCard(card.id, { deliveryDays: n || undefined })}
+                  unit="days"
+                />
+              </div>
+            </div>
           </div>
         )
       })}
@@ -167,6 +198,62 @@ export default function PhotographyEventPackagesEditor({
       {value.length > 0 && (
         <p className="text-[10px] text-gray-400">Only cards with at least one event and one price are shown to couples.</p>
       )}
+    </div>
+  )
+}
+
+/** A small +/- number stepper (min 0). A value of 0 means "not specified". */
+function Stepper({
+  value,
+  onChange,
+  unit,
+  step = 1,
+}: {
+  value: number
+  onChange: (n: number) => void
+  unit: string
+  step?: number
+}) {
+  return (
+    <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(0, value - step))}
+        disabled={value <= 0}
+        className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+      >−</button>
+      <span className="min-w-[62px] px-1 flex items-center justify-center text-[12px] font-semibold text-dark">
+        {value > 0 ? `${value} ${unit}` : '—'}
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(value + step)}
+        className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40"
+      >+</button>
+    </div>
+  )
+}
+
+/** A Yes/No segmented toggle. */
+function YesNoToggle({
+  value,
+  onChange,
+}: {
+  value: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <div className="inline-flex rounded-lg bg-empty-bg p-[3px] shrink-0">
+      {([['Yes', true], ['No', false]] as const).map(([label, v]) => (
+        <button
+          key={label}
+          type="button"
+          onClick={() => onChange(v)}
+          className={`px-3.5 py-1.5 text-[11px] font-medium rounded-md transition-all ${value === v ? 'bg-white text-dark font-semibold shadow-sm' : 'text-gray-500'}`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   )
 }

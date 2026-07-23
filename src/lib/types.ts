@@ -59,21 +59,9 @@ export interface Vendor {
   menuPhotos?: string[];
   /** Catering-only: whether the menu is item-by-item or photo-based. */
   menuMode?: import('./vendor-types').MenuMode;
-  /** Photography-only: per-hour rate card keyed by role. When set, `price` is the
-   *  per-hour total for 1 of each offered role (the "₹X/hr" board figure). */
-  rateCard?: import('./vendor-category-config').PhotographyRateCard;
-  /** Photography-only: hour blocks the vendor is willing to work (e.g. [4, 6, 8, 10]). */
-  availableHours?: number[];
-  /** Photography-only: which pricing model(s) this photographer offers (hourly rate
-   *  card and/or guest-based packages). Mirrors venue's venuePricingModels. */
+  /** Photography-only: which pricing model(s) this photographer offers. Photography
+   *  is event-based only now, so this is always ['eventBased']; kept for back-compat. */
   photographyPricingModels?: import('./vendor-category-config').PhotographyPricingModel[];
-  /** Photography-only: guest-based packages — guest bucket × hours → flat price. */
-  guestPackages?: import('./vendor-category-config').PhotographyGuestPackages;
-  /** Photography guest-based: photographers present per guest bucket (informational —
-   *  shown to couples, doesn't change the flat package price). */
-  guestPackagePhotographers?: Record<string, number>;
-  /** Photography guest-based: videographers present per guest bucket (informational). */
-  guestPackageVideographers?: Record<string, number>;
   /** Photography event-based: one or more pricing cards — each covers a set of
    *  events with a flat per-service price for the whole event. */
   eventPackages?: import('./vendor-category-config').PhotographyEventPackage[];
@@ -157,14 +145,8 @@ export interface Category {
    *  (vendorId → packageId), chosen when the venue is added so Compare lines them up
    *  package-vs-package. The selected venue's entry mirrors selectedPlatePackageId. */
   platePackageByVendor?: Record<string, string>;
-  /** Photography-only: the couple's rate-card selection for the selected vendor —
-   *  how many people per role + shared coverage hours. Drives the live total. */
-  photographyTeam?: { counts: Record<string, number>; hours: number };
-  /** Photography guest-based model: the couple's picked guest bucket + coverage hours.
-   *  Mutually exclusive with photographyTeam (the hourly model). */
-  photographyPackage?: { bucket: string; hours: number };
   /** Photography event-based model: which services the couple picked from the event
-   *  package. Mutually exclusive with photographyTeam / photographyPackage. */
+   *  package. Drives the live total. */
   photographyEventSelection?: { services: string[] };
   /** Mehendi-only: the couple's selection — bridal coverage + design, groom, guests. */
   mehendiSelection?: { coverage?: string; design?: string; groom?: boolean; guests?: number };
@@ -237,8 +219,6 @@ export interface AppState {
   /** Venue per-plate: add a venue to the board (shortlist) with a chosen plate package,
    *  without making it the selected winner. */
   addVenueToBoard: (ritualId: string, categoryId: string, vendorId: string, packageId: string) => void;
-  selectPhotographyTeam: (ritualId: string, categoryId: string, counts: Record<string, number>, hours: number) => void;
-  selectPhotographyPackage: (ritualId: string, categoryId: string, bucket: string, hours: number) => void;
   selectPhotographyEventServices: (ritualId: string, categoryId: string, services: string[]) => void;
   selectMehendiOptions: (ritualId: string, categoryId: string, selection: { coverage?: string; design?: string; groom?: boolean; guests?: number }) => void;
   selectMakeupOptions: (ritualId: string, categoryId: string, selection: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] }) => void;

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard, MenuSelection } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
-import { getRateCardBaseHourly, getPhotographyGuestFromPrice, getPhotographyEventFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
+import { getPhotographyEventFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
 import type { PhotographyEventPackage } from "./vendor-category-config";
 import { resolveVenueSlots } from "./vendor-types";
 import {
@@ -45,9 +45,8 @@ function cloneBoards() {
  * On the couple side, each Photography event-based "pricing card" becomes its own
  * listing (the vendor still authors them as cards within one listing). This
  * expands a raw listings array so every valid event package is a separate pseudo
- * listing row — matched to its own events, priced at its cheapest service — while
- * hourly/guest-based pricing stays on the original row (dropped only when the
- * vendor offers event-based exclusively).
+ * listing row — matched to its own events, priced at its cheapest service. Since
+ * Photography is event-based only, the original row is replaced by its package rows.
  *
  * Idempotent: already-expanded rows (id contains '::evt::') pass through unchanged,
  * so it's safe to call more than once on the same array.
@@ -64,15 +63,14 @@ export function expandEventPackageListings(
       out.push(l)
       continue
     }
-    const models = (l.photography_pricing_models as string[]) || []
     const rawPkgs = (l.event_packages as PhotographyEventPackage[]) || []
     const validPkgs = rawPkgs.filter(
       p => Array.isArray(p.events) && p.events.length > 0 && Object.values(p.prices || {}).some(v => (v ?? 0) > 0),
     )
-    const offersEvent = models.includes('eventBased') && validPkgs.length > 0
-    if (!offersEvent) { out.push(l); continue }
+    // No priced packages (e.g. a legacy hourly/guest-only listing) → pass through.
+    if (validPkgs.length === 0) { out.push(l); continue }
 
-    // One pseudo row per event package.
+    // One pseudo row per event package; the base row is replaced by these.
     for (const pkg of validPkgs) {
       out.push({
         ...l,
@@ -81,22 +79,7 @@ export function expandEventPackageListings(
         price: getPhotographyEventFromPrice([pkg]),
         event_packages: [pkg],
         photography_pricing_models: ['eventBased'],
-        // A package row is purely event-based — hide the other models on it.
-        rate_card: {},
-        available_hours: [],
-        guest_packages: {},
       })
-    }
-
-    // Keep the original row only if the vendor also offers hourly/guest-based —
-    // then it carries just those models. Otherwise the package rows replace it.
-    const otherModels = models.filter(m => m !== 'eventBased')
-    const offersOther =
-      otherModels.length > 0 ||
-      (l.rate_card && Object.keys(l.rate_card as object).length > 0) ||
-      (l.guest_packages && Object.keys(l.guest_packages as object).length > 0)
-    if (offersOther) {
-      out.push({ ...l, event_packages: [], photography_pricing_models: otherModels })
     }
   }
   return out
@@ -221,33 +204,13 @@ export function buildLiveVendorMap(
       menu: (l.menu as import('./vendor-types').MenuSection[]) || undefined,
       menuPhotos: (l.menu_photos as string[]) || undefined,
       menuMode: (l.menu_mode as import('./vendor-types').MenuMode) || undefined,
-      rateCard: (() => {
-        const rc = l.rate_card as import('./vendor-category-config').PhotographyRateCard | null
-        return rc && Object.keys(rc).length > 0 ? rc : undefined
-      })(),
-      availableHours: (() => {
-        const ah = l.available_hours as number[] | null
-        return Array.isArray(ah) && ah.length > 0 ? ah : undefined
-      })(),
       photographyPricingModels: (() => {
         const m = l.photography_pricing_models as import('./vendor-category-config').PhotographyPricingModel[] | null
         return Array.isArray(m) && m.length > 0 ? m : undefined
       })(),
-      guestPackages: (() => {
-        const gp = l.guest_packages as import('./vendor-category-config').PhotographyGuestPackages | null
-        return gp && Object.keys(gp).length > 0 ? gp : undefined
-      })(),
       eventPackages: (() => {
         const ep = l.event_packages as import('./vendor-category-config').PhotographyEventPackage[] | null
         return Array.isArray(ep) && ep.length > 0 ? ep : undefined
-      })(),
-      guestPackagePhotographers: (() => {
-        const gpp = l.guest_package_photographers as Record<string, number> | null
-        return gpp && Object.keys(gpp).length > 0 ? gpp : undefined
-      })(),
-      guestPackageVideographers: (() => {
-        const gpv = l.guest_package_videographers as Record<string, number> | null
-        return gpv && Object.keys(gpv).length > 0 ? gpv : undefined
       })(),
       mehendiPricing: (() => {
         const mp = l.mehendi_pricing as import('./vendor-category-config').MehendiPricing | null
@@ -632,7 +595,7 @@ export const useStore = create<AppState & LiveModeState & {
               area: parentVendor?.area || '', capacity: parentVendor?.capacity,
               // Photography/Mehendi/Makeup/Saree/Hair price from their own pricing model —
               // use the parent's board figure instead of the fixed design price.
-              price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.guestPackages ? getPhotographyGuestFromPrice(parentVendor.guestPackages) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
+              price: parentVendor?.eventPackages?.length ? getPhotographyEventFromPrice(parentVendor.eventPackages) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
               packageTier: design.description, likes: [], booked: false, amountPaid: 0,
               // Inherit category-specific fields so the Compare table shows real detail for design listings
               categoryFields: parentVendor?.categoryFields,
@@ -642,12 +605,8 @@ export const useStore = create<AppState & LiveModeState & {
               venuePricingModels: parentVendor?.venuePricingModels,
               hourlyPricing: parentVendor?.hourlyPricing,
               platePackages: parentVendor?.platePackages,
-              rateCard: parentVendor?.rateCard,
-              availableHours: parentVendor?.availableHours,
               photographyPricingModels: parentVendor?.photographyPricingModels,
-              guestPackages: parentVendor?.guestPackages,
-              guestPackagePhotographers: parentVendor?.guestPackagePhotographers,
-              guestPackageVideographers: parentVendor?.guestPackageVideographers,
+              eventPackages: parentVendor?.eventPackages,
               mehendiPricing: parentVendor?.mehendiPricing,
               makeupPricing: parentVendor?.makeupPricing,
               sareeDrapingPricing: parentVendor?.sareeDrapingPricing,
@@ -663,8 +622,6 @@ export const useStore = create<AppState & LiveModeState & {
               scaledVendors[design.id].eventPackages = [design.eventPackage]
               scaledVendors[design.id].photographyPricingModels = ['eventBased']
               scaledVendors[design.id].price = getPhotographyEventFromPrice([design.eventPackage])
-              scaledVendors[design.id].rateCard = undefined
-              scaledVendors[design.id].guestPackages = undefined
             }
           }
           set({ vendors: scaledVendors, ritualBoards: mockBoards })
@@ -703,7 +660,7 @@ export const useStore = create<AppState & LiveModeState & {
           area: parentVendor?.area || '', capacity: parentVendor?.capacity,
           // Photography/Mehendi/Makeup/Saree/Hair price from their own pricing model —
           // use the parent's board figure instead of the fixed design price.
-          price: parentVendor?.rateCard ? getRateCardBaseHourly(parentVendor.rateCard) : parentVendor?.guestPackages ? getPhotographyGuestFromPrice(parentVendor.guestPackages) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
+          price: parentVendor?.eventPackages?.length ? getPhotographyEventFromPrice(parentVendor.eventPackages) : parentVendor?.mehendiPricing ? getMehendiFromPrice(parentVendor.mehendiPricing) : parentVendor?.makeupPricing ? getMakeupFromPrice(parentVendor.makeupPricing) : parentVendor?.sareeDrapingPricing ? getSareeDrapingFromPrice(parentVendor.sareeDrapingPricing) : parentVendor?.hairStylingPricing ? getHairStylingFromPrice(parentVendor.hairStylingPricing) : Math.round(design.price * scale), rating: design.rating,
           packageTier: design.description, likes: [], booked: false, amountPaid: 0,
           // Inherit category-specific fields so the Compare table shows real detail for design listings
           categoryFields: parentVendor?.categoryFields,
@@ -711,12 +668,8 @@ export const useStore = create<AppState & LiveModeState & {
           bundledListings: parentVendor?.bundledListings,
           bundleMandatory: parentVendor?.bundleMandatory,
           hourlyPricing: parentVendor?.hourlyPricing,
-          rateCard: parentVendor?.rateCard,
-          availableHours: parentVendor?.availableHours,
           photographyPricingModels: parentVendor?.photographyPricingModels,
-          guestPackages: parentVendor?.guestPackages,
-          guestPackagePhotographers: parentVendor?.guestPackagePhotographers,
-          guestPackageVideographers: parentVendor?.guestPackageVideographers,
+          eventPackages: parentVendor?.eventPackages,
           mehendiPricing: parentVendor?.mehendiPricing,
           makeupPricing: parentVendor?.makeupPricing,
           sareeDrapingPricing: parentVendor?.sareeDrapingPricing,
@@ -732,8 +685,6 @@ export const useStore = create<AppState & LiveModeState & {
           scaledVendors[design.id].eventPackages = [design.eventPackage]
           scaledVendors[design.id].photographyPricingModels = ['eventBased']
           scaledVendors[design.id].price = getPhotographyEventFromPrice([design.eventPackage])
-          scaledVendors[design.id].rateCard = undefined
-          scaledVendors[design.id].guestPackages = undefined
         }
       }
 
@@ -852,51 +803,18 @@ export const useStore = create<AppState & LiveModeState & {
     }
   },
 
-  selectPhotographyTeam: (ritualId, categoryId, counts, hours) => {
-    const { _liveMode } = get()
-    const photographyTeam = { counts, hours }
-    set((s) => ({
-      ritualBoards: s.ritualBoards.map((b) =>
-        b.id === ritualId
-          // Picking the hourly model clears the other two photography models so they never coexist.
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyTeam, photographyPackage: undefined, photographyEventSelection: undefined } : c) }
-          : b
-      ),
-    }))
-    if (_liveMode) {
-      updateBoardCategory(categoryId, { photographyTeam, photographyPackage: undefined, photographyEventSelection: undefined })
-    }
-  },
-
-  selectPhotographyPackage: (ritualId, categoryId, bucket, hours) => {
-    const { _liveMode } = get()
-    const photographyPackage = { bucket, hours }
-    set((s) => ({
-      ritualBoards: s.ritualBoards.map((b) =>
-        b.id === ritualId
-          // Picking the guest-based model clears the other two photography models.
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyPackage, photographyTeam: undefined, photographyEventSelection: undefined } : c) }
-          : b
-      ),
-    }))
-    if (_liveMode) {
-      updateBoardCategory(categoryId, { photographyPackage, photographyTeam: undefined, photographyEventSelection: undefined })
-    }
-  },
-
   selectPhotographyEventServices: (ritualId, categoryId, services) => {
     const { _liveMode } = get()
     const photographyEventSelection = { services }
     set((s) => ({
       ritualBoards: s.ritualBoards.map((b) =>
         b.id === ritualId
-          // Picking the event-based model clears the hourly/guest selections.
-          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyEventSelection, photographyTeam: undefined, photographyPackage: undefined } : c) }
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, photographyEventSelection } : c) }
           : b
       ),
     }))
     if (_liveMode) {
-      updateBoardCategory(categoryId, { photographyEventSelection, photographyTeam: undefined, photographyPackage: undefined })
+      updateBoardCategory(categoryId, { photographyEventSelection })
     }
   },
 

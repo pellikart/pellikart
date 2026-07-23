@@ -232,22 +232,9 @@ export interface VendorListing {
   menuPhotos?: string[]
   /** Catering-only: whether the menu is built item-by-item or shown as photos. Defaults to 'items'. */
   menuMode?: MenuMode
-  /** Photography-only: per-hour rate card keyed by role (candidPhotographer, drone, …).
-   *  When present, replaces the single package price — the couple picks people per role
-   *  plus a shared number of hours. `price` holds the per-hour total for 1 of each role. */
-  rateCard?: import('./vendor-category-config').PhotographyRateCard
-  /** Photography-only: the hour blocks the vendor is willing to work (e.g. [4, 6, 8, 10]).
-   *  Couples pick their coverage hours from this set. */
-  availableHours?: number[]
-  /** Photography-only: which pricing model(s) this photographer offers — hourly rate
-   *  card and/or guest-based packages. Mirrors venuePricingModels. */
+  /** Photography-only: which pricing model(s) this photographer offers. Photography
+   *  is event-based only now, so this is always ['eventBased']; kept for back-compat. */
   photographyPricingModels?: import('./vendor-category-config').PhotographyPricingModel[]
-  /** Photography-only: guest-based packages — guest bucket × hours → flat price. */
-  guestPackages?: import('./vendor-category-config').PhotographyGuestPackages
-  /** Photography guest-based: photographers present per guest bucket (informational). */
-  guestPackagePhotographers?: Record<string, number>
-  /** Photography guest-based: videographers present per guest bucket (informational). */
-  guestPackageVideographers?: Record<string, number>
   /** Photography event-based: one or more pricing cards — each covers a set of
    *  events with a flat per-service price for the whole event. */
   eventPackages?: import('./vendor-category-config').PhotographyEventPackage[]

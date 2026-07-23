@@ -20,15 +20,13 @@ describe('getPhotographyEventFromPrice', () => {
   })
 })
 
-describe('getPhotographyModels surfaces eventBased only with a real package', () => {
-  it('drops eventBased when the model is set but no package exists', () => {
-    const vendor = {
-      photographyPricingModels: ['hourly', 'eventBased'],
-    } as unknown as Vendor
-    expect(getPhotographyModels(vendor)).toEqual(['hourly'])
+describe('getPhotographyModels (event-based only)', () => {
+  it('returns [] when there are no event packages', () => {
+    const vendor = { photographyPricingModels: ['eventBased'] } as unknown as Vendor
+    expect(getPhotographyModels(vendor)).toEqual([])
   })
 
-  it('surfaces eventBased when the couple-facing listing carries its package', () => {
+  it('surfaces eventBased when the listing carries its package', () => {
     const vendor = {
       photographyPricingModels: ['eventBased'],
       eventPackages: [{ id: 'a', events: ['Haldi'], prices: { drone: 15000 } }],
@@ -59,10 +57,9 @@ describe('expandEventPackageListings', () => {
       { id: 'p1', events: ['Haldi', 'Mehendi'], prices: { drone: 15000 } },
       { id: 'p2', events: ['Reception'], prices: { candidPhotography: 50000 } },
     ],
-    rate_card: {}, guest_packages: {},
   }
 
-  it('fans an event-only listing into one row per package, dropping the base row', () => {
+  it('fans an event-based listing into one row per package, dropping the base row', () => {
     const out = expandEventPackageListings([eventListing])
     expect(out).toHaveLength(2)
     expect(out.map(r => r.id)).toEqual(['L1::evt::p1', 'L1::evt::p2'])
@@ -74,13 +71,10 @@ describe('expandEventPackageListings', () => {
     expect(out[0].photography_pricing_models).toEqual(['eventBased'])
   })
 
-  it('keeps the base row (eventBased stripped) when hourly/guest also offered', () => {
-    const mixed = { ...eventListing, photography_pricing_models: ['hourly', 'eventBased'], rate_card: { candidPhotographer: 3000 } }
-    const out = expandEventPackageListings([mixed])
-    expect(out).toHaveLength(3) // 2 package rows + base
-    const base = out.find(r => r.id === 'L1')!
-    expect(base.photography_pricing_models).toEqual(['hourly'])
-    expect(base.event_packages).toEqual([])
+  it('passes through a photography listing with no priced packages untouched', () => {
+    const empty = { id: 'L2', category: 'Photography', event_packages: [] }
+    const out = expandEventPackageListings([empty])
+    expect(out).toEqual([empty])
   })
 
   it('leaves non-photography and already-expanded rows untouched, and is idempotent', () => {

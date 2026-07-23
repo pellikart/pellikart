@@ -250,36 +250,32 @@ export const mockVendors: Record<string, Vendor> = {
   // === PHOTOGRAPHY ===
   "v-photo-1": {
     id: "v-photo-1", code: "Photo 001", name: "Lens & Light Studio", photo: img("photo", 1),
-    style: "Candid + Cinematic", area: "Hauz Khas, Delhi", price: 19000,
-    rating: 4.8, packageTier: "Premium (2 days)", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
-    rateCard: { candidPhotographer: 3500, candidVideographer: 4000, traditionalPhotographer: 3000, traditionalVideographer: 3500, drone: 5000 },
-    availableHours: [4, 6, 8, 10],
+    style: "Candid + Cinematic", area: "Hauz Khas, Delhi", price: 25000,
+    rating: 4.8, packageTier: "Per-event pricing", likes: [{ userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
+    photographyPricingModels: ["eventBased"],
+    eventPackages: [
+      { id: "evt-p1", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 60000, candidPhotography: 85000, candidVideography: 95000, ledScreens: 45000, drone: 30000, album: 35000, liveStreaming: 25000 }, durationHours: 10, cinematicTrailer: true, deliveryDays: 30 },
+    ],
     categoryFields: { liveCoverage: "Add-on", editedPhotos: "800", highlightReel: "Included", cinematicTrailer: "Available", fullVideo: "Yes", sameDayEdit: "Yes", deliveryFormat: "Both", deliveryDays: "30 days", albums: "2", albumSheets: "25" },
   },
   "v-photo-2": {
     id: "v-photo-2", code: "Photo 002", name: "Click & Capture", photo: img("photo", 2),
-    style: "Traditional + Posed", area: "Pitampura, Delhi", price: 5300,
-    rating: 4.2, packageTier: "Standard (2 days)", likes: [], booked: false, amountPaid: 0,
-    rateCard: { candidPhotographer: 2800, traditionalPhotographer: 2500 },
-    availableHours: [4, 6, 8],
-    // Offers both pricing models: hourly rate card (above) + flat guest-based packages.
-    photographyPricingModels: ["hourly", "guestBased"],
-    guestPackages: {
-      "<200": { "4": 40000, "6": 55000, "8": 70000 },
-      "200-500": { "6": 75000, "8": 95000, "10": 120000 },
-      "500-1000": { "8": 140000, "10": 175000 },
-      "1000+": { "10": 220000 },
-    },
-    guestPackagePhotographers: { "<200": 2, "200-500": 3, "500-1000": 4, "1000+": 6 },
-    guestPackageVideographers: { "<200": 1, "200-500": 2, "500-1000": 3, "1000+": 4 },
+    style: "Traditional + Posed", area: "Pitampura, Delhi", price: 22000,
+    rating: 4.2, packageTier: "Per-event pricing", likes: [], booked: false, amountPaid: 0,
+    photographyPricingModels: ["eventBased"],
+    eventPackages: [
+      { id: "evt-p2", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 40000, candidPhotography: 55000, candidVideography: 60000, drone: 25000, album: 22000 }, durationHours: 8, cinematicTrailer: false, deliveryDays: 45 },
+    ],
     categoryFields: { liveCoverage: "Not available", editedPhotos: "500", highlightReel: "Not included", cinematicTrailer: "Not available", fullVideo: "No", sameDayEdit: "No", deliveryFormat: "USB Drive", deliveryDays: "45 days", albums: "1", albumSheets: "20" },
   },
   "v-photo-3": {
     id: "v-photo-3", code: "Photo 003", name: "FrameWorks Photography", photo: img("photo", 3),
-    style: "Documentary Style", area: "Vasant Kunj, Delhi", price: 17000,
-    rating: 4.6, packageTier: "Premium (1 day)", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
-    rateCard: { candidPhotographer: 3000, candidVideographer: 3500, traditionalPhotographer: 2800, traditionalVideographer: 3200, drone: 4500 },
-    availableHours: [6, 8, 10],
+    style: "Documentary Style", area: "Vasant Kunj, Delhi", price: 22000,
+    rating: 4.6, packageTier: "Per-event pricing", likes: [{ userId: "u-mom", name: "Mom" }], booked: false, amountPaid: 0,
+    photographyPricingModels: ["eventBased"],
+    eventPackages: [
+      { id: "evt-p3", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 50000, candidPhotography: 70000, candidVideography: 78000, ledScreens: 40000, drone: 28000, album: 30000, liveStreaming: 22000 }, durationHours: 8, cinematicTrailer: true, deliveryDays: 30 },
+    ],
     categoryFields: { liveCoverage: "Yes, included", editedPhotos: "1000", highlightReel: "Included", cinematicTrailer: "Available", fullVideo: "Yes", sameDayEdit: "No", deliveryFormat: "Google Drive", deliveryDays: "30 days", albums: "2", albumSheets: "30" },
   },
   // Event-based photographer — prices per event as flat "pricing cards". Each of
@@ -291,8 +287,8 @@ export const mockVendors: Record<string, Vendor> = {
     rating: 4.7, packageTier: "Per-event pricing", likes: [], booked: false, amountPaid: 0,
     photographyPricingModels: ["eventBased"],
     eventPackages: [
-      { id: "evt-wed", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 55000, candidPhotography: 75000, candidVideography: 85000, ledScreens: 40000, drone: 25000, album: 30000, liveStreaming: 20000 } },
-      { id: "evt-fun", events: ["Haldi", "Mehendi", "Sangeeth"], prices: { candidPhotography: 45000, candidVideography: 50000, drone: 18000, album: 20000 } },
+      { id: "evt-wed", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 55000, candidPhotography: 75000, candidVideography: 85000, ledScreens: 40000, drone: 25000, album: 30000, liveStreaming: 20000 }, durationHours: 12, cinematicTrailer: true, deliveryDays: 30 },
+      { id: "evt-fun", events: ["Haldi", "Mehendi", "Sangeeth"], prices: { candidPhotography: 45000, candidVideography: 50000, drone: 18000, album: 20000 }, durationHours: 6, cinematicTrailer: false, deliveryDays: 30 },
     ],
     categoryFields: { liveCoverage: "Yes, included", editedPhotos: "1200", highlightReel: "Included", cinematicTrailer: "Available", fullVideo: "Yes", sameDayEdit: "Yes", deliveryFormat: "Both", deliveryDays: "30 days", albums: "2", albumSheets: "30" },
   },
@@ -460,16 +456,16 @@ export const mockDesigns: Design[] = [
   { id: "d-catering-3b", vendorId: "v-catering-3", name: "South Indian Sadya", photo: img("catering", 6), style: "South Indian", price: 220000, rating: 4.2, description: "Traditional banana leaf sadya with 26 dishes, payasam, and filter coffee station" },
 
   // === PHOTOGRAPHY LISTINGS ===
-  { id: "d-photo-1a", vendorId: "v-photo-1", name: "Cinematic Love Story", photo: img("photo", 1), style: "Candid + Cinematic", price: 200000, rating: 4.9, description: "Full cinematic coverage — drone shots, same-day edit, 2 photographers, highlight reel" },
-  { id: "d-photo-1b", vendorId: "v-photo-1", name: "Pre-Wedding Dreamshoot", photo: img("photo", 2), style: "Pre-Wedding", price: 80000, rating: 4.8, description: "4-hour pre-wedding shoot at location of choice, 100 edited photos, 1 reel" },
-  { id: "d-photo-2a", vendorId: "v-photo-2", name: "Classic Wedding Album", photo: img("photo", 3), style: "Traditional + Posed", price: 120000, rating: 4.3, description: "Traditional posed + candid mix, 500 edited photos, 1 premium album" },
-  { id: "d-photo-2b", vendorId: "v-photo-2", name: "Budget Candid Package", photo: img("photo", 4), style: "Candid", price: 80000, rating: 4.1, description: "1 photographer, 8 hours, 300 edited candid photos, USB delivery" },
-  { id: "d-photo-3a", vendorId: "v-photo-3", name: "Documentary Wedding Film", photo: img("photo", 5), style: "Documentary", price: 170000, rating: 4.7, description: "Full documentary-style coverage, 20-min wedding film, raw footage included" },
-  { id: "d-photo-3b", vendorId: "v-photo-3", name: "Intimate Ceremony Coverage", photo: img("photo", 6), style: "Intimate", price: 100000, rating: 4.5, description: "Small wedding specialist — 1 photographer, 6 hours, 200 edited photos" },
+  { id: "d-photo-1a", vendorId: "v-photo-1", name: "Cinematic Love Story", photo: img("photo", 1), style: "Candid + Cinematic", price: 25000, rating: 4.9, description: "Full cinematic coverage for Wedding + Reception — pick photo, video, LED, drone, album, live streaming", eventPackage: { id: "evt-p1", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 60000, candidPhotography: 85000, candidVideography: 95000, ledScreens: 45000, drone: 30000, album: 35000, liveStreaming: 25000 }, durationHours: 10, cinematicTrailer: true, deliveryDays: 30 } },
+  { id: "d-photo-1b", vendorId: "v-photo-1", name: "Pre-Wedding Dreamshoot", photo: img("photo", 2), style: "Pre-Wedding", price: 20000, rating: 4.8, description: "Pre-wedding shoot at a location of choice — flat per-service pricing", eventPackage: { id: "evt-p1-pre", events: ["Pre-Wedding Shoot"], prices: { candidPhotography: 40000, candidVideography: 45000, drone: 20000 }, durationHours: 4, cinematicTrailer: false, deliveryDays: 15 } },
+  { id: "d-photo-2a", vendorId: "v-photo-2", name: "Classic Wedding Album", photo: img("photo", 3), style: "Traditional + Posed", price: 22000, rating: 4.3, description: "Traditional posed + candid mix for Wedding + Reception — flat per-service pricing", eventPackage: { id: "evt-p2", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 40000, candidPhotography: 55000, candidVideography: 60000, drone: 25000, album: 22000 }, durationHours: 8, cinematicTrailer: false, deliveryDays: 45 } },
+  { id: "d-photo-2b", vendorId: "v-photo-2", name: "Haldi & Mehendi Coverage", photo: img("photo", 4), style: "Candid", price: 18000, rating: 4.1, description: "Candid coverage for the fun events — flat per-service pricing", eventPackage: { id: "evt-p2-fun", events: ["Haldi", "Mehendi"], prices: { candidPhotography: 35000, candidVideography: 40000, album: 18000 }, durationHours: 5, cinematicTrailer: false, deliveryDays: 30 } },
+  { id: "d-photo-3a", vendorId: "v-photo-3", name: "Documentary Wedding Film", photo: img("photo", 5), style: "Documentary", price: 22000, rating: 4.7, description: "Full documentary-style coverage for Wedding + Reception — flat per-service pricing", eventPackage: { id: "evt-p3", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 50000, candidPhotography: 70000, candidVideography: 78000, ledScreens: 40000, drone: 28000, album: 30000, liveStreaming: 22000 }, durationHours: 8, cinematicTrailer: true, deliveryDays: 30 } },
+  { id: "d-photo-3b", vendorId: "v-photo-3", name: "Engagement Coverage", photo: img("photo", 6), style: "Intimate", price: 20000, rating: 4.5, description: "Engagement & Pelli Choopulu specialist — flat per-service pricing", eventPackage: { id: "evt-p3-eng", events: ["Engagement", "Pelli Choopulu"], prices: { traditionalPhotography: 30000, candidPhotography: 45000, album: 20000 }, durationHours: 4, cinematicTrailer: false, deliveryDays: 20 } },
   // Event-based packages (Muhurtham Films) — each is its own event listing. Price is
   // the cheapest service; the couple ticks the services they want in the detail sheet.
-  { id: "d-photo-4a", vendorId: "v-photo-4", name: "Wedding & Reception Package", photo: img("photo", 4), style: "Event-based", price: 20000, rating: 4.7, description: "Flat per-service pricing for Wedding + Reception — pick photo, video, LED, drone, album, live streaming", eventPackage: { id: "evt-wed", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 55000, candidPhotography: 75000, candidVideography: 85000, ledScreens: 40000, drone: 25000, album: 30000, liveStreaming: 20000 } } },
-  { id: "d-photo-4b", vendorId: "v-photo-4", name: "Haldi · Mehendi · Sangeeth Package", photo: img("photo", 5), style: "Event-based", price: 18000, rating: 4.6, description: "Flat per-service pricing for the fun events — candid photo & video, drone, album", eventPackage: { id: "evt-fun", events: ["Haldi", "Mehendi", "Sangeeth"], prices: { candidPhotography: 45000, candidVideography: 50000, drone: 18000, album: 20000 } } },
+  { id: "d-photo-4a", vendorId: "v-photo-4", name: "Wedding & Reception Package", photo: img("photo", 4), style: "Event-based", price: 20000, rating: 4.7, description: "Flat per-service pricing for Wedding + Reception — pick photo, video, LED, drone, album, live streaming", eventPackage: { id: "evt-wed", events: ["Pelli (Wedding)", "Reception"], prices: { traditionalPhotography: 55000, candidPhotography: 75000, candidVideography: 85000, ledScreens: 40000, drone: 25000, album: 30000, liveStreaming: 20000 }, durationHours: 12, cinematicTrailer: true, deliveryDays: 30 } },
+  { id: "d-photo-4b", vendorId: "v-photo-4", name: "Haldi · Mehendi · Sangeeth Package", photo: img("photo", 5), style: "Event-based", price: 18000, rating: 4.6, description: "Flat per-service pricing for the fun events — candid photo & video, drone, album", eventPackage: { id: "evt-fun", events: ["Haldi", "Mehendi", "Sangeeth"], prices: { candidPhotography: 45000, candidVideography: 50000, drone: 18000, album: 20000 }, durationHours: 6, cinematicTrailer: false, deliveryDays: 30 } },
 
   // === MEHENDI LISTINGS ===
   { id: "d-mehendi-1a", vendorId: "v-mehendi-1", name: "Bridal Rajasthani Full", photo: img("mehendi", 1), style: "Rajasthani Bridal", price: 40000, rating: 4.9, description: "Full hands + feet bridal mehendi, intricate Rajasthani patterns, 4-hour session" },

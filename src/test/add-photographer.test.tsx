@@ -5,7 +5,7 @@ import ListingDetailSheet from '@/components/ListingDetailSheet'
 import { useStore } from '@/lib/store'
 import type { OnboardingData } from '@/lib/types'
 
-describe('Add-to-board button in the rate-card box', () => {
+describe('Add-to-board button in the event-package box', () => {
   it('shows "Add to my board" for a non-selected photographer and selects it on click', () => {
     const data: OnboardingData = {
       partner1: 'A', partner2: 'B', events: ['Pelli (Wedding)'], customEvents: [],
@@ -13,7 +13,7 @@ describe('Add-to-board button in the rate-card box', () => {
     }
     useStore.getState().completeOnboarding(data)
 
-    // Find a Photography category with at least 2 shortlisted (rate-card) photographers.
+    // Find a Photography category with at least 2 shortlisted (event-based) photographers.
     const boards = useStore.getState().ritualBoards
     let ritualId = '', categoryId = '', selected = '', candidate = ''
     for (const b of boards) {
@@ -28,7 +28,7 @@ describe('Add-to-board button in the rate-card box', () => {
     expect(candidate).not.toBe(selected)
 
     const vendor = useStore.getState().vendors[candidate]
-    expect(vendor.rateCard).toBeDefined()
+    expect(vendor.eventPackages?.length).toBeGreaterThan(0)
 
     render(
       <MemoryRouter>

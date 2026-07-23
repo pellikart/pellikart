@@ -11,9 +11,6 @@ function eventVendor(): Vendor {
   return {
     ...(mockVendors['v-photo-1'] as Vendor),
     id: 'v-photo-1::evt::p1',
-    rateCard: undefined,
-    guestPackages: undefined,
-    availableHours: undefined,
     photographyPricingModels: ['eventBased'],
     eventPackages: [
       { id: 'p1', events: ['Haldi', 'Mehendi'], prices: { candidPhotography: 40000, drone: 15000, album: 10000 } },
@@ -55,9 +52,6 @@ describe('Photography event-package render (couple side)', () => {
     const previewVendor = {
       ...(mockVendors['v-photo-1'] as Vendor),
       id: 'v-photo-1',
-      rateCard: undefined,
-      guestPackages: undefined,
-      availableHours: undefined,
       photographyPricingModels: ['eventBased'],
       eventPackages: [
         { id: 'p1', events: ['Pelli (Wedding)', 'Reception'], prices: { traditionalPhotography: 55000, drone: 25000 } },

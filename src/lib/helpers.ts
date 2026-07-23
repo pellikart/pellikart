@@ -1,33 +1,5 @@
 import type { Vendor, Category } from './types'
-import { PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_EVENT_SERVICES, type PhotographyRateCard, type PhotographyGuestPackages, type PhotographyEventPackage, type PhotographyPricingModel, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
-
-/**
- * Per-hour total for a Photography rate card assuming 1 person in every offered
- * role. This is the "₹X/hr" figure shown on browse/board cards and stored as the
- * listing's `price`.
- */
-export function getRateCardBaseHourly(rateCard?: PhotographyRateCard): number {
-  if (!rateCard) return 0
-  return PHOTOGRAPHY_RATE_ROLES.reduce((sum, r) => sum + Math.max(0, rateCard[r.key] ?? 0), 0)
-}
-
-/**
- * Live booking total for a Photography rate card given how many people the couple
- * picked per role and one shared number of hours:
- *   total = hours × Σ(role rate/hr × people)
- */
-export function getRateCardTotal(
-  rateCard: PhotographyRateCard | undefined,
-  counts: Record<string, number>,
-  hours: number,
-): number {
-  if (!rateCard) return 0
-  const perHour = PHOTOGRAPHY_RATE_ROLES.reduce(
-    (sum, r) => sum + Math.max(0, rateCard[r.key] ?? 0) * Math.max(0, counts[r.key] ?? 0),
-    0,
-  )
-  return perHour * Math.max(0, hours)
-}
+import { PHOTOGRAPHY_EVENT_SERVICES, type PhotographyEventPackage, type PhotographyPricingModel, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
 
 /**
  * Returns the base price for a vendor given the couple's selected hourly tier.
@@ -49,59 +21,6 @@ export function getEffectivePrice(vendor: Vendor | undefined, tierHours?: number
 export function getListingTotal(vendor: Vendor | undefined, tierHours?: number): number {
   if (!vendor) return 0
   return getEffectivePrice(vendor, tierHours)
-}
-
-/**
- * The couple's selected total for a Photography rate-card listing (pure — transport
- * is added once by getCategorySelectionTotal / the detail block). Returns null when
- * there's no rate card or nothing is picked yet.
- */
-export function getPhotographySelectionTotal(
-  vendor: Vendor | undefined,
-  team: { counts: Record<string, number>; hours: number } | undefined,
-): number | null {
-  if (!vendor?.rateCard || !team) return null
-  const picked = Object.values(team.counts).reduce((s, n) => s + Math.max(0, n || 0), 0)
-  if (picked <= 0) return null
-  return getRateCardTotal(vendor.rateCard, team.counts, team.hours)
-}
-
-/**
- * The "from" price for a Photography guest-based listing — the cheapest filled cell
- * across all guest buckets × hours. Returns 0 when no cells are priced.
- */
-export function getPhotographyGuestFromPrice(packages?: PhotographyGuestPackages): number {
-  if (!packages) return 0
-  let min = Infinity
-  for (const byHours of Object.values(packages)) {
-    for (const price of Object.values(byHours)) {
-      if (price > 0 && price < min) min = price
-    }
-  }
-  return min === Infinity ? 0 : min
-}
-
-/** The flat price for a specific guest bucket × hours cell (0 when not offered). */
-export function getPhotographyPackagePrice(
-  packages: PhotographyGuestPackages | undefined,
-  bucket: string,
-  hours: number,
-): number {
-  if (!packages) return 0
-  return packages[bucket]?.[String(hours)] ?? 0
-}
-
-/**
- * The couple's selected total for a Photography guest-based package. Returns null
- * when the vendor has no guest packages or the picked cell isn't priced.
- */
-export function getPhotographyPackageSelectionTotal(
-  vendor: Vendor | undefined,
-  sel: { bucket: string; hours: number } | undefined,
-): number | null {
-  if (!vendor?.guestPackages || !sel) return null
-  const price = getPhotographyPackagePrice(vendor.guestPackages, sel.bucket, sel.hours)
-  return price > 0 ? price : null
 }
 
 /**
@@ -150,24 +69,12 @@ export function getOfferedEventServices(pkg: PhotographyEventPackage | undefined
 }
 
 /**
- * Which pricing model(s) a photographer offers. Prefers the explicit
- * `photographyPricingModels` field, but falls back to inferring from the presence
- * of a rate card / guest packages / event packages for back-compat with listings
- * authored before the model selector existed.
+ * Which pricing model(s) a photographer offers. Photography is event-based only:
+ * returns ['eventBased'] when the vendor has at least one event package, else [].
  */
 export function getPhotographyModels(vendor: Vendor | undefined): PhotographyPricingModel[] {
   if (!vendor) return []
-  if (vendor.photographyPricingModels && vendor.photographyPricingModels.length > 0) {
-    // Only surface eventBased when there's an actual package to render.
-    return vendor.photographyPricingModels.filter(m =>
-      m === 'hourly' || m === 'guestBased' || (m === 'eventBased' && (vendor.eventPackages?.length ?? 0) > 0),
-    )
-  }
-  const models: PhotographyPricingModel[] = []
-  if (getRateCardBaseHourly(vendor.rateCard) > 0) models.push('hourly')
-  if (getPhotographyGuestFromPrice(vendor.guestPackages) > 0) models.push('guestBased')
-  if (getPhotographyEventFromPrice(vendor.eventPackages) > 0) models.push('eventBased')
-  return models
+  return (vendor.eventPackages?.length ?? 0) > 0 ? ['eventBased'] : []
 }
 
 /**
@@ -339,12 +246,8 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
   })()
   const parts = [
     venuePlate,
-    // Photography is one model at a time: an event-based selection (if any) wins,
-    // then a guest-based package, then the hourly rate-card team, so the models
-    // never double-count.
-    getPhotographyEventSelectionTotal(vendor, category.photographyEventSelection)
-      ?? getPhotographyPackageSelectionTotal(vendor, category.photographyPackage)
-      ?? getPhotographySelectionTotal(vendor, category.photographyTeam),
+    // Photography is event-based only — the couple's ticked services drive the total.
+    getPhotographyEventSelectionTotal(vendor, category.photographyEventSelection),
     getMehendiSelectionTotal(vendor, category.mehendiSelection),
     getMakeupSelectionTotal(vendor, category.makeupSelection),
     getSareeSelectionTotal(vendor, category.sareeSelection),

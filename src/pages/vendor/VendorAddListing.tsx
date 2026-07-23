@@ -3,11 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
-import { formatINR, getRateCardBaseHourly, getPhotographyGuestFromPrice, getPhotographyEventFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_HOUR_OPTIONS, isSingleListingCategory, emptyPhotographyGuestPackages, emptyPhotographyEventPackages, type SelectField, type PhotographyRateCard, type PhotographyPricingModel, type PhotographyGuestPackages, type PhotographyEventPackage } from '@/lib/vendor-category-config'
+import { formatINR, getPhotographyEventFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
-import PhotographyGuestPackagesEditor from '@/components/PhotographyGuestPackagesEditor'
 import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuEditor from '@/components/MenuEditor'
@@ -45,20 +44,9 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const [videoFiles, setVideoFiles] = useState<File[]>([])
   const [videoPreviews, setVideoPreviews] = useState<string[]>([])
   const [price, setPrice] = useState(config.priceRange.min + Math.floor((config.priceRange.max - config.priceRange.min) / 3))
-  // Photography-only: per-hour rate card keyed by role (₹/hr). Blank/0 = not offered.
-  const [rateCard, setRateCard] = useState<PhotographyRateCard>({})
-  // Photography-only: hour blocks the vendor is willing to work (couples pick from these).
-  const [availableHours, setAvailableHours] = useState<number[]>([])
-  // Photography-only: which pricing model(s) this photographer offers. Defaults to
-  // the hourly rate card so the existing flow is unchanged unless they add packages.
-  const [photographyPricingModels, setPhotographyPricingModels] = useState<PhotographyPricingModel[]>(['hourly'])
-  // Photography-only: guest-based packages (guest bucket × hours → flat price).
-  const [guestPackages, setGuestPackages] = useState<PhotographyGuestPackages>(emptyPhotographyGuestPackages())
-  // Photography-only: photographers present per guest bucket (informational).
-  const [guestPackagePhotographers, setGuestPackagePhotographers] = useState<Record<string, number>>({})
-  // Photography-only: videographers present per guest bucket (informational).
-  const [guestPackageVideographers, setGuestPackageVideographers] = useState<Record<string, number>>({})
   // Photography-only: event-based pricing cards (flat per-service price per event group).
+  // Photography is event-based only, so the pricing model is always ['eventBased'].
+  const photographyPricingModels: PhotographyPricingModel[] = ['eventBased']
   const [eventPackages, setEventPackages] = useState<PhotographyEventPackage[]>(emptyPhotographyEventPackages())
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
@@ -124,8 +112,6 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setCategory(next)
     const nextConfig = getListingConfig(next)
     setPrice(nextConfig.priceRange.min + Math.floor((nextConfig.priceRange.max - nextConfig.priceRange.min) / 3))
-    setRateCard({})
-    setAvailableHours([])
     setEventPackages([])
     setIncludes([])
     setCategoryFields({})
@@ -176,14 +162,18 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const hasMenuStep = category === 'Catering'
   const hasDesignsStep = category === 'Decor'
   const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering'
+  // Photography doesn't ask for listing-level events — each event package carries
+  // its own events — so the "Which events is this for?" step is skipped.
+  const hasRitualsStep = category !== 'Photography'
 
   // Each category gets a contiguous run of steps. Decor skips Photos & Name, so its
   // step indices start at 1 with Rituals. Venue leads with a Location step.
   const firstStep = hasListingTypeStep ? 1 : -1
   const baseBeforeLocation = hasListingTypeStep ? 1 : 0
   const locationStep = hasLocationStep ? baseBeforeLocation + 1 : -1
-  const ritualsStep = (hasLocationStep ? locationStep : baseBeforeLocation) + 1
-  const categoryStepStart = ritualsStep + 1
+  const stepBeforeRituals = hasLocationStep ? locationStep : baseBeforeLocation
+  const ritualsStep = hasRitualsStep ? stepBeforeRituals + 1 : -1
+  const categoryStepStart = (hasRitualsStep ? ritualsStep : stepBeforeRituals) + 1
 
   let nextStep = categoryStepStart + categoryStepCount
   let inclusionsStep = -1
@@ -226,22 +216,14 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     (venueOffersRent && venueRentPrice > 0) ||
     (venueOffersPerPlate && venuePlateFrom > 0)
 
-  // Photography pricing model — derived helpers (mirror the venue ones)
-  const photoOffersHourly = photographyPricingModels.includes('hourly')
-  const photoOffersGuest = photographyPricingModels.includes('guestBased')
-  const photoOffersEvent = photographyPricingModels.includes('eventBased')
-  const photoHourlyBase = getRateCardBaseHourly(rateCard)
-  const photoGuestFrom = getPhotographyGuestFromPrice(guestPackages)
+  // Photography pricing — event-based only.
   const photoEventFrom = getPhotographyEventFromPrice(eventPackages)
   // Only cards with at least one event AND one priced service are kept on save.
   const validEventPackages = eventPackages.filter(
     c => c.events.length > 0 && Object.values(c.prices).some(p => (p ?? 0) > 0),
   )
-  // True once the photographer has at least one model with valid pricing entered.
-  const photoPricingReady =
-    (photoOffersHourly && photoHourlyBase > 0) ||
-    (photoOffersGuest && photoGuestFrom > 0) ||
-    (photoOffersEvent && validEventPackages.length > 0)
+  // True once the photographer has at least one valid event package.
+  const photoPricingReady = validEventPackages.length > 0
   // Number of dishes (dish-bank + custom) configured in a plate package's menu.
   const menuItemCount = (menu?: MenuSection[]) =>
     (menu || []).reduce((s, sec) => s + sec.dishIds.length + (sec.customDishes?.length || 0), 0)
@@ -372,12 +354,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         : venueOffersPerPlate && venuePlateFrom > 0 ? venuePlateFrom
         : price)
       : category === 'Decor' ? 0
-      // Photography: prefer the hourly "₹X/hr" board figure; fall back to the
-      // cheapest guest-package cell, then the cheapest event-package service.
-      : category === 'Photography'
-        ? (photoOffersHourly && photoHourlyBase > 0 ? photoHourlyBase
-          : photoOffersGuest && photoGuestFrom > 0 ? photoGuestFrom
-          : photoEventFrom)
+      // Photography: the "from" board figure is the cheapest event-package service.
+      : category === 'Photography' ? photoEventFrom
       : price
 
     // Upload paid-room photos in live mode and replace blob URLs with public URLs.
@@ -534,13 +512,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       hourlyPricing: category === 'Venue' && venueOffersRent && hourlyPricing.length > 0 ? hourlyPricing : undefined,
       platePackages: category === 'Venue' && venueOffersPerPlate && platePackages.length > 0 ? platePackages : undefined,
       slots: category === 'Venue' && venueOffersPerPlate && slots.length > 0 ? slots : undefined,
-      rateCard: category === 'Photography' && photoOffersHourly ? rateCard : undefined,
-      availableHours: category === 'Photography' && photoOffersHourly && availableHours.length > 0 ? [...availableHours].sort((a, b) => a - b) : undefined,
-      photographyPricingModels: category === 'Photography' && photographyPricingModels.length > 0 ? photographyPricingModels : undefined,
-      guestPackages: category === 'Photography' && photoOffersGuest && photoGuestFrom > 0 ? guestPackages : undefined,
-      guestPackagePhotographers: category === 'Photography' && photoOffersGuest && Object.keys(guestPackagePhotographers).length > 0 ? guestPackagePhotographers : undefined,
-      guestPackageVideographers: category === 'Photography' && photoOffersGuest && Object.keys(guestPackageVideographers).length > 0 ? guestPackageVideographers : undefined,
-      eventPackages: category === 'Photography' && photoOffersEvent && validEventPackages.length > 0 ? validEventPackages : undefined,
+      photographyPricingModels: category === 'Photography' ? photographyPricingModels : undefined,
+      eventPackages: category === 'Photography' && validEventPackages.length > 0 ? validEventPackages : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
       inHouseDecor: category === 'Venue' ? inHouseDecorForPayload : undefined,
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
@@ -723,7 +696,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         )}
 
         {/* Rituals / Events step */}
-        {step === ritualsStep && (
+        {hasRitualsStep && step === ritualsStep && (
           <div className="animate-fadeIn">
             {/* Listing type picker for Decor (since Photos & Name step is skipped) */}
             {!hasListingTypeStep && allowedCategories.length > 1 && (
@@ -1342,125 +1315,26 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
           </div>
         )}
 
-        {/* Pricing step — Photography: pick model(s) (hourly and/or guest-based) */}
+        {/* Pricing step — Photography: event-based pricing cards */}
         {step === stylePriceStep && category === 'Photography' && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">How do you price?</h1>
-            <p className="text-[11px] text-gray-400 mt-1 mb-5">Pick one or both. Couples will choose whichever option works for them.</p>
-
-            {/* Model selector */}
-            <div className="flex flex-col gap-2.5 mb-5">
-              {([
-                { key: 'hourly' as const, title: 'Hourly rates', desc: 'Couples build a team (per role) and pick coverage hours. Priced per hour.' },
-                { key: 'guestBased' as const, title: 'Guest-based packages', desc: 'Flat all-inclusive prices by guest count and coverage hours.' },
-                { key: 'eventBased' as const, title: 'Event-based packages', desc: 'Pricing cards per event — a flat price per service (photo, video, drone, album…) for the whole event.' },
-              ]).map(m => {
-                const selected = photographyPricingModels.includes(m.key)
-                return (
-                  <button
-                    key={m.key}
-                    type="button"
-                    onClick={() => setPhotographyPricingModels(prev => prev.includes(m.key) ? prev.filter(x => x !== m.key) : [...prev, m.key])}
-                    className={`w-full text-left p-3.5 rounded-xl border transition-all ${selected ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border bg-white'}`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <span className={`w-4 h-4 mt-0.5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${selected ? 'border-mustard bg-mustard' : 'border-gray-300 bg-white'}`}>
-                        {selected && <span className="text-white text-[10px] leading-none">✓</span>}
-                      </span>
-                      <div>
-                        <p className="text-[13px] font-semibold text-dark">{m.title}</p>
-                        <p className="text-[10px] text-gray-500 mt-0.5">{m.desc}</p>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Hourly model — per-role rate card + willing hours */}
-            {photoOffersHourly && (
-              <div className="mb-4 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
-                <p className="text-[12px] font-semibold text-dark mb-0.5">Hourly rates</p>
-                <p className="text-[10px] text-gray-400 mb-3">Price per hour for each role you offer. Leave a role blank if you don't provide it.</p>
-
-                <div className="space-y-2.5">
-                  {PHOTOGRAPHY_RATE_ROLES.map(role => {
-                    const val = rateCard[role.key] ?? 0
-                    return (
-                      <div key={role.key} className="flex items-center justify-between gap-3">
-                        <span className="text-[12px] font-medium text-dark">{role.label}</span>
-                        <div className="relative w-[140px] shrink-0">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
-                          <input
-                            type="number" min={0} step={500}
-                            value={val || ''}
-                            onChange={(e) => {
-                              const n = Math.max(0, parseInt(e.target.value) || 0)
-                              setRateCard(prev => ({ ...prev, [role.key]: n }))
-                            }}
-                            placeholder="0"
-                            className="w-full pl-6 pr-9 py-2 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">/hr</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Willing hours — couples pick their coverage hours from these */}
-                <div className="mt-4">
-                  <label className="text-[12px] font-medium text-dark block mb-1">How many hours are you willing to work?</label>
-                  <p className="text-[10px] text-gray-400 mb-2">Select every block you'll take on.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {PHOTOGRAPHY_HOUR_OPTIONS.map(h => {
-                      const selected = availableHours.includes(h)
-                      return (
-                        <button
-                          key={h}
-                          type="button"
-                          onClick={() => setAvailableHours(prev => prev.includes(h) ? prev.filter(x => x !== h) : [...prev, h])}
-                          className={`py-1.5 px-3.5 rounded-full text-[11px] font-medium transition-all ${selected ? 'bg-mustard text-white' : 'bg-white border border-card-border text-gray-600 active:bg-mustard-light'}`}
-                        >
-                          {selected && <span className="mr-0.5">✓ </span>}{h} hrs
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {photoHourlyBase > 0 && (
-                  <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">{formatINR(photoHourlyBase)}/hr</span> (1 of each offered role).</p>
-                )}
-              </div>
-            )}
-
-            {/* Guest-based model — guest bucket × hours price matrix */}
-            {photoOffersGuest && (
-              <div className="mb-4">
-                <p className="text-[12px] font-semibold text-dark mb-0.5">Guest-based packages</p>
-                <p className="text-[10px] text-gray-400 mb-3">Set a flat price for each guest count and coverage-hours combination you offer.</p>
-                <PhotographyGuestPackagesEditor value={guestPackages} onChange={setGuestPackages} photographers={guestPackagePhotographers} onPhotographersChange={setGuestPackagePhotographers} videographers={guestPackageVideographers} onVideographersChange={setGuestPackageVideographers} />
-                {photoGuestFrom > 0 && (
-                  <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(photoGuestFrom)}</span> when guest-based is your only model.</p>
-                )}
-              </div>
-            )}
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Create a pricing card per event group, pick the events it covers, and set a flat price per service.</p>
 
             {/* Event-based model — one or more pricing cards */}
-            {photoOffersEvent && (
-              <div className="mb-4">
-                <p className="text-[12px] font-semibold text-dark mb-0.5">Event-based packages</p>
-                <p className="text-[10px] text-gray-400 mb-3">Create a card per event group, pick the events it covers, and set a flat price per service.</p>
-                <PhotographyEventPackagesEditor value={eventPackages} onChange={setEventPackages} />
-                {photoEventFrom > 0 && (
-                  <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(photoEventFrom)}</span> when event-based is your only model.</p>
-                )}
-              </div>
-            )}
+            <div className="mb-4">
+              <PhotographyEventPackagesEditor value={eventPackages} onChange={setEventPackages} />
+              {photoEventFrom > 0 && (
+                <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(photoEventFrom)}</span>.</p>
+              )}
+            </div>
 
             <div className="flex gap-2 mt-6">
-              <button onClick={() => setStep(stylePriceStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              {stylePriceStep > 1 ? (
+                <button onClick={() => setStep(stylePriceStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              ) : (
+                <button onClick={() => navigate(`${base}/listings`)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
+              )}
               <button
                 onClick={() => setStep(stylePriceStep + 1)}
                 disabled={!photoPricingReady}
@@ -1645,11 +1519,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                   if (category === 'Photography') {
                     return (
                       <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                        {photoOffersHourly && photoHourlyBase > 0 && (
-                          <p className="text-[16px] font-bold text-mustard">{formatINR(photoHourlyBase)} <span className="text-[10px] font-normal text-gray-400">/hr · 1 of each role</span></p>
-                        )}
-                        {photoOffersGuest && photoGuestFrom > 0 && (
-                          <p className="text-[16px] font-bold text-mustard">{formatINR(photoGuestFrom)} <span className="text-[10px] font-normal text-gray-400">/ package (from)</span></p>
+                        {photoEventFrom > 0 && (
+                          <p className="text-[16px] font-bold text-mustard">{formatINR(photoEventFrom)} <span className="text-[10px] font-normal text-gray-400">/ package (from)</span></p>
                         )}
                         {!photoPricingReady && (
                           <p className="text-[12px] text-gray-400 italic">Set at least one price</p>

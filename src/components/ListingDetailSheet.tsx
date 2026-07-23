@@ -3,9 +3,9 @@ import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getVenuePlateFromPrice, getRateCardTotal, getPhotographyGuestFromPrice, getPhotographyPackagePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket } from '@/lib/helpers'
-import { getListingConfig, PHOTOGRAPHY_RATE_ROLES, PHOTOGRAPHY_GUEST_BUCKETS, PHOTOGRAPHY_PACKAGE_HOURS, photographyGuestBucketLabel, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
-import type { MehendiPricing, PhotographyPricingModel } from '@/lib/vendor-category-config'
+import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket } from '@/lib/helpers'
+import { getListingConfig, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
+import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
 import VendorPortfolioSheet from './VendorPortfolioSheet'
 import MenuPicker from './MenuPicker'
@@ -185,6 +185,24 @@ interface Props {
   preview?: boolean
 }
 
+/** Informational chips for a Photography event package — coverage duration,
+ *  cinematic trailer, and approx delivery time. Renders nothing if none are set. */
+function EventPackageInfoChips({ pkg }: { pkg: import('@/lib/vendor-category-config').PhotographyEventPackage }) {
+  if (!pkg.durationHours && !pkg.cinematicTrailer && !pkg.deliveryDays) return null
+  return (
+    <div className="flex flex-wrap gap-1.5 mb-3">
+      {pkg.durationHours ? (
+        <span className="bg-white border border-card-border text-gray-700 text-[10px] font-medium px-2 py-1 rounded-full">🕐 {pkg.durationHours} hrs coverage</span>
+      ) : null}
+      {pkg.cinematicTrailer ? (
+        <span className="bg-white border border-card-border text-gray-700 text-[10px] font-medium px-2 py-1 rounded-full">🎬 Cinematic trailer</span>
+      ) : null}
+      {pkg.deliveryDays ? (
+        <span className="bg-white border border-card-border text-gray-700 text-[10px] font-medium px-2 py-1 rounded-full">📦 ~{pkg.deliveryDays} day delivery</span>
+      ) : null}
+    </div>
+  )
+}
 
 export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours, preview = false }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
@@ -192,7 +210,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const [lightbox, setLightbox] = useState<number | null>(null)
   // Menu-photo zoom: a single menu image URL to show full-screen, or null.
   const [menuPhotoZoom, setMenuPhotoZoom] = useState<string | null>(null)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, addVenueToBoard, selectPhotographyTeam, selectPhotographyPackage, selectPhotographyEventServices, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, addVenueToBoard, selectPhotographyEventServices, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -226,96 +244,18 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
     )
   }
 
-  // Existing saved team selection (persists across opens, drives the board card price).
-  const savedTeam = currentCategory?.photographyTeam
   // Whether this exact vendor is the one currently added to the board for this category.
   const isAddedToBoard = !!currentCategory && currentCategory.selectedVendorId === vendor.id
   // Local mock-up state: how many of each paid room the couple is interested in.
   // Not persisted — only here to visualize the inventory cap + a separate subtotal.
   const [roomSelections, setRoomSelections] = useState<Record<string, number>>({})
   const [roomsExpanded, setRoomsExpanded] = useState(false)
-  // Photography rate card: how many people the couple wants per role + shared hours.
-  // Not persisted — drives the live subtotal preview only.
-  const [teamCounts, setTeamCounts] = useState<Record<string, number>>(() => savedTeam?.counts ?? {})
-  const [teamHours, setTeamHours] = useState<number>(() => {
-    if (savedTeam) return savedTeam.hours
-    const hrs = vendor.availableHours
-    if (hrs && hrs.length > 0) return hrs.includes(8) ? 8 : Math.max(...hrs)
-    return 8
-  })
 
-  // Persist the team selection onto the board category so the card price + ritual
-  // total react to it. No-op when opened outside a board (e.g. portfolio browsing).
-  function persistTeam(counts: Record<string, number>, hours: number) {
-    if (ritualId && categoryId) selectPhotographyTeam(ritualId, categoryId, counts, hours)
-  }
-  function changeCount(key: string, value: number) {
-    const next = { ...teamCounts, [key]: Math.max(0, value) }
-    setTeamCounts(next)
-    persistTeam(next, teamHours)
-  }
-  function changeHours(h: number) {
-    setTeamHours(h)
-    persistTeam(teamCounts, h)
-  }
-  // Add (select) this photographer for the board category, locking in the current team.
-  function addPhotographer() {
-    if (!ritualId || !categoryId) return
-    persistTeam(teamCounts, teamHours)
-    selectVendor(ritualId, categoryId, vendor.id)
-  }
-
-  // ── Photography guest-based packages (the second pricing model) ──
-  const photoModels = getPhotographyModels(vendor)
-  const savedPackage = currentCategory?.photographyPackage
-  // Which model the couple is currently viewing. Seeded from any saved selection,
-  // else the first model the vendor offers.
-  const savedEventSel = currentCategory?.photographyEventSelection
-  const [photoModel, setPhotoModel] = useState<PhotographyPricingModel>(() => {
-    if (savedEventSel) return 'eventBased'
-    if (savedPackage) return 'guestBased'
-    if (savedTeam) return 'hourly'
-    return photoModels[0] ?? 'hourly'
-  })
-  // The picked guest bucket + coverage hours — default to the first priced cell.
-  const [pkgBucket, setPkgBucket] = useState<string>(() => {
-    if (savedPackage?.bucket) return savedPackage.bucket
-    const gp = vendor.guestPackages
-    const b = gp && PHOTOGRAPHY_GUEST_BUCKETS.find(x => gp[x] && Object.keys(gp[x]).length > 0)
-    return b || PHOTOGRAPHY_GUEST_BUCKETS[0]
-  })
-  const [pkgHours, setPkgHours] = useState<number>(() => {
-    if (savedPackage?.hours) return savedPackage.hours
-    const gp = vendor.guestPackages
-    const b = savedPackage?.bucket || (gp && PHOTOGRAPHY_GUEST_BUCKETS.find(x => gp[x] && Object.keys(gp[x]).length > 0))
-    const h = gp && b && PHOTOGRAPHY_PACKAGE_HOURS.find(hh => (gp[b]?.[String(hh)] ?? 0) > 0)
-    return h || PHOTOGRAPHY_PACKAGE_HOURS[0]
-  })
-  function persistPackage(bucket: string, hours: number) {
-    if (ritualId && categoryId) selectPhotographyPackage(ritualId, categoryId, bucket, hours)
-  }
-  function changePkgBucket(bucket: string) {
-    // Keep the hours selection valid for the newly chosen bucket.
-    const gp = vendor.guestPackages
-    const avail = (PHOTOGRAPHY_PACKAGE_HOURS as readonly number[]).filter(h => (gp?.[bucket]?.[String(h)] ?? 0) > 0)
-    const nextHours = avail.includes(pkgHours) ? pkgHours : (avail[0] ?? pkgHours)
-    setPkgBucket(bucket)
-    setPkgHours(nextHours)
-    persistPackage(bucket, nextHours)
-  }
-  function changePkgHours(h: number) {
-    setPkgHours(h)
-    persistPackage(pkgBucket, h)
-  }
-  function addPhotographerPackage() {
-    if (!ritualId || !categoryId) return
-    persistPackage(pkgBucket, pkgHours)
-    selectVendor(ritualId, categoryId, vendor.id)
-  }
-
-  // ── Photography event-based package (the third pricing model) ──
+  // ── Photography event-based package (the only pricing model) ──
   // Each event package is its own couple-facing listing, so this vendor carries a
   // single package. Couples tick the services they want; the total is their sum.
+  const photoModels = getPhotographyModels(vendor)
+  const savedEventSel = currentCategory?.photographyEventSelection
   const eventPkg = vendor.eventPackages?.[0]
   const offeredEventServices = getOfferedEventServices(eventPkg)
   const [eventServices, setEventServices] = useState<string[]>(() =>
@@ -542,220 +482,11 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )}
             </div>
 
-            {/* Photography pricing — model toggle (hourly and/or guest-based) */}
-            {photoModels.length > 0 && (
+            {/* Photography pricing — event-based packages (the only pricing model) */}
+            {photoModels.length > 0 && eventPkg && (
               <div className="mb-4">
-                {photoModels.length > 1 && (
-                  <div className="bg-empty-bg rounded-lg p-[3px] flex mb-3">
-                    {photoModels.includes('hourly') && (
-                      <button type="button" onClick={() => setPhotoModel('hourly')} className={`flex-1 py-1.5 text-xs rounded-md transition-all ${photoModel === 'hourly' ? 'bg-white font-bold shadow-sm' : 'text-gray-500'}`}>By hours</button>
-                    )}
-                    {photoModels.includes('guestBased') && (
-                      <button type="button" onClick={() => setPhotoModel('guestBased')} className={`flex-1 py-1.5 text-xs rounded-md transition-all ${photoModel === 'guestBased' ? 'bg-white font-bold shadow-sm' : 'text-gray-500'}`}>By guest count</button>
-                    )}
-                    {photoModels.includes('eventBased') && (
-                      <button type="button" onClick={() => setPhotoModel('eventBased')} className={`flex-1 py-1.5 text-xs rounded-md transition-all ${photoModel === 'eventBased' ? 'bg-white font-bold shadow-sm' : 'text-gray-500'}`}>By event</button>
-                    )}
-                  </div>
-                )}
 
-            {photoModel === 'hourly' && vendor.rateCard && (() => {
-              const offered = PHOTOGRAPHY_RATE_ROLES.filter(r => (vendor.rateCard![r.key] ?? 0) > 0)
-              const baseHourly = offered.reduce((s, r) => s + (vendor.rateCard![r.key] ?? 0), 0)
-              const perHourSelected = offered.reduce((s, r) => s + (vendor.rateCard![r.key] ?? 0) * (teamCounts[r.key] || 0), 0)
-              const total = getRateCardTotal(vendor.rateCard, teamCounts, teamHours)
-              const anyPicked = perHourSelected > 0
-              return (
-                <div className="mb-4">
-                  <p className="text-[20px] font-bold text-magenta">{formatINR(baseHourly)} <span className="text-[12px] font-normal text-gray-400">/hr</span></p>
-                  <p className="text-[10px] text-gray-400 mb-3">Per-hour rate for 1 of each role · build your team below</p>
-
-                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
-                    <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Build your team</p>
-                    <div className="space-y-2">
-                      {offered.map(role => {
-                        const rate = vendor.rateCard![role.key] ?? 0
-                        const count = teamCounts[role.key] || 0
-                        return (
-                          <div key={role.key} className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-[12px] font-medium text-dark truncate">{role.label}</p>
-                              <p className="text-[10px] text-gray-500">{formatINR(rate)}/hr each</p>
-                            </div>
-                            <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => changeCount(role.key, count - 1)}
-                                disabled={count <= 0}
-                                className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
-                              >−</button>
-                              <span className="w-8 flex items-center justify-center text-[12px] font-semibold text-dark">{count}</span>
-                              <button
-                                type="button"
-                                onClick={() => changeCount(role.key, count + 1)}
-                                className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40"
-                              >+</button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    {/* Shared hours for the whole booking */}
-                    <div className="mt-3 pt-3 border-t border-mustard/20">
-                      <p className="text-[12px] font-medium text-dark mb-2">Hours of coverage</p>
-                      {vendor.availableHours && vendor.availableHours.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {[...vendor.availableHours].sort((a, b) => a - b).map(h => (
-                            <button
-                              key={h}
-                              type="button"
-                              onClick={() => changeHours(h)}
-                              className={`py-1.5 px-3.5 rounded-full text-[11px] font-medium transition-all ${teamHours === h ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600 active:bg-mustard-light/40'}`}
-                            >
-                              {h} hrs
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => changeHours(Math.max(1, teamHours - 1))}
-                            disabled={teamHours <= 1}
-                            className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
-                          >−</button>
-                          <span className="w-10 flex items-center justify-center text-[12px] font-semibold text-dark">{teamHours} hr</span>
-                          <button
-                            type="button"
-                            onClick={() => changeHours(teamHours + 1)}
-                            className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40"
-                          >+</button>
-                        </div>
-                      )}
-                    </div>
-
-                    {anyPicked && (
-                      <div className="mt-3 pt-3 border-t border-mustard/20 space-y-1">
-                        <div className="flex items-center justify-between text-[11px] text-gray-600">
-                          <span>{formatINR(perHourSelected)}/hr × {teamHours} hr</span>
-                          <span className="font-medium text-dark">{formatINR(perHourSelected * teamHours)}</span>
-                        </div>
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[12px] font-semibold text-dark">Estimated total</span>
-                          <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Add to board — lock in this photographer + team for the category */}
-                    {ritualId && categoryId && (
-                      <button
-                        type="button"
-                        onClick={addPhotographer}
-                        className={`mt-3 w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
-                          isAddedToBoard
-                            ? 'bg-green-100 text-green-700 border border-green-300'
-                            : 'bg-magenta text-white active:scale-[0.98]'
-                        }`}
-                      >
-                        {isAddedToBoard
-                          ? '✓ Added to your board'
-                          : anyPicked ? `Add to my board · ${formatINR(total)}` : 'Add to my board'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })()}
-
-            {photoModel === 'guestBased' && vendor.guestPackages && (() => {
-              const gp = vendor.guestPackages!
-              const fromPrice = getPhotographyGuestFromPrice(gp)
-              const buckets = PHOTOGRAPHY_GUEST_BUCKETS.filter(b => gp[b] && Object.keys(gp[b]).length > 0)
-              const bucketHours = PHOTOGRAPHY_PACKAGE_HOURS.filter(h => (gp[pkgBucket]?.[String(h)] ?? 0) > 0)
-              const cellPrice = getPhotographyPackagePrice(gp, pkgBucket, pkgHours)
-              const shooters = vendor.guestPackagePhotographers?.[pkgBucket] ?? 0
-              const videoShooters = vendor.guestPackageVideographers?.[pkgBucket] ?? 0
-              return (
-                <div>
-                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
-                  <p className="text-[10px] text-gray-400 mb-3">All-inclusive package · pick your guest count &amp; hours</p>
-
-                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
-                    {/* Guest count */}
-                    <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Guest count</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {buckets.map(b => (
-                        <button
-                          key={b}
-                          type="button"
-                          onClick={() => changePkgBucket(b)}
-                          className={`py-1.5 px-3 rounded-full text-[11px] font-medium transition-all ${pkgBucket === b ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600 active:bg-mustard-light/40'}`}
-                        >
-                          {photographyGuestBucketLabel(b)}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Coverage hours for the chosen guest count */}
-                    <div className="mt-3 pt-3 border-t border-mustard/20">
-                      <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Coverage hours</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {bucketHours.map(h => (
-                          <button
-                            key={h}
-                            type="button"
-                            onClick={() => changePkgHours(h)}
-                            className={`py-1.5 px-3.5 rounded-full text-[11px] font-medium transition-all ${pkgHours === h ? 'bg-magenta text-white' : 'bg-white border border-card-border text-gray-600 active:bg-mustard-light/40'}`}
-                          >
-                            {h} hrs
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {(shooters > 0 || videoShooters > 0) && (
-                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                        {shooters > 0 && (
-                          <span className="bg-white border border-card-border text-gray-700 text-[10px] font-medium px-2 py-1 rounded-full">📷 {shooters} photographer{shooters > 1 ? 's' : ''} present</span>
-                        )}
-                        {videoShooters > 0 && (
-                          <span className="bg-white border border-card-border text-gray-700 text-[10px] font-medium px-2 py-1 rounded-full">🎥 {videoShooters} videographer{videoShooters > 1 ? 's' : ''} present</span>
-                        )}
-                      </div>
-                    )}
-
-                    {cellPrice > 0 && (
-                      <div className="mt-3 pt-3 border-t border-mustard/20 flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-dark">Package price</span>
-                        <span className="text-[16px] font-bold text-magenta">{formatINR(cellPrice)}</span>
-                      </div>
-                    )}
-
-                    {/* Add to board — lock in this photographer + package for the category */}
-                    {ritualId && categoryId && (
-                      <button
-                        type="button"
-                        onClick={addPhotographerPackage}
-                        disabled={cellPrice <= 0}
-                        className={`mt-3 w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all disabled:opacity-40 ${
-                          isAddedToBoard
-                            ? 'bg-green-100 text-green-700 border border-green-300'
-                            : 'bg-magenta text-white active:scale-[0.98]'
-                        }`}
-                      >
-                        {isAddedToBoard
-                          ? '✓ Added to your board'
-                          : cellPrice > 0 ? `Add to my board · ${formatINR(cellPrice)}` : 'Add to my board'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })()}
-
-            {photoModel === 'eventBased' && eventPkg && (() => {
+            {eventPkg && (() => {
               const fromPrice = getPhotographyEventFromPrice(vendor.eventPackages)
               const pkgs = vendor.eventPackages ?? []
 
@@ -779,6 +510,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                                 ))}
                               </div>
                             )}
+                            <EventPackageInfoChips pkg={pkg} />
                             <div className="divide-y divide-card-border">
                               {services.map(service => (
                                 <div key={service.key} className="flex items-center justify-between py-1.5">
@@ -809,6 +541,9 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                       ))}
                     </div>
                   )}
+
+                  {/* Coverage duration, cinematic trailer, delivery */}
+                  <EventPackageInfoChips pkg={eventPkg} />
 
                   <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
                     <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Services</p>
@@ -1192,10 +927,10 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             })()}
 
             {/* Price (non rate-card / non-mehendi / non-makeup / non-saree / non-hair listings) */}
-            {!vendor.rateCard && !vendor.guestPackages && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (
+            {!vendor.eventPackages?.length && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
             )}
-            {!vendor.rateCard && vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
+            {vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
               <p className="text-[10px] text-gray-400">
                 {selectedTierHours ? `For ${selectedTierHours} hr rental` : `Default venue rent`}
               </p>
@@ -1209,7 +944,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               <p className="text-[10px] text-gray-400">Starting price · varies by size below</p>
             )}
             {/* Transport & logistics — informational yes/no only (varies by distance, no amount) */}
-            {!vendor.rateCard && !vendor.guestPackages && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (vendor.transportIncluded === true ? (
+            {!vendor.eventPackages?.length && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (vendor.transportIncluded === true ? (
               <>
                 <p className="text-[10px] text-green-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0">
                   Transport &amp; logistics included
