@@ -443,8 +443,7 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
             <div className="mt-5 space-y-4">
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1">Description</label>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tell couples what makes you special..." maxLength={500} rows={4} className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard resize-none" />
-                <span className="text-[9px] text-gray-400">{description.length}/500</span>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tell couples what makes you special..." rows={4} className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard resize-none" />
               </div>
               <div>
                 <label className="text-[12px] font-medium text-dark block mb-1">Years of experience</label>
