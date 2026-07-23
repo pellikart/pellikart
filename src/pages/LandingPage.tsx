@@ -49,8 +49,8 @@ export default function LandingPage() {
       <LandingNav transparentOnTop />
 
       {/* ============ HERO ============ */}
-      <section id="top" className="pt-32 pb-20 pl-6 md:pl-12 pr-6 md:pr-0" style={{ background: '#ffffff' }}>
-        <div className="grid md:grid-cols-[minmax(320px,520px)_1fr] gap-10 lg:gap-12 items-center md:items-stretch">
+      <section id="top" className="pt-32 pb-20 px-6" style={{ background: '#ffffff' }}>
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[2px] text-mustard mb-4">
               HYDERABAD
@@ -62,87 +62,33 @@ export default function LandingPage() {
               No haggling. No spreadsheets. No surprises. Just your dream wedding, crafted by you, all in one place.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <a href="/app" className="bg-magenta text-white font-bold text-[17px] px-8 py-4 rounded-xl text-center shadow-lg shadow-magenta/30 hover:opacity-90 hover:-translate-y-0.5 transition-all">
-                Go to the app →
-              </a>
-              <Link to="/try" className="border-2 border-magenta text-magenta font-semibold px-6 py-3.5 rounded-xl text-center hover:bg-magenta-light transition-colors">
+              <Link to="/try" className="bg-magenta text-white font-semibold px-6 py-3.5 rounded-xl text-center hover:opacity-90 transition-opacity">
                 How it works →
               </Link>
+              <a href="#waitlist" className="border-2 border-magenta text-magenta font-semibold px-6 py-3.5 rounded-xl text-center hover:bg-magenta-light transition-colors">
+                Join early access
+              </a>
             </div>
             <p className="text-[12px] text-gray-400">
               100% free to explore
             </p>
           </div>
 
-          {/* Hero collage — an asymmetric bento of mixed sizes tiling a perfect
-              4×3 rectangle. Each tile is explicitly placed so no two similar
-              shapes sit next to each other, and every crop keeps its subject in
-              frame. venue = big feature, photography + sannayi = broad,
-              mehendi = tall, catering + makeup = small. */}
-          {/* Wrapper is stretched to the text column's height; the grid fills it
-              (absolute inset-0) as a 6×3 bento of 9 tiles — spanning the full
-              width and starting/ending on the same lines as the text. Mixed sizes,
-              placed to keep variety and every subject in frame. */}
-          <div className="md:relative">
-            <div className="grid grid-cols-2 md:grid-cols-6 md:grid-rows-3 md:absolute md:inset-0 gap-3 sm:gap-4">
-              {[
-                { src: '/collage/venue.jpg', alt: 'Grand wedding mandap', span: 'md:col-start-1 md:row-start-1 md:col-span-2 md:row-span-2' },
-                { src: '/collage/landscape.jpg', alt: 'Floral wedding mandap', span: 'md:col-start-3 md:row-start-1 md:col-span-3' },
-                { src: '/collage/invitation.jpg', alt: 'Wedding invitation card', span: 'md:col-start-6 md:row-start-1 md:row-span-2' },
-                { src: '/collage/photography.jpg', alt: 'Wedding photographer at work', span: 'md:col-start-3 md:row-start-2 md:col-span-2', pos: 'object-[40%_center]' },
-                { src: '/collage/mehendi.jpg', alt: 'Bridal mehendi', span: 'md:col-start-5 md:row-start-2 md:row-span-2', pos: 'object-[center_60%]' },
-                { src: '/collage/sannayi.jpg', alt: 'Sannayi melam musicians', span: 'md:col-start-1 md:row-start-3 md:col-span-2', pos: 'object-top' },
-                { src: '/collage/catering.jpg', alt: 'Wedding catering', span: 'md:col-start-3 md:row-start-3' },
-                { src: '/collage/makeup.jpg', alt: 'Bridal makeup', span: 'md:col-start-4 md:row-start-3', pos: 'object-[62%_35%]' },
-                { src: '/collage/purohit.jpg', alt: 'Wedding purohit', span: 'md:col-start-6 md:row-start-3', pos: 'object-top' },
-              ].map((img) => (
-                <img
-                  key={img.src}
-                  src={img.src}
-                  alt={img.alt}
-                  loading="lazy"
-                  className={`w-full h-full aspect-[4/5] md:aspect-auto object-cover ${img.pos || 'object-center'} rounded-2xl ring-1 ring-black/5 shadow-sm ${img.span}`}
-                />
-              ))}
-            </div>
+          {/* Hero image */}
+          <div className="flex justify-center">
+            <img src="/hero.png" alt="Pellikart" className="w-full max-w-[480px] h-auto" />
           </div>
         </div>
       </section>
 
       {/* ============ THE PROBLEM ============ */}
-      <section className="py-24 bg-white">
-        {/* Full-width — problem cards on the left, text pushed to the far right */}
-        <div className="grid md:grid-cols-[1fr_minmax(320px,560px)] gap-10 md:gap-14 items-center mb-16 md:mb-20 pl-6 md:pl-12 pr-6 md:pr-12">
-            {/* Problem cards */}
-            <div className="order-2 md:order-1 grid sm:grid-cols-2 gap-4">
-              {[
-                {
-                  title: 'Endless vendor hunting',
-                  body: 'You message 30 vendors. Get 30 different prices. Half say "price on request." You still don\'t know who to book.',
-                },
-                {
-                  title: 'Broken budgets',
-                  body: 'You open Excel to track your budget. It\'s wrong by month two. The final bill is 40% more than planned. Your dad asks "how much total?" for the 11th time.',
-                },
-                {
-                  title: 'Vendor radio silence',
-                  body: 'You book a decorator three months ago. No updates since. Your mom is calling them every week. Nobody knows what\'s happening.',
-                },
-                {
-                  title: 'WhatsApp chaos',
-                  body: '6 WhatsApp groups for one wedding. Nobody has the same information. Decisions take forever. Someone always feels left out.',
-                },
-              ].map((card, i) => (
-                <div key={i} className="border border-card-border rounded-2xl p-5 hover:shadow-md transition-shadow">
-                  <div className="w-9 h-9 rounded-lg bg-magenta-light flex items-center justify-center mb-3">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E91E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                  </div>
-                  <h3 className="text-[16px] font-bold text-dark mb-1.5">{card.title}</h3>
-                  <p className="text-[13px] text-gray-500 leading-relaxed">{card.body}</p>
-                </div>
-              ))}
+      <section className="py-24 px-6 bg-white">
+        <div className="max-w-6xl mx-auto">
+          {/* Two-column: illustration left, text right (on mobile: text first, illustration after) */}
+          <div className="grid md:grid-cols-2 gap-10 items-center mb-16">
+            {/* Illustration */}
+            <div className="flex justify-center order-2 md:order-1">
+              <img src="/section2.png" alt="" className="w-full max-w-[480px] h-auto" />
             </div>
 
             {/* Text */}
@@ -170,11 +116,43 @@ export default function LandingPage() {
                 <span className="text-magenta font-semibold">It's never under control.</span>
               </p>
             </div>
-        </div>
+          </div>
 
-        <p className="max-w-6xl mx-auto px-6 text-center italic text-[18px] text-gray-600">
-          53% of Indian couples go over their wedding budget. The other 47% are lying.
-        </p>
+          <div className="grid md:grid-cols-2 gap-4">
+            {[
+              {
+                title: 'Endless vendor hunting',
+                body: 'You message 30 vendors. Get 30 different prices. Half say "price on request." You still don\'t know who to book.',
+              },
+              {
+                title: 'Broken budgets',
+                body: 'You open Excel to track your budget. It\'s wrong by month two. The final bill is 40% more than planned. Your dad asks "how much total?" for the 11th time.',
+              },
+              {
+                title: 'Vendor radio silence',
+                body: 'You book a decorator three months ago. No updates since. Your mom is calling them every week. Nobody knows what\'s happening.',
+              },
+              {
+                title: 'WhatsApp chaos',
+                body: '6 WhatsApp groups for one wedding. Nobody has the same information. Decisions take forever. Someone always feels left out.',
+              },
+            ].map((card, i) => (
+              <div key={i} className="border border-card-border rounded-2xl p-6 hover:shadow-md transition-shadow">
+                <div className="w-9 h-9 rounded-lg bg-magenta-light flex items-center justify-center mb-3">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E91E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                <h3 className="text-[17px] font-bold text-dark mb-2">{card.title}</h3>
+                <p className="text-[14px] text-gray-500 leading-relaxed">{card.body}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-center italic text-[18px] text-gray-600 mt-12">
+            53% of Indian couples go over their wedding budget. The other 47% are lying.
+          </p>
+        </div>
       </section>
 
 
@@ -271,10 +249,13 @@ export default function LandingPage() {
               </div>
               <p className="text-[13px] text-gray-500 mb-4">Others list vendors. We craft weddings.</p>
               <div className="flex gap-3">
-                <a href="https://www.instagram.com/pelli.kart" target="_blank" rel="noopener noreferrer" aria-label="Pellikart on Instagram" className="w-8 h-8 rounded-lg bg-empty-bg flex items-center justify-center text-gray-500 hover:text-magenta">
+                <a href="#" className="w-8 h-8 rounded-lg bg-empty-bg flex items-center justify-center text-gray-500 hover:text-magenta">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" /></svg>
                 </a>
-                <a href="https://www.linkedin.com/company/pellikart" target="_blank" rel="noopener noreferrer" aria-label="Pellikart on LinkedIn" className="w-8 h-8 rounded-lg bg-empty-bg flex items-center justify-center text-gray-500 hover:text-magenta">
+                <a href="#" className="w-8 h-8 rounded-lg bg-empty-bg flex items-center justify-center text-gray-500 hover:text-magenta">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z" /></svg>
+                </a>
+                <a href="#" className="w-8 h-8 rounded-lg bg-empty-bg flex items-center justify-center text-gray-500 hover:text-magenta">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.063 2.063 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
                 </a>
               </div>
@@ -285,6 +266,7 @@ export default function LandingPage() {
               <ul className="space-y-2">
                 <li><Link to="/try" className="text-[13px] text-gray-500 hover:text-magenta">How it works</Link></li>
                 <li><Link to="/why" className="text-[13px] text-gray-500 hover:text-magenta">Why us</Link></li>
+                <li><a href="#" className="text-[13px] text-gray-500 hover:text-magenta">Subscription tiers</a></li>
               </ul>
             </div>
 
@@ -293,6 +275,8 @@ export default function LandingPage() {
               <ul className="space-y-2">
                 <li><a href="#" className="text-[13px] text-gray-500 hover:text-magenta">About us</a></li>
                 <li><a href="#" className="text-[13px] text-gray-500 hover:text-magenta">Contact</a></li>
+                <li><a href="#" className="text-[13px] text-gray-500 hover:text-magenta">Careers</a></li>
+                <li><a href="#" className="text-[13px] text-gray-500 hover:text-magenta">Press kit</a></li>
               </ul>
             </div>
           </div>

@@ -44,7 +44,7 @@ export default function LandingNav({ transparentOnTop = false }: Props) {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isWhite ? 'bg-white shadow-sm' : 'bg-transparent'}`}>
-      <div className="px-6 md:px-12 pt-[max(1rem,env(safe-area-inset-top))] pb-4 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <img src="/logo.png" alt="Pellikart" className="w-9 h-9 rounded-lg object-cover" />
           <span className="font-serif text-xl font-bold text-dark">Pellikart</span>
