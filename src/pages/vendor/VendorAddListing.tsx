@@ -3,11 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
-import { formatINR, getPhotographyEventFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage } from '@/lib/vendor-category-config'
+import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, emptyEntertainerPricing, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
+import EntertainerPricingEditor from '@/components/EntertainerPricingEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuEditor from '@/components/MenuEditor'
 import PlateSlotsEditor from '@/components/PlateSlotsEditor'
@@ -48,6 +49,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   // Photography is event-based only, so the pricing model is always ['eventBased'].
   const photographyPricingModels: PhotographyPricingModel[] = ['eventBased']
   const [eventPackages, setEventPackages] = useState<PhotographyEventPackage[]>(emptyPhotographyEventPackages())
+  // Hosts/Entertainers-only: flat price per event + shared duration/hour/languages.
+  const [entertainerPricing, setEntertainerPricing] = useState<EntertainerPricing>(emptyEntertainerPricing())
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
@@ -113,6 +116,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     const nextConfig = getListingConfig(next)
     setPrice(nextConfig.priceRange.min + Math.floor((nextConfig.priceRange.max - nextConfig.priceRange.min) / 3))
     setEventPackages([])
+    setEntertainerPricing(emptyEntertainerPricing())
     setIncludes([])
     setCategoryFields({})
     setBundledListings([])
@@ -161,10 +165,10 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const hasPaidRoomsStep = category === 'Venue'
   const hasMenuStep = category === 'Catering'
   const hasDesignsStep = category === 'Decor'
-  const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering'
-  // Photography doesn't ask for listing-level events — each event package carries
-  // its own events — so the "Which events is this for?" step is skipped.
-  const hasRitualsStep = category !== 'Photography'
+  const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering' && category !== 'Hosts / Entertainers'
+  // Photography & Hosts/Entertainers don't ask for listing-level events — each
+  // event package / event rate carries its own event — so the rituals step is skipped.
+  const hasRitualsStep = category !== 'Photography' && category !== 'Hosts / Entertainers'
 
   // Each category gets a contiguous run of steps. Decor skips Photos & Name, so its
   // step indices start at 1 with Rituals. Venue leads with a Location step.
@@ -224,6 +228,15 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   )
   // True once the photographer has at least one valid event package.
   const photoPricingReady = validEventPackages.length > 0
+
+  // Hosts/Entertainers pricing — flat price per event.
+  const entertainerFrom = getEntertainerFromPrice(entertainerPricing)
+  // Only event rates with a price are kept on save.
+  const cleanedEntertainerPricing: EntertainerPricing = {
+    ...entertainerPricing,
+    eventRates: entertainerPricing.eventRates.filter(r => r.event.trim() && r.price > 0),
+  }
+  const entertainerReady = cleanedEntertainerPricing.eventRates.length > 0
   // Number of dishes (dish-bank + custom) configured in a plate package's menu.
   const menuItemCount = (menu?: MenuSection[]) =>
     (menu || []).reduce((s, sec) => s + sec.dishIds.length + (sec.customDishes?.length || 0), 0)
@@ -356,6 +369,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       : category === 'Decor' ? 0
       // Photography: the "from" board figure is the cheapest event-package service.
       : category === 'Photography' ? photoEventFrom
+      // Hosts/Entertainers: the "from" figure is the cheapest priced event rate.
+      : category === 'Hosts / Entertainers' ? entertainerFrom
       : price
 
     // Upload paid-room photos in live mode and replace blob URLs with public URLs.
@@ -514,6 +529,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       slots: category === 'Venue' && venueOffersPerPlate && slots.length > 0 ? slots : undefined,
       photographyPricingModels: category === 'Photography' ? photographyPricingModels : undefined,
       eventPackages: category === 'Photography' && validEventPackages.length > 0 ? validEventPackages : undefined,
+      entertainerPricing: category === 'Hosts / Entertainers' && entertainerReady ? cleanedEntertainerPricing : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
       inHouseDecor: category === 'Venue' ? inHouseDecorForPayload : undefined,
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
@@ -1344,8 +1360,34 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
           </div>
         )}
 
-        {/* Pricing step — single-price slider (non-Venue, non-Photography categories) */}
-        {step === stylePriceStep && category !== 'Photography' && (
+        {/* Pricing step — Hosts / Entertainers: flat price per event + details */}
+        {step === stylePriceStep && category === 'Hosts / Entertainers' && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">How do you price?</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Set a flat price for each event you perform at, add any custom events, then your duration, additional-hour charge and languages.</p>
+
+            <EntertainerPricingEditor value={entertainerPricing} onChange={setEntertainerPricing} />
+            {entertainerFrom > 0 && (
+              <p className="text-[11px] text-gray-600 mt-4">Board card shows <span className="font-bold text-mustard">from {formatINR(entertainerFrom)}</span>.</p>
+            )}
+
+            <div className="flex gap-2 mt-6">
+              {stylePriceStep > 1 ? (
+                <button onClick={() => setStep(stylePriceStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              ) : (
+                <button onClick={() => navigate(`${base}/listings`)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
+              )}
+              <button
+                onClick={() => setStep(stylePriceStep + 1)}
+                disabled={!entertainerReady}
+                className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-40"
+              >Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* Pricing step — single-price slider (non-Venue, non-Photography, non-Entertainer) */}
+        {step === stylePriceStep && category !== 'Photography' && category !== 'Hosts / Entertainers' && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">Pricing</h1>
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Set your price.</p>
@@ -1523,6 +1565,18 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                           <p className="text-[16px] font-bold text-mustard">{formatINR(photoEventFrom)} <span className="text-[10px] font-normal text-gray-400">/ package (from)</span></p>
                         )}
                         {!photoPricingReady && (
+                          <p className="text-[12px] text-gray-400 italic">Set at least one price</p>
+                        )}
+                      </div>
+                    )
+                  }
+                  if (category === 'Hosts / Entertainers') {
+                    return (
+                      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                        {entertainerFrom > 0 && (
+                          <p className="text-[16px] font-bold text-mustard">{formatINR(entertainerFrom)} <span className="text-[10px] font-normal text-gray-400">/ event (from)</span></p>
+                        )}
+                        {!entertainerReady && (
                           <p className="text-[12px] text-gray-400 italic">Set at least one price</p>
                         )}
                       </div>

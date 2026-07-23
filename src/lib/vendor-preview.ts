@@ -47,6 +47,7 @@ export function vendorListingToPreviewVendor(
     menuMode: listing.menuMode,
     photographyPricingModels: listing.photographyPricingModels,
     eventPackages: listing.eventPackages,
+    entertainerPricing: listing.entertainerPricing,
     mehendiPricing: listing.mehendiPricing,
     makeupPricing: listing.makeupPricing,
     sareeDrapingPricing: listing.sareeDrapingPricing,

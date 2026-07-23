@@ -66,9 +66,10 @@ describe('Vendor Category Config', () => {
         expect(LISTING_CONFIG[cat]).toBeDefined()
         expect(LISTING_CONFIG[cat].styles.length).toBeGreaterThan(0)
         expect(LISTING_CONFIG[cat].inclusions.length).toBeGreaterThan(0)
-        // Photography has no spec steps — its coverage/deliverables live on each
-        // event package — so only the other categories require ≥1 step.
-        if (cat !== 'Photography') {
+        // Photography and Hosts/Entertainers have no spec steps — their details
+        // live in the custom per-event pricing step — so only the other
+        // categories require ≥1 generic step.
+        if (cat !== 'Photography' && cat !== 'Hosts / Entertainers') {
           expect(LISTING_CONFIG[cat].steps.length).toBeGreaterThan(0)
         }
       }

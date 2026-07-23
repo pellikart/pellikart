@@ -566,29 +566,9 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
     styles: ['Magician', 'Mentalist', 'Anchor / MC', 'Stand-up Comedian', 'Sufi / Ghazal Singer', 'Folk Dancers', 'Mixology / Bartender Show', 'Mimicry Artist', 'Game Show Host', 'Karaoke Host', 'Live Music (Instrumental)'],
     inclusions: ['Sound System', 'Costumes / Props', 'Customized Script', 'Bilingual Performance', 'Pre-event Rehearsal', 'Audience Interaction', 'Branded Signage', 'Travel Within City', 'Sound Check Before Event'],
     priceRange: { min: 10000, max: 300000, step: 5000 },
-    steps: [
-      {
-        title: 'Performance details',
-        subtitle: 'What does this act cover?',
-        fields: [
-          { key: 'performanceType', label: 'Type', type: 'single', options: ['Magician', 'Mentalist', 'Anchor / MC', 'Stand-up Comedian', 'Sufi / Ghazal Singer', 'Folk Dancers', 'Mixology / Bartender Show', 'Mimicry Artist', 'Game Show Host', 'Karaoke Host', 'Live Music (Instrumental)'] },
-          { key: 'duration', label: 'Performance duration', type: 'single', options: ['30 min', '1 hour', '2 hours', '3 hours', 'Full event'] },
-          { key: 'groupSize', label: 'Group size', type: 'single', options: ['Solo', '2-3 performers', '4-6 performers', '7+ performers'] },
-          { key: 'languages', label: 'Performance language', type: 'multi', options: ['Telugu', 'Hindi', 'English', 'Tamil', 'Kannada', 'Bilingual'] },
-        ],
-      },
-      {
-        title: 'Logistics & extras',
-        subtitle: 'What else comes with this?',
-        fields: [
-          { key: 'soundSystem', label: 'Sound system', type: 'single', options: ['Included (own)', 'Available at extra cost', "Use venue's"] },
-          { key: 'customScript', label: 'Custom script / content', type: 'single', options: ['Included', 'Add-on', 'Standard set'] },
-          { key: 'rehearsal', label: 'Pre-event rehearsal', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
-          { key: 'audienceFit', label: 'Audience fit', type: 'multi', options: ['Family-friendly', 'Adult / Cocktail', 'Kids-focused'] },
-          { key: 'travel', label: 'Travel', type: 'single', options: ['Within city included', 'Up to 50km', 'Up to 100km', 'Extra charge'] },
-        ],
-      },
-    ],
+    // No spec steps — pricing (per event), duration, additional-hour charge and
+    // languages are captured in the custom entertainer pricing step.
+    steps: [],
   },
   'Wedding Props': {
     styles: ['Traditional Telugu', 'Modern Fusion', 'Premium Heritage', 'Eco-friendly', 'Custom Designed'],
@@ -707,6 +687,58 @@ export interface PhotographyEventPackage {
 /** A fresh, empty list of event-based pricing cards. */
 export function emptyPhotographyEventPackages(): PhotographyEventPackage[] {
   return []
+}
+
+// ─── HOSTS / ENTERTAINERS PRICING ───────────
+
+/**
+ * Hosts/Entertainers price a flat rate per event (unlike Photography's per-service
+ * cards). The vendor sets a price for each event they perform at — a default set
+ * plus any custom-added events — with shared listing-level details (duration,
+ * additional-hour charge, languages). On the couple side each priced event is
+ * fanned into its own ritual-matched listing (see store.expandEntertainerListings).
+ */
+
+/** Default events an entertainer prices against (canonical RITUALS values so the
+ *  fanned couple-facing listings match the per-ritual boards). */
+export const ENTERTAINER_DEFAULT_EVENTS = ['Pelli (Wedding)', 'Engagement', 'Reception', 'Sangeeth', 'Haldi'] as const
+
+/** Languages an entertainer performs in (listing-level multi-select). */
+export const ENTERTAINER_LANGUAGES = ['Hindi', 'Telugu', 'English'] as const
+
+/** One event → flat price row for a Hosts/Entertainers listing. */
+export interface EntertainerEventRate {
+  /** Stable id (React key + custom-row remove). */
+  id: string
+  /** Event this rate applies to (a RITUALS value or a custom string). */
+  event: string
+  /** Flat price (₹) for performing at this event. 0 = not offered. */
+  price: number
+}
+
+/** A Hosts/Entertainers listing's pricing + shared details. */
+export interface EntertainerPricing {
+  /** Per-event flat rates (defaults + custom). */
+  eventRates: EntertainerEventRate[]
+  /** Performance duration in hours (informational; 0/undefined = not specified). */
+  durationHours?: number
+  /** Charge per additional hour beyond the duration (₹). Omitted/0 = not offered. */
+  additionalHourCharge?: number
+  /** Languages performed in (subset of ENTERTAINER_LANGUAGES + custom). */
+  languages?: string[]
+}
+
+let entertainerRateSeq = 0
+/** A fresh Entertainer pricing object seeded with the default events at price 0. */
+export function emptyEntertainerPricing(): EntertainerPricing {
+  return {
+    eventRates: ENTERTAINER_DEFAULT_EVENTS.map(event => ({
+      id: `ent-${++entertainerRateSeq}`,
+      event,
+      price: 0,
+    })),
+    languages: [],
+  }
 }
 
 // ─── MEHENDI PRICING ────────────────────────

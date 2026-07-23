@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard, MenuSelection } from "./types";
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
 import { getPhotographyEventFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
-import type { PhotographyEventPackage } from "./vendor-category-config";
+import type { PhotographyEventPackage, EntertainerPricing } from "./vendor-category-config";
 import { resolveVenueSlots } from "./vendor-types";
 import {
   fetchCouple, upsertCouple,
@@ -85,14 +85,56 @@ export function expandEventPackageListings(
   return out
 }
 
+/**
+ * On the couple side, each Hosts/Entertainers per-event rate becomes its own
+ * ritual-matched listing (mirroring the Photography event-package fan-out). This
+ * expands a raw listings array so every priced event rate is a separate pseudo
+ * listing row — tagged to that one event, priced at that event's flat rate, with
+ * the listing's shared details (duration, additional-hour, languages) carried over.
+ *
+ * Idempotent: already-expanded rows (id contains '::ent::') pass through unchanged.
+ */
+const ENT_ID_SEP = '::ent::'
+export function expandEntertainerListings(
+  listings: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = []
+  for (const l of listings) {
+    const id = l.id as string
+    // Not an entertainer, or already an expanded rate row → leave untouched.
+    if ((l.category as string) !== 'Hosts / Entertainers' || (id || '').includes(ENT_ID_SEP)) {
+      out.push(l)
+      continue
+    }
+    const pricing = l.entertainer_pricing as EntertainerPricing | null
+    const rates = (pricing?.eventRates || []).filter(r => r.event && r.price > 0)
+    // No priced event rates → pass through (nothing to fan out).
+    if (rates.length === 0) { out.push(l); continue }
+
+    // One pseudo row per priced event; the base row is replaced by these.
+    for (const rate of rates) {
+      out.push({
+        ...l,
+        id: `${id}${ENT_ID_SEP}${rate.id}`,
+        rituals: [rate.event],
+        price: rate.price,
+        // Trim to this single rate so the couple detail shows just this event.
+        entertainer_pricing: { ...pricing, eventRates: [rate] },
+      })
+    }
+  }
+  return out
+}
+
 /** Build enriched vendor map from live Supabase data */
 export function buildLiveVendorMap(
   liveVendors: Record<string, unknown>[],
   listings: Record<string, unknown>[],
   availability: Record<string, unknown>[]
 ): { vendorMap: Record<string, Vendor>; lvMap: Record<string, string> } {
-  // Fan each Photography event package out into its own couple-facing listing.
+  // Fan each Photography event package / Entertainer event rate into its own listing.
   listings = expandEventPackageListings(listings)
+  listings = expandEntertainerListings(listings)
   const vendorMap: Record<string, Vendor> = {}
   const lvMap: Record<string, string> = {}
   const categoryCounts: Record<string, number> = {}
@@ -211,6 +253,10 @@ export function buildLiveVendorMap(
       eventPackages: (() => {
         const ep = l.event_packages as import('./vendor-category-config').PhotographyEventPackage[] | null
         return Array.isArray(ep) && ep.length > 0 ? ep : undefined
+      })(),
+      entertainerPricing: (() => {
+        const ep = l.entertainer_pricing as import('./vendor-category-config').EntertainerPricing | null
+        return ep && Array.isArray(ep.eventRates) && ep.eventRates.length > 0 ? ep : undefined
       })(),
       mehendiPricing: (() => {
         const mp = l.mehendi_pricing as import('./vendor-category-config').MehendiPricing | null
@@ -463,9 +509,10 @@ export const useStore = create<AppState & LiveModeState & {
 
       // Fetch live listings, build vendor map, pre-populate boards, then save to DB
       Promise.all([fetchAllLiveVendors(), fetchAllListings(), fetchAllAvailability()]).then(async ([liveVendors, listings, availability]) => {
-        // Expand event packages so the board auto-pick below sees each as its own
-        // listing (buildLiveVendorMap expands too — the helper is idempotent).
+        // Expand event packages / entertainer rates so the board auto-pick below sees
+        // each as its own listing (buildLiveVendorMap expands too — both are idempotent).
         listings = expandEventPackageListings(listings)
+        listings = expandEntertainerListings(listings)
         const { vendorMap, lvMap } = buildLiveVendorMap(liveVendors, listings, availability)
 
         // Pre-populate boards with live vendors (same logic as demo)

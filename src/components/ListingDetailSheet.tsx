@@ -3,7 +3,7 @@ import { Vendor } from '@/lib/types'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket } from '@/lib/helpers'
 import { getListingConfig, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
@@ -604,6 +604,91 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </div>
             )}
 
+            {/* Hosts / Entertainers — flat price per event (couple sees a single fanned event) */}
+            {vendor.entertainerPricing && (vendor.entertainerPricing.eventRates?.length ?? 0) > 0 && (() => {
+              const p = vendor.entertainerPricing!
+              const rates = p.eventRates.filter(r => r.price > 0)
+              if (rates.length === 0) return null
+              const fromPrice = getEntertainerFromPrice(p)
+
+              const details = (
+                <>
+                  {(p.durationHours || p.additionalHourCharge) ? (
+                    <div className="space-y-1.5">
+                      {p.durationHours ? (
+                        <div className="flex items-center justify-between text-[12px]">
+                          <span className="text-gray-600">Performance duration</span>
+                          <span className="font-semibold text-dark">{p.durationHours} hrs</span>
+                        </div>
+                      ) : null}
+                      {p.additionalHourCharge ? (
+                        <div className="flex items-center justify-between text-[12px]">
+                          <span className="text-gray-600">Additional hour</span>
+                          <span className="font-semibold text-dark">{formatINR(p.additionalHourCharge)} / hr</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {p.languages && p.languages.length > 0 && (
+                    <div className={`${(p.durationHours || p.additionalHourCharge) ? 'mt-3 pt-3 border-t border-mustard/20' : ''}`}>
+                      <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Languages</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.languages.map(lang => (
+                          <span key={lang} className="bg-white border border-card-border text-gray-700 text-[10px] font-medium px-2 py-1 rounded-full">{lang}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+
+              // Vendor preview (multiple events) → read-only list of every event + price.
+              if (rates.length > 1) {
+                return (
+                  <div className="mb-4">
+                    <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
+                    <p className="text-[10px] text-gray-400 mb-3">{rates.length} events · flat price each</p>
+                    <div className="rounded-xl border border-card-border divide-y divide-card-border mb-3">
+                      {rates.map(r => (
+                        <div key={r.id} className="flex items-center justify-between px-3 py-2.5">
+                          <span className="text-[12px] text-dark">{r.event}</span>
+                          <span className="text-[12px] font-semibold text-dark">{formatINR(r.price)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {(p.durationHours || p.additionalHourCharge || (p.languages?.length ?? 0) > 0) && (
+                      <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">{details}</div>
+                    )}
+                  </div>
+                )
+              }
+
+              // Couple-facing single fanned event → flat price + add to board.
+              const rate = rates[0]
+              return (
+                <div className="mb-4">
+                  <p className="text-[20px] font-bold text-magenta">{formatINR(rate.price)}</p>
+                  <p className="text-[10px] text-gray-400 mb-3">Flat price for {rate.event}</p>
+                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                    {details}
+                    {ritualId && categoryId && (
+                      <button
+                        type="button"
+                        onClick={() => selectVendor(ritualId, categoryId, vendor.id)}
+                        className={`${(p.durationHours || p.additionalHourCharge || (p.languages?.length ?? 0) > 0) ? 'mt-3' : ''} w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                          isAddedToBoard
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-magenta text-white active:scale-[0.98]'
+                        }`}
+                      >
+                        {isAddedToBoard ? '✓ Added to your board' : `Add to my board · ${formatINR(rate.price)}`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* Mehendi — standalone listing (a Makeup listing folds mehendi into its block below) */}
             {vendor.mehendiPricing && !vendor.makeupPricing && (() => {
               const p = vendor.mehendiPricing
@@ -930,7 +1015,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             })()}
 
             {/* Price (non rate-card / non-mehendi / non-makeup / non-saree / non-hair listings) */}
-            {!vendor.eventPackages?.length && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (
+            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
             )}
             {vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
@@ -947,7 +1032,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               <p className="text-[10px] text-gray-400">Starting price · varies by size below</p>
             )}
             {/* Transport & logistics — informational yes/no only (varies by distance, no amount) */}
-            {!vendor.eventPackages?.length && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (vendor.transportIncluded === true ? (
+            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (vendor.transportIncluded === true ? (
               <>
                 <p className="text-[10px] text-green-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0">
                   Transport &amp; logistics included

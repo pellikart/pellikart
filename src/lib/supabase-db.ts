@@ -329,6 +329,7 @@ export async function insertListing(vendorId: string, listing: VendorListing) {
       guest_package_videographers: {},
       photography_pricing_models: listing.photographyPricingModels || [],
       event_packages: listing.eventPackages || [],
+      entertainer_pricing: listing.entertainerPricing || {},
       mehendi_pricing: listing.mehendiPricing || {},
       makeup_pricing: listing.makeupPricing || {},
       saree_draping_pricing: listing.sareeDrapingPricing || {},
@@ -379,6 +380,7 @@ export async function updateListingDb(listingDbId: string, listing: VendorListin
       guest_package_videographers: {},
       photography_pricing_models: listing.photographyPricingModels || [],
       event_packages: listing.eventPackages || [],
+      entertainer_pricing: listing.entertainerPricing || {},
       mehendi_pricing: listing.mehendiPricing || {},
       makeup_pricing: listing.makeupPricing || {},
       saree_draping_pricing: listing.sareeDrapingPricing || {},
@@ -846,11 +848,12 @@ export type AnalyticsEventType =
  * Fire-and-forget analytics event. Never blocks UI.
  * vendorId = the vendors table UUID (not a listing ID).
  */
-/** Strip the `::evt::<pkgId>` suffix a Photography event-package card carries, so
- *  writes to columns that reference the real listing (uuid FKs) use the base id. */
+/** Strip a synthetic fan-out suffix — `::evt::<pkgId>` (Photography event package)
+ *  or `::ent::<rateId>` (Entertainer event rate) — so writes to columns that
+ *  reference the real listing (uuid FKs) use the base id. */
 export function baseListingId(id?: string | null): string | null {
   if (!id) return id ?? null
-  const i = id.indexOf('::evt::')
+  const i = id.search(/::(evt|ent)::/)
   return i >= 0 ? id.slice(0, i) : id
 }
 
@@ -1015,9 +1018,10 @@ export async function fetchListingPerformance(vendorId: string): Promise<Listing
   }
 
   for (const e of events) {
-    // Attribute event-package card interactions back to their parent listing.
+    // Attribute fanned card interactions (event package / entertainer rate) back to
+    // their parent listing.
     const rawLid = e.listing_id as string
-    const lid = rawLid.includes('::evt::') ? rawLid.split('::evt::')[0] : rawLid
+    const lid = rawLid.split(/::(?:evt|ent)::/)[0]
     if (!perfMap[lid]) perfMap[lid] = { listingId: lid, listingName: nameMap[lid] || 'Unknown', views: 0, shortlists: 0 }
     if (e.event_type === 'detail_view') perfMap[lid].views++
     else if (e.event_type === 'shortlist_add') perfMap[lid].shortlists++
@@ -1131,17 +1135,19 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
   //    resolve which package a couple picked.
   const { data: listings } = await supabase
     .from('vendor_listings')
-    .select('id, name, category, plate_packages, event_packages')
+    .select('id, name, category, plate_packages, event_packages, entertainer_pricing')
     .eq('vendor_id', vendorId)
   if (!listings || listings.length === 0) return []
   const listingById = new Map(listings.map(l => [l.id as string, l]))
   const listingIds = listings.map(l => l.id as string)
 
   // 2. Board categories that picked one of these listings — either directly, or a
-  //    Photography event package whose selected id is `<listingId>::evt::<pkgId>`.
+  //    fanned card whose selected id is `<listingId>::evt::<pkgId>` (Photography
+  //    event package) or `<listingId>::ent::<rateId>` (Entertainer event rate).
   const orExpr = [
     `selected_vendor_id.in.(${listingIds.join(',')})`,
     ...listingIds.map(id => `selected_vendor_id.like.${id}::evt::*`),
+    ...listingIds.map(id => `selected_vendor_id.like.${id}::ent::*`),
   ].join(',')
   const { data: cats } = await supabase
     .from('board_categories')
@@ -1159,11 +1165,13 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
   const boardById = new Map((boards || []).map(b => [b.id as string, b]))
 
   return cats.map(c => {
-    // Resolve the real listing behind a Photography event-package pick.
+    // Resolve the real listing behind a fanned pick (event package or entertainer rate).
     const rawSel = c.selected_vendor_id as string
-    const isEventPick = rawSel.includes('::evt::')
-    const baseId = isEventPick ? rawSel.split('::evt::')[0] : rawSel
-    const evtPkgId = isEventPick ? rawSel.split('::evt::')[1] : undefined
+    const evtMatch = rawSel.match(/^(.*)::evt::(.*)$/)
+    const entMatch = rawSel.match(/^(.*)::ent::(.*)$/)
+    const baseId = evtMatch?.[1] ?? entMatch?.[1] ?? rawSel
+    const evtPkgId = evtMatch?.[2]
+    const entRateId = entMatch?.[2]
     const l = listingById.get(baseId)
     const board = boardById.get(c.ritual_board_id as string)
     const pkgs = (l?.plate_packages as import('./vendor-types').PlatePackage[] | null) || []
@@ -1171,6 +1179,9 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
     // For an event-package pick, name the package by the events it covers.
     const evtPkgs = (l?.event_packages as import('./vendor-category-config').PhotographyEventPackage[] | null) || []
     const evtPkg = evtPkgId ? evtPkgs.find(p => p.id === evtPkgId) : undefined
+    // For an entertainer pick, name it by the event and carry its flat price.
+    const entPricing = l?.entertainer_pricing as import('./vendor-category-config').EntertainerPricing | null
+    const entRate = entRateId ? entPricing?.eventRates?.find(r => r.id === entRateId) : undefined
     return {
       id: c.id as string,
       listingId: baseId,
@@ -1179,8 +1190,8 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
       boardName: (board?.name as string) || 'Wedding',
       eventDate: (board?.date_start as string) || undefined,
       categoryLabel: c.label as string,
-      packageName: pkg?.name || (evtPkg ? evtPkg.events.join(' · ') : undefined),
-      packagePrice: pkg?.pricePerPlate,
+      packageName: pkg?.name || (evtPkg ? evtPkg.events.join(' · ') : entRate?.event),
+      packagePrice: pkg?.pricePerPlate ?? entRate?.price,
       tierHours: (c.selected_tier_hours as number | null) ?? undefined,
     }
   })
@@ -1330,8 +1341,8 @@ export async function createBooking(
   const { data, error } = await supabase
     .from('bookings')
     .insert({
-      // Keep the full (possibly event-package `::evt::`) id — bookings.listing_id is
-      // a text column, so the couple's card re-marks as booked on reload. The vendor
+      // Keep the full (possibly fanned `::evt::` / `::ent::`) id — bookings.listing_id
+      // is a text column, so the couple's card re-marks as booked on reload. The vendor
       // side resolves the base listing when displaying (see fetchVendorBookingsDb).
       couple_id: coupleId, vendor_id: vendorId, listing_id: listingId,
       ritual_board_id: ritualBoardId, category_label: categoryLabel,

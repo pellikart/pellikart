@@ -4,12 +4,13 @@ import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
-import { formatINR, getPhotographyEventFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyEventPackages, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyEventPackages, emptyEntertainerPricing, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice, InHouseDecor, PaidRoom } from '@/lib/vendor-types'
 import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
+import EntertainerPricingEditor from '@/components/EntertainerPricingEditor'
 import MenuEditor from '@/components/MenuEditor'
 import SizesEditor from '@/components/SizesEditor'
 import PlateSlotsEditor from '@/components/PlateSlotsEditor'
@@ -44,6 +45,7 @@ export default function VendorEditListing() {
   // Photography is event-based only, so the pricing model is always ['eventBased'].
   const photographyPricingModels: PhotographyPricingModel[] = ['eventBased']
   const [eventPackages, setEventPackages] = useState<PhotographyEventPackage[]>(emptyPhotographyEventPackages())
+  const [entertainerPricing, setEntertainerPricing] = useState<EntertainerPricing>(emptyEntertainerPricing())
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
   const [makeupAddons, setMakeupAddons] = useState<Record<string, number>>({})
@@ -109,6 +111,7 @@ export default function VendorEditListing() {
       setStyle(listing.style)
       setPrice(listing.price)
       setEventPackages(listing.eventPackages || emptyPhotographyEventPackages())
+      setEntertainerPricing(listing.entertainerPricing || emptyEntertainerPricing())
       setMehendiPricing(listing.mehendiPricing || emptyMehendiPricing())
       setMehendiAddon(listing.category === 'Makeup' && !!listing.mehendiPricing)
       setMakeupPricing(listing.makeupPricing || emptyMakeupPricing())
@@ -275,6 +278,14 @@ export default function VendorEditListing() {
     c => c.events.length > 0 && Object.values(c.prices).some(p => (p ?? 0) > 0),
   )
 
+  // Hosts/Entertainers pricing — flat price per event.
+  const entertainerFrom = getEntertainerFromPrice(entertainerPricing)
+  const cleanedEntertainerPricing: EntertainerPricing = {
+    ...entertainerPricing,
+    eventRates: entertainerPricing.eventRates.filter(r => r.event.trim() && r.price > 0),
+  }
+  const entertainerReady = cleanedEntertainerPricing.eventRates.length > 0
+
   // Venue pricing (mirrors the add flow's derivation).
   const venueOffersRent = venuePricingModels.includes('rent')
   const venueOffersPerPlate = venuePricingModels.includes('perPlate')
@@ -392,6 +403,7 @@ export default function VendorEditListing() {
 
     const effectivePrice = category === 'Photography'
       ? photoEventFrom
+      : category === 'Hosts / Entertainers' ? entertainerFrom
       : category === 'Mehendi' ? getMehendiFromPrice(mehendiPricing)
       : category === 'Makeup' ? getMakeupFromPrice(makeupPricingOut)
       : category === 'Saree Draping' ? getSareeDrapingFromPrice(sareePricing)
@@ -419,6 +431,7 @@ export default function VendorEditListing() {
       paidRooms: category === 'Venue' ? (paidRoomsOut && paidRoomsOut.length > 0 ? paidRoomsOut : undefined) : listing.paidRooms,
       photographyPricingModels: category === 'Photography' ? photographyPricingModels : undefined,
       eventPackages: category === 'Photography' && validEventPackages.length > 0 ? validEventPackages : undefined,
+      entertainerPricing: category === 'Hosts / Entertainers' && entertainerReady ? cleanedEntertainerPricing : undefined,
       mehendiPricing: category === 'Mehendi' ? mehendiPricing
         : category === 'Makeup' && makeupDetailed && mehendiAddon ? mehendiPricing
         : undefined,
@@ -464,8 +477,8 @@ export default function VendorEditListing() {
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard" />
         </div>
 
-        {/* Rituals — Photography events come from each event package, so it's hidden there */}
-        {category !== 'Photography' && (
+        {/* Rituals — Photography/Entertainer events come from their per-event pricing, so hidden there */}
+        {category !== 'Photography' && category !== 'Hosts / Entertainers' && (
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1.5">Events this listing is for</label>
           <div className="flex flex-wrap gap-1.5">
@@ -721,6 +734,15 @@ export default function VendorEditListing() {
                 <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(photoEventFrom)}</span>.</p>
               )}
             </div>
+          </div>
+        ) : category === 'Hosts / Entertainers' ? (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-1">How do you price?</label>
+            <p className="text-[10px] text-gray-400 mb-2">Set a flat price per event, add custom events, then your duration, additional-hour charge and languages.</p>
+            <EntertainerPricingEditor value={entertainerPricing} onChange={setEntertainerPricing} />
+            {entertainerFrom > 0 && (
+              <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(entertainerFrom)}</span>.</p>
+            )}
           </div>
         ) : category === 'Mehendi' ? (
           <div>
