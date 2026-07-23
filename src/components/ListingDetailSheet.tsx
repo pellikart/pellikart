@@ -496,8 +496,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               if (pkgs.length > 1) {
                 return (
                   <div>
-                    <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
-                    <p className="text-[10px] text-gray-400 mb-3">{pkgs.length} event packages · flat per-service pricing</p>
+                    <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)} <span className="text-[12px] font-normal text-gray-400">/ event</span></p>
+                    <p className="text-[10px] text-gray-400 mb-3">{pkgs.length} event packages · flat per-service pricing, per event</p>
                     <div className="space-y-3">
                       {pkgs.map(pkg => {
                         const services = getOfferedEventServices(pkg)
@@ -530,15 +530,18 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               const total = getPhotographyEventSelectionTotal(vendor, { services: eventServices }) ?? 0
               return (
                 <div>
-                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
-                  <p className="text-[10px] text-gray-400 mb-2">Event package · pick the services you want</p>
+                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)} <span className="text-[12px] font-normal text-gray-400">/ event</span></p>
+                  <p className="text-[10px] text-gray-400 mb-3">Prices are per event — pick the services you want below.</p>
 
-                  {/* Which events this package covers */}
+                  {/* Events this vendor covers, at the same per-event pricing */}
                   {eventPkg.events.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {eventPkg.events.map(ev => (
-                        <span key={ev} className="bg-empty-bg text-gray-600 text-[10px] font-medium px-2 py-1 rounded-full">{ev}</span>
-                      ))}
+                    <div className="mb-3">
+                      <p className="text-[10px] text-gray-500 mb-1.5">This vendor also does these events — the same per-event pricing applies to each:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {eventPkg.events.map(ev => (
+                          <span key={ev} className="bg-empty-bg text-gray-600 text-[10px] font-medium px-2 py-1 rounded-full">{ev}</span>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -572,7 +575,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
                     {total > 0 && (
                       <div className="mt-3 pt-3 border-t border-mustard/20 flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                        <span className="text-[12px] font-semibold text-dark">Estimated total <span className="font-normal text-gray-400">/ event</span></span>
                         <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
                       </div>
                     )}

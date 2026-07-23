@@ -5,7 +5,7 @@ import { OnboardingData } from '@/lib/types'
 import { formatINR } from '@/lib/helpers'
 import RoleSwitch from '@/components/RoleSwitch'
 
-const PRESET_EVENTS = ['Pre-Wedding Shoot', 'Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
+const PRESET_EVENTS = ['Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli Koduku/Pellikuthuru Function', 'Pelli (Wedding)', 'Reception']
 const GUEST_OPTIONS = ['100-200', '200-500', '500-1000', '1000+']
 const EVENT_BUDGET_MIN = 25000
 const EVENT_BUDGET_MAX = 5000000

@@ -22,7 +22,7 @@ describe('PhotographyEventPackagesEditor', () => {
     for (const label of [
       'Traditional Photography', 'Traditional Videography',
       'Candid Photography', 'Candid Videography',
-      'LED Screens', 'Drone', 'Album', 'Live Streaming',
+      'LED Screens', 'Drone', 'Album per sheet', 'Live Streaming',
     ]) {
       expect(screen.getByText(label), `service row: ${label}`).toBeTruthy()
     }

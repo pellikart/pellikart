@@ -29,7 +29,7 @@ describe('Photography event-package render (couple side)', () => {
     expect(screen.getAllByText('Haldi').length).toBeGreaterThan(0)
     expect(screen.getByText('Candid Photography')).toBeTruthy()
     expect(screen.getByText('Drone')).toBeTruthy()
-    expect(screen.getByText('Album')).toBeTruthy()
+    expect(screen.getByText('Album per sheet')).toBeTruthy()
     // Services with no price are not shown.
     expect(screen.queryByText('LED Screens')).toBeNull()
     // All services default-selected → total = 40000 + 15000 + 10000 = 65000.
@@ -64,11 +64,11 @@ describe('Photography event-package render (couple side)', () => {
       </MemoryRouter>
     )
     // Both packages' events + their services are shown.
-    expect(screen.getByText('2 event packages · flat per-service pricing')).toBeTruthy()
+    expect(screen.getByText('2 event packages · flat per-service pricing, per event')).toBeTruthy()
     expect(screen.getAllByText('Reception').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Mehendi').length).toBeGreaterThan(0)
     expect(screen.getByText('Traditional Photography')).toBeTruthy()
-    expect(screen.getByText('Album')).toBeTruthy()
+    expect(screen.getByText('Album per sheet')).toBeTruthy()
     // Read-only: no per-service checkboxes/"Add to my board" total flow.
     expect(screen.queryByText(/Estimated total/)).toBeNull()
   })

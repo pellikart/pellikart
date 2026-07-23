@@ -285,7 +285,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
   },
   Photography: {
     styles: ['Candid + Cinematic', 'Traditional + Posed', 'Documentary', 'Fine Art', 'Photojournalistic'],
-    inclusions: ['Candid Photos', 'Traditional Photos', 'Drone Shots', 'Pre-Wedding Shoot', 'Album', 'Highlight Reel', 'Full Video', 'Photo Booth', 'Same-Day Edit', 'USB Drive', 'Google Drive', 'Raw Files'],
+    inclusions: ['Candid Photos', 'Traditional Photos', 'Drone Shots', 'Album', 'Highlight Reel', 'Full Video', 'Photo Booth', 'Same-Day Edit', 'USB Drive', 'Google Drive', 'Raw Files'],
     priceRange: { min: 30000, max: 500000, step: 10000 },
     // No spec steps — coverage/deliverables (duration, cinematic trailer, delivery
     // time, etc.) are now captured per event package in the event-based pricing step.
@@ -682,7 +682,7 @@ export const PHOTOGRAPHY_EVENT_SERVICES = [
   { key: 'candidVideography', label: 'Candid Videography' },
   { key: 'ledScreens', label: 'LED Screens' },
   { key: 'drone', label: 'Drone' },
-  { key: 'album', label: 'Album' },
+  { key: 'album', label: 'Album per sheet' },
   { key: 'liveStreaming', label: 'Live Streaming' },
 ] as const
 
@@ -861,7 +861,7 @@ export function isSingleListingCategory(category?: string | null): boolean {
 // ─── RITUALS / EVENTS ───────────────────────
 
 /** All rituals/events a listing can be tagged for (used for couple-vendor matching) */
-export const RITUALS = ['Pre-Wedding Shoot', 'Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli (Wedding)', 'Reception']
+export const RITUALS = ['Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli Koduku/Pellikuthuru Function', 'Pelli (Wedding)', 'Reception']
 
 /** Bridal makeup look-categories a makeup artist prices per look (grouped from the
  *  full event list to keep the form short). bridalByEvent is keyed by these. */

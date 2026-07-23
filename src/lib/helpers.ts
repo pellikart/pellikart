@@ -29,13 +29,22 @@ export function getListingTotal(vendor: Vendor | undefined, tierHours?: number):
  */
 export function getPhotographyEventFromPrice(packages?: PhotographyEventPackage[]): number {
   if (!packages || packages.length === 0) return 0
-  let min = Infinity
+  // The headline "from" price is Traditional Photography (the base service), not the
+  // cheapest add-on. Fall back to the cheapest non-album service, then album (priced
+  // per sheet — a different unit) only if that's all the vendor priced.
+  let minTrad = Infinity
+  let minNonAlbum = Infinity
+  let minAny = Infinity
   for (const card of packages) {
-    for (const price of Object.values(card.prices || {})) {
-      if (price && price > 0 && price < min) min = price
+    for (const [key, price] of Object.entries(card.prices || {})) {
+      if (!price || price <= 0) continue
+      if (price < minAny) minAny = price
+      if (key !== 'album' && price < minNonAlbum) minNonAlbum = price
+      if (key === 'traditionalPhotography' && price < minTrad) minTrad = price
     }
   }
-  return min === Infinity ? 0 : min
+  const chosen = minTrad !== Infinity ? minTrad : minNonAlbum !== Infinity ? minNonAlbum : minAny
+  return chosen === Infinity ? 0 : chosen
 }
 
 /**

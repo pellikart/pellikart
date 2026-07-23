@@ -114,16 +114,17 @@ describe('Vendor Category Config', () => {
 
   describe('Rituals', () => {
     it('has expected event names', () => {
-      expect(RITUALS).toContain('Pre-Wedding Shoot')
       expect(RITUALS).toContain('Engagement')
       expect(RITUALS).toContain('Pelli Choopulu')
       expect(RITUALS).toContain('Bottu')
       expect(RITUALS).toContain('Haldi')
       expect(RITUALS).toContain('Sangeeth')
+      expect(RITUALS).toContain('Pelli Koduku/Pellikuthuru Function')
       expect(RITUALS).toContain('Pelli (Wedding)')
     })
 
     it('does not have superseded event names', () => {
+      expect(RITUALS).not.toContain('Pre-Wedding Shoot')
       expect(RITUALS).not.toContain('Nischitartham')
       expect(RITUALS).not.toContain('Nalugu')
       expect(RITUALS).not.toContain('Sangeet')
