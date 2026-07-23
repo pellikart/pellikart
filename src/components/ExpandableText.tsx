@@ -1,10 +1,29 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, Fragment } from 'react'
+
+/**
+ * Turns **bold** markers into bold spans, leaving everything else as-is.
+ * Inline only (bold can't span a line break) so it stays inside the -webkit-box
+ * used for line clamping. A vendor writes a bold subheading by wrapping a line
+ * in double asterisks:  **Our Services**
+ */
+function renderFormatted(text: string) {
+  return text.split(/(\*\*.+?\*\*)/g).map((part, i) => {
+    const m = part.match(/^\*\*(.+?)\*\*$/)
+    return m ? (
+      <strong key={i} className="font-semibold text-dark">
+        {m[1]}
+      </strong>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    )
+  })
+}
 
 /**
  * Renders multi-line text preserving the line breaks/spacing the author typed
- * (whitespace-pre-line), collapsed to `clampLines` lines with a "See more" /
- * "See less" toggle. The toggle only appears when the text actually overflows
- * the clamp, so short descriptions render untouched.
+ * (whitespace-pre-line) and **bold** markers, collapsed to `clampLines` lines
+ * with a "See more" / "See less" toggle. The toggle only appears when the text
+ * actually overflows the clamp, so short descriptions render untouched.
  */
 export default function ExpandableText({
   text,
@@ -44,7 +63,7 @@ export default function ExpandableText({
               }
         }
       >
-        {text}
+        {renderFormatted(text)}
       </p>
       {overflowing && (
         <button
