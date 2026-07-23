@@ -38,6 +38,16 @@ function distinctValues(vendors: Vendor[], key: string): string[] {
   return [...seen]
 }
 
+/** Distinct top-level `area` values across vendors (sorted), for the venue Area
+ *  filter. Reads `Vendor.area` directly rather than `categoryFields`. */
+function distinctAreas(vendors: Vendor[]): string[] {
+  const seen = new Set<string>()
+  for (const v of vendors) {
+    if (typeof v.area === 'string' && v.area.trim()) seen.add(v.area.trim())
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b))
+}
+
 export function buildFilterDefs(categoryLabel: string, vendors: Vendor[]): { primary: FilterDef[]; more: FilterDef[] } {
   const config = getListingConfig(categoryLabel)
   const allFields = config.steps.flatMap((s) => s.fields)
@@ -66,8 +76,14 @@ export function buildFilterDefs(categoryLabel: string, vendors: Vendor[]): { pri
   const primary: FilterDef[] = [
     { kind: 'price', key: 'price', label: 'Price', min: config.priceRange.min, max: config.priceRange.max, step: config.priceRange.step },
     { kind: 'rating', key: 'rating', label: 'Rating' },
-    ...(primaryFields.map(toDef).filter(Boolean) as FilterDef[]),
   ]
+  // Venues get an Area chip up front — every vendor carries a top-level `area`,
+  // so options come from the areas the loaded venues actually sit in.
+  if (categoryLabel.toLowerCase() === 'venue') {
+    const areas = distinctAreas(vendors)
+    if (areas.length) primary.push({ kind: 'options', key: '__area', label: 'Area', options: areas, multiValue: true })
+  }
+  primary.push(...(primaryFields.map(toDef).filter(Boolean) as FilterDef[]))
   const usefulInclusions = config.inclusions.filter((inc) => vendors.some((v) => v.includes?.includes(inc)))
   primary.push({ kind: 'inclusions', key: '__inclusions', label: 'Inclusions', options: usefulInclusions.length ? usefulInclusions : config.inclusions })
 
@@ -115,6 +131,8 @@ export function applyExploreFilters<T extends ExploreItem>(
         if (selected.length) {
           if (def.key === '__style') {
             if (!v?.style || !selected.includes(v.style)) return false
+          } else if (def.key === '__area') {
+            if (!v?.area || !selected.includes(v.area.trim())) return false
           } else {
             const vv = v?.categoryFields?.[def.key]
             if (def.multiValue) {
