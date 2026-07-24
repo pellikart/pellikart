@@ -25,8 +25,8 @@ export default function PackagesSection({ board }: Props) {
   }
 
   return (
-    <div className="mt-6 md:mt-8">
-      <div className="px-4 md:px-6 flex items-end justify-between mb-3">
+    <div className="h-full min-h-0 flex flex-col pt-3 pb-2">
+      <div className="px-4 md:px-6 flex items-end justify-between mb-3 shrink-0">
         <div>
           <h2 className="text-[15px] font-bold text-dark">Packages</h2>
           <p className="text-[11px] text-gray-500">Book multiple vendors together &amp; save</p>
@@ -37,8 +37,8 @@ export default function PackagesSection({ board }: Props) {
         </span>
       </div>
 
-      {/* Swipeable snap carousel — a sliver of the next card peeks to invite the swipe */}
-      <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-4 px-4 md:px-6 pb-1">
+      {/* Swipeable snap carousel — fills the half; a sliver of the next card peeks */}
+      <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-4 px-4 md:px-6 pb-1 items-stretch">
         {deals.map((deal) => {
           const isActive = activeIds.has(deal.id)
           const cats = deal.memberListingIds.map((id) => vendors[id]?.category).filter(Boolean)
@@ -46,15 +46,15 @@ export default function PackagesSection({ board }: Props) {
             <button
               key={deal.id}
               onClick={() => setOpenDeal(deal)}
-              className={`snap-start shrink-0 w-[300px] md:w-[330px] text-left rounded-2xl overflow-hidden bg-white border transition-all active:scale-[0.98] ${
+              className={`snap-start shrink-0 w-[300px] md:w-[330px] h-full text-left rounded-2xl overflow-hidden bg-white border transition-all active:scale-[0.98] flex flex-col ${
                 isActive ? 'border-green-400 ring-1 ring-green-300' : 'border-card-border'
               }`}
             >
               {/* Accent header band */}
-              <div className="h-2 bg-gradient-to-r from-magenta to-mustard" />
+              <div className="h-2 bg-gradient-to-r from-magenta to-mustard shrink-0" />
 
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-2">
+              <div className="p-5 flex-1 flex flex-col min-h-0">
+                <div className="flex items-start justify-between gap-2 shrink-0">
                   <div className="min-w-0">
                     <p className="text-[18px] font-bold text-dark truncate">{deal.name}</p>
                     <p className="text-[12px] text-gray-400 truncate">{deal.tagline}</p>
@@ -68,26 +68,26 @@ export default function PackagesSection({ board }: Props) {
                   )}
                 </div>
 
-                {/* Overlapping vendor avatars */}
-                <div className="flex items-center mt-5 mb-5">
+                {/* Overlapping vendor avatars — centered in the card's free space */}
+                <div className="flex-1 flex flex-col justify-center gap-2 min-h-0 py-3">
                   <div className="flex items-center">
-                    {deal.memberListingIds.slice(0, 4).map((id, i) => (
+                    {deal.memberListingIds.slice(0, 5).map((id, i) => (
                       <div
                         key={id}
-                        className="w-11 h-11 rounded-full ring-2 ring-white shrink-0"
-                        style={{ ...bgStyle(vendors[id]?.photo || ''), marginLeft: i === 0 ? 0 : -11 }}
+                        className="w-12 h-12 rounded-full ring-2 ring-white shrink-0"
+                        style={{ ...bgStyle(vendors[id]?.photo || ''), marginLeft: i === 0 ? 0 : -12 }}
                       />
                     ))}
-                    {deal.memberListingIds.length > 4 && (
-                      <div className="w-11 h-11 rounded-full ring-2 ring-white bg-empty-bg flex items-center justify-center text-[11px] font-semibold text-gray-500 shrink-0" style={{ marginLeft: -11 }}>
-                        +{deal.memberListingIds.length - 4}
+                    {deal.memberListingIds.length > 5 && (
+                      <div className="w-12 h-12 rounded-full ring-2 ring-white bg-empty-bg flex items-center justify-center text-[11px] font-semibold text-gray-500 shrink-0" style={{ marginLeft: -12 }}>
+                        +{deal.memberListingIds.length - 5}
                       </div>
                     )}
                   </div>
-                  <span className="text-[11px] text-gray-400 ml-3 truncate">{cats.join(' · ')}</span>
+                  <span className="text-[11px] text-gray-400 truncate">{cats.join(' · ')}</span>
                 </div>
 
-                <div className="flex items-end justify-between pt-4 border-t border-card-border">
+                <div className="flex items-end justify-between pt-4 border-t border-card-border shrink-0">
                   <div>
                     <p className="text-[12px] text-gray-400 line-through leading-none mb-1.5">{formatINR(deal.value)}</p>
                     <p className="text-[24px] font-bold text-magenta leading-none">{formatINR(deal.price)}</p>

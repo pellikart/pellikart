@@ -54,7 +54,7 @@ export default function HomePage() {
   const activeBoard = ritualBoards.find((b) => b.id === activeBoardId) ?? ritualBoards[0]
 
   return (
-    <div className="pb-8 page-enter md:pb-0 md:-mx-6 md:min-h-dvh md:flex md:flex-col">
+    <div className="page-enter flex flex-col h-dvh overflow-hidden md:-mx-6">
       <GrandTotalBar />
       <UnlockBanner />
       <TrialsBanner />
@@ -96,33 +96,42 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className="mt-3 md:mt-0 md:flex-1 md:flex md:flex-col md:min-h-0">
-        {activeBoard ? (
-          <RitualBoard key={activeBoard.id} board={activeBoard} />
-        ) : (
-          <button
-            onClick={() => setShowAddBoard(true)}
-            className="mx-4 mb-4 border-2 border-dashed border-magenta/30 rounded-2xl bg-magenta-light/10 p-6 flex flex-col items-center justify-center gap-2 w-[calc(100%-2rem)] active:bg-magenta-light/20 transition-colors"
-          >
-            <div className="w-10 h-10 rounded-full bg-magenta-light flex items-center justify-center">
-              <span className="text-magenta text-xl leading-none">+</span>
+      {/* Board + packages split the remaining viewport 50/50 — the board scrolls
+          in its half, the packages carousel fills the other half. */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* Top half — event board (scrolls internally if tall) */}
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar mt-3 md:mt-0">
+          {activeBoard ? (
+            <RitualBoard key={activeBoard.id} board={activeBoard} />
+          ) : (
+            <button
+              onClick={() => setShowAddBoard(true)}
+              className="mx-4 mb-4 border-2 border-dashed border-magenta/30 rounded-2xl bg-magenta-light/10 p-6 flex flex-col items-center justify-center gap-2 w-[calc(100%-2rem)] active:bg-magenta-light/20 transition-colors"
+            >
+              <div className="w-10 h-10 rounded-full bg-magenta-light flex items-center justify-center">
+                <span className="text-magenta text-xl leading-none">+</span>
+              </div>
+              <p className="text-[12px] font-medium text-dark">Add new event</p>
+              <p className="text-[10px] text-gray-400">Create a board for your first event</p>
+            </button>
+          )}
+
+          {/* Account — mobile only; on desktop these live in the sidebar footer */}
+          <div className="md:hidden px-4 mt-6 mb-2 max-w-[480px] mx-auto space-y-3">
+            <AdminLink />
+            <div className="text-[12px] text-gray-400">
+              Are you a vendor? <RoleSwitch to="vendor" />
             </div>
-            <p className="text-[12px] font-medium text-dark">Add new event</p>
-            <p className="text-[10px] text-gray-400">Create a board for your first event</p>
-          </button>
-        )}
-      </div>
-
-      {/* Multi-vendor packages — book several vendors together at a bundle price */}
-      {activeBoard && <PackagesSection board={activeBoard} />}
-
-      {/* Account — mobile only; on desktop these live in the sidebar footer */}
-      <div className="md:hidden px-4 mt-8 mb-2 max-w-[480px] mx-auto space-y-3">
-        <AdminLink />
-        <div className="text-[12px] text-gray-400">
-          Are you a vendor? <RoleSwitch to="vendor" />
+            <SignOutButton />
+          </div>
         </div>
-        <SignOutButton />
+
+        {/* Bottom half — multi-vendor packages */}
+        {activeBoard && (
+          <div className="flex-1 min-h-0 flex flex-col border-t border-card-border bg-empty-bg/30">
+            <PackagesSection board={activeBoard} />
+          </div>
+        )}
       </div>
 
       {/* Add board bottom sheet */}
