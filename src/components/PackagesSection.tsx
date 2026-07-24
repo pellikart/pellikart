@@ -69,8 +69,8 @@ export default function PackagesSection({ board }: Props) {
                 isActive ? 'border-green-400 ring-1 ring-green-300' : 'border-card-border'
               }`}
             >
-              {/* Photo strip header with an MMT-style % OFF ribbon */}
-              <div className="relative h-[92px] shrink-0 flex">
+              {/* Photo strip header (half the card) with an MMT-style % OFF ribbon */}
+              <div className="relative h-1/2 shrink-0 flex">
                 {deal.memberListingIds.slice(0, 3).map((id) => (
                   <div key={id} className="flex-1" style={bgStyle(vendors[id]?.photo || '')} />
                 ))}
