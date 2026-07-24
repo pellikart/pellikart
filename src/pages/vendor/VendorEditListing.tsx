@@ -5,7 +5,7 @@ import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyEventPackages, emptyEntertainerPricing, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { getListingConfig, RITUALS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyEventPackages, emptyEntertainerPricing, photographyPackageHasPrice, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
 import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice, InHouseDecor, PaidRoom } from '@/lib/vendor-types'
 import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
@@ -275,7 +275,7 @@ export default function VendorEditListing() {
   const photoEventFrom = getPhotographyEventFromPrice(eventPackages)
   // Only cards with at least one event AND one priced service are kept on save.
   const validEventPackages = eventPackages.filter(
-    c => c.events.length > 0 && Object.values(c.prices).some(p => (p ?? 0) > 0),
+    c => c.events.length > 0 && photographyPackageHasPrice(c),
   )
 
   // Hosts/Entertainers pricing — flat price per event.

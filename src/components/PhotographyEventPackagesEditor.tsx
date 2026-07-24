@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   PHOTOGRAPHY_EVENT_SERVICES,
   type PhotographyEventPackage,
+  type PhotographyEventCustomService,
   type PhotographyEventServiceKey,
 } from '@/lib/vendor-category-config'
 import { RITUALS } from '@/lib/vendor-category-config'
@@ -19,6 +20,12 @@ let cardSeq = 0
 function newCardId(): string {
   cardSeq += 1
   return `epk-${Date.now()}-${cardSeq}`
+}
+
+let svcSeq = 0
+function newCustomServiceId(): string {
+  svcSeq += 1
+  return `epk-svc-${Date.now()}-${svcSeq}`
 }
 
 function emptyCard(): PhotographyEventPackage {
@@ -61,6 +68,25 @@ export default function PhotographyEventPackagesEditor({
     if (price > 0) prices[key] = price
     else delete prices[key]
     updateCard(card.id, { prices })
+  }
+
+  function addCustomService(card: PhotographyEventPackage) {
+    const next: PhotographyEventCustomService = { id: newCustomServiceId(), label: '', price: 0 }
+    updateCard(card.id, { customServices: [...(card.customServices || []), next] })
+  }
+
+  function updateCustomService(
+    card: PhotographyEventPackage,
+    id: string,
+    patch: Partial<PhotographyEventCustomService>,
+  ) {
+    updateCard(card.id, {
+      customServices: (card.customServices || []).map(s => (s.id === id ? { ...s, ...patch } : s)),
+    })
+  }
+
+  function removeCustomService(card: PhotographyEventPackage, id: string) {
+    updateCard(card.id, { customServices: (card.customServices || []).filter(s => s.id !== id) })
   }
 
   function removeCard(id: string) {
@@ -150,7 +176,42 @@ export default function PhotographyEventPackagesEditor({
                     </div>
                   </div>
                 ))}
+
+                {/* Vendor-added custom services — each with its own name + price box */}
+                {(card.customServices || []).map(service => (
+                  <div key={service.id} className="flex items-center justify-between gap-2 px-3 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => removeCustomService(card, service.id)}
+                      aria-label="Remove custom service"
+                      className="text-gray-300 text-[14px] leading-none shrink-0 active:text-red-500"
+                    >×</button>
+                    <input
+                      type="text"
+                      value={service.label}
+                      onChange={(e) => updateCustomService(card, service.id, { label: e.target.value })}
+                      placeholder="Custom service name…"
+                      className="flex-1 min-w-0 px-2 py-2 rounded-lg border border-card-border text-[12px] outline-none focus:border-mustard"
+                    />
+                    <div className="relative w-[110px] shrink-0">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                      <input
+                        type="number" min={0} step={1000}
+                        value={service.price || ''}
+                        onChange={(e) => updateCustomService(card, service.id, { price: Math.max(0, parseInt(e.target.value) || 0) })}
+                        placeholder="0"
+                        className="w-full pl-6 pr-2 py-2 rounded-lg border border-card-border text-[12px] outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
+
+              <button
+                type="button"
+                onClick={() => addCustomService(card)}
+                className="mt-2 w-full py-2 rounded-lg border border-dashed border-card-border text-[11px] font-semibold text-gray-500 active:bg-mustard-light/40"
+              >+ Add custom service</button>
             </div>
 
             {/* Package details — duration, cinematic trailer, delivery (informational) */}

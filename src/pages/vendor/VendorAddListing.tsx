@@ -4,7 +4,7 @@ import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
 import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, emptyEntertainerPricing, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing } from '@/lib/vendor-category-config'
+import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, emptyEntertainerPricing, photographyPackageHasPrice, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
@@ -224,7 +224,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const photoEventFrom = getPhotographyEventFromPrice(eventPackages)
   // Only cards with at least one event AND one priced service are kept on save.
   const validEventPackages = eventPackages.filter(
-    c => c.events.length > 0 && Object.values(c.prices).some(p => (p ?? 0) > 0),
+    c => c.events.length > 0 && photographyPackageHasPrice(c),
   )
   // True once the photographer has at least one valid event package.
   const photoPricingReady = validEventPackages.length > 0

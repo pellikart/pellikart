@@ -42,6 +42,13 @@ export function getPhotographyEventFromPrice(packages?: PhotographyEventPackage[
       if (key !== 'album' && price < minNonAlbum) minNonAlbum = price
       if (key === 'traditionalPhotography' && price < minTrad) minTrad = price
     }
+    // Custom services count as non-album add-ons toward the "from" price.
+    for (const svc of card.customServices || []) {
+      const price = svc.price
+      if (!price || price <= 0) continue
+      if (price < minAny) minAny = price
+      if (price < minNonAlbum) minNonAlbum = price
+    }
   }
   const chosen = minTrad !== Infinity ? minTrad : minNonAlbum !== Infinity ? minNonAlbum : minAny
   return chosen === Infinity ? 0 : chosen
@@ -65,16 +72,33 @@ export function getPhotographyEventSelectionTotal(
   let total = 0
   let any = false
   for (const key of sel.services) {
-    const price = pkg.prices[key as keyof typeof pkg.prices]
-    if (price && price > 0) { total += price; any = true }
+    const price = eventServicePrice(pkg, key)
+    if (price > 0) { total += price; any = true }
   }
   return any ? total : null
 }
 
-/** The services a Photography event package actually prices (offered = price > 0). */
-export function getOfferedEventServices(pkg: PhotographyEventPackage | undefined) {
+/** The flat price a package charges for a service — by default key or custom-service id. */
+export function eventServicePrice(pkg: PhotographyEventPackage, key: string): number {
+  const def = pkg.prices[key as keyof typeof pkg.prices]
+  if (def && def > 0) return def
+  const custom = pkg.customServices?.find(c => c.id === key)
+  return custom?.price ?? 0
+}
+
+/** The services a Photography event package actually prices (offered = price > 0) —
+ *  the default services plus any priced custom services, each with its resolved price. */
+export function getOfferedEventServices(
+  pkg: PhotographyEventPackage | undefined,
+): { key: string; label: string; price: number }[] {
   if (!pkg) return []
-  return PHOTOGRAPHY_EVENT_SERVICES.filter(s => (pkg.prices[s.key] ?? 0) > 0)
+  const defaults = PHOTOGRAPHY_EVENT_SERVICES
+    .filter(s => (pkg.prices[s.key] ?? 0) > 0)
+    .map(s => ({ key: s.key as string, label: s.label, price: pkg.prices[s.key] ?? 0 }))
+  const custom = (pkg.customServices || [])
+    .filter(s => (s.price ?? 0) > 0 && s.label.trim().length > 0)
+    .map(s => ({ key: s.id, label: s.label, price: s.price }))
+  return [...defaults, ...custom]
 }
 
 /**

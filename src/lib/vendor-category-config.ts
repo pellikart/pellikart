@@ -668,6 +668,15 @@ export const PHOTOGRAPHY_EVENT_SERVICES = [
 
 export type PhotographyEventServiceKey = typeof PHOTOGRAPHY_EVENT_SERVICES[number]['key']
 
+/** A vendor-defined service beyond the default list, with its own flat price. The
+ *  `id` doubles as the couple-side selection key (default services key off their
+ *  fixed keys; custom ones off this id). */
+export interface PhotographyEventCustomService {
+  id: string
+  label: string
+  price: number
+}
+
 /** One event-based pricing card. */
 export interface PhotographyEventPackage {
   /** Stable id (used as the React key + for edit/remove). */
@@ -676,6 +685,8 @@ export interface PhotographyEventPackage {
   events: string[]
   /** service key → flat price (₹) for the whole event. Missing/0 = not offered. */
   prices: Partial<Record<PhotographyEventServiceKey, number>>
+  /** Vendor-added custom services with their own flat price (beyond the defaults). */
+  customServices?: PhotographyEventCustomService[]
   /** Event coverage duration in hours (informational; 0/undefined = not specified). */
   durationHours?: number
   /** Whether a cinematic trailer is included (informational). */
@@ -687,6 +698,12 @@ export interface PhotographyEventPackage {
 /** A fresh, empty list of event-based pricing cards. */
 export function emptyPhotographyEventPackages(): PhotographyEventPackage[] {
   return []
+}
+
+/** True if a card offers at least one priced service — default or custom. */
+export function photographyPackageHasPrice(p: PhotographyEventPackage): boolean {
+  return Object.values(p.prices || {}).some(v => (v ?? 0) > 0)
+    || (p.customServices || []).some(c => (c.price ?? 0) > 0)
 }
 
 // ─── HOSTS / ENTERTAINERS PRICING ───────────

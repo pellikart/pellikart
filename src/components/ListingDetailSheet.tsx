@@ -516,7 +516,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                               {services.map(service => (
                                 <div key={service.key} className="flex items-center justify-between py-1.5">
                                   <span className="text-[12px] text-dark">{service.label}</span>
-                                  <span className="text-[12px] font-semibold text-dark">{formatINR(pkg.prices[service.key] ?? 0)}</span>
+                                  <span className="text-[12px] font-semibold text-dark">{formatINR(service.price)}</span>
                                 </div>
                               ))}
                             </div>
@@ -553,7 +553,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                     <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Services</p>
                     <div className="space-y-1.5">
                       {offeredEventServices.map(service => {
-                        const price = eventPkg.prices[service.key] ?? 0
+                        const price = service.price
                         const on = eventServices.includes(service.key)
                         return (
                           <button

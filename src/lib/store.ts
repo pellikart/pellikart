@@ -3,6 +3,7 @@ import { AppState, SubscriptionTier, OnboardingData, Design, RitualBoard, MenuSe
 import { mockVendors, mockRitualBoards, generateBoardsFromOnboarding, getVendorPriceScale, mockDesigns, getCategoriesForEvent, categoryWeight } from "./mock-data";
 import { getPhotographyEventFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getHairStylingFromPrice, makePublicCode } from "./helpers";
 import type { PhotographyEventPackage, EntertainerPricing } from "./vendor-category-config";
+import { photographyPackageHasPrice } from "./vendor-category-config";
 import { resolveVenueSlots } from "./vendor-types";
 import {
   fetchCouple, upsertCouple,
@@ -65,7 +66,7 @@ export function expandEventPackageListings(
     }
     const rawPkgs = (l.event_packages as PhotographyEventPackage[]) || []
     const validPkgs = rawPkgs.filter(
-      p => Array.isArray(p.events) && p.events.length > 0 && Object.values(p.prices || {}).some(v => (v ?? 0) > 0),
+      p => Array.isArray(p.events) && p.events.length > 0 && photographyPackageHasPrice(p),
     )
     // No priced packages (e.g. a legacy hourly/guest-only listing) → pass through.
     if (validPkgs.length === 0) { out.push(l); continue }
