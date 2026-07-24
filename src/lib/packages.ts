@@ -60,12 +60,29 @@ const RECIPES: Recipe[] = [
   { id: 'essentials', name: 'Essentials', tagline: 'Everything you need, sorted', sort: 'priceAsc', offset: 2 },
 ]
 
-function sortVendors(list: Vendor[], key: SortKey): Vendor[] {
+/**
+ * A member's contribution to a package total. For a per-plate venue (perPlate
+ * pricing and not rent) with a known guest count, that's the per-plate rate ×
+ * guests — matching the "from total" shown on the venue card; otherwise the flat
+ * price. Mirrors the perPlateOnly logic in CategoryCard.
+ */
+export function memberEffectivePrice(v: Vendor, guests = 0): number {
+  const perPlate =
+    v.category === 'Venue' &&
+    !!v.venuePricingModels?.includes('perPlate') &&
+    !v.venuePricingModels?.includes('rent')
+  return perPlate && guests > 0 ? v.price * guests : v.price
+}
+
+function sortVendors(list: Vendor[], key: SortKey, guests = 0): Vendor[] {
+  // Rank by each vendor's effective total (per-plate venues = rate × guests), so
+  // "cheapest"/"best value" reflect the real bundle cost, not a per-plate rate.
+  const p = (v: Vendor) => memberEffectivePrice(v, guests)
   const s = [...list]
-  if (key === 'priceAsc') s.sort((a, b) => a.price - b.price || b.rating - a.rating)
-  else if (key === 'priceDesc') s.sort((a, b) => b.price - a.price || b.rating - a.rating)
-  else if (key === 'ratingDesc') s.sort((a, b) => b.rating - a.rating || a.price - b.price)
-  else s.sort((a, b) => (b.rating / Math.max(b.price, 1)) - (a.rating / Math.max(a.price, 1)) || b.rating - a.rating)
+  if (key === 'priceAsc') s.sort((a, b) => p(a) - p(b) || b.rating - a.rating)
+  else if (key === 'priceDesc') s.sort((a, b) => p(b) - p(a) || b.rating - a.rating)
+  else if (key === 'ratingDesc') s.sort((a, b) => b.rating - a.rating || p(a) - p(b))
+  else s.sort((a, b) => (b.rating / Math.max(p(b), 1)) - (a.rating / Math.max(p(a), 1)) || b.rating - a.rating)
   return s
 }
 
@@ -85,6 +102,7 @@ function pickFrom(sorted: Vendor[], offset = 0, mid = false): Vendor | undefined
 export function generatePackages(
   vendors: Record<string, Vendor>,
   board: RitualBoard | undefined,
+  guests = 0,
   discountPct = PACKAGE_DISCOUNT_PCT,
 ): PackageDeal[] {
   if (!board) return []
@@ -111,7 +129,7 @@ export function generatePackages(
   const sortedCache: Record<string, Partial<Record<SortKey, Vendor[]>>> = {}
   const sortedFor = (label: string, key: SortKey) => {
     const c = (sortedCache[label] ||= {})
-    return (c[key] ||= sortVendors(byCategory[label], key))
+    return (c[key] ||= sortVendors(byCategory[label], key, guests))
   }
 
   const deals: PackageDeal[] = []
@@ -124,7 +142,8 @@ export function generatePackages(
     if (members.length < 2) continue
 
     const memberListingIds = members.map((m) => m.id)
-    const value = members.reduce((sum, m) => sum + m.price, 0)
+    // Per-plate venues contribute rate × guests (not the bare per-plate rate).
+    const value = members.reduce((sum, m) => sum + memberEffectivePrice(m, guests), 0)
     if (value <= 0) continue
     // The discount comes off the whole bundle total.
     const savings = Math.round(value * discountPct)

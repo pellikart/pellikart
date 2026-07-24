@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/lib/store'
 import type { RitualBoard } from '@/lib/types'
-import { generatePackages, type PackageDeal } from '@/lib/packages'
-import { formatINR, bgStyle } from '@/lib/helpers'
+import { generatePackages, memberEffectivePrice, type PackageDeal } from '@/lib/packages'
+import { formatINR, bgStyle, guestCountFor } from '@/lib/helpers'
 
 interface Props {
   board: RitualBoard
@@ -18,11 +18,12 @@ const CATEGORY_ICON: Record<string, string> = {
 }
 
 export default function PackagesSection({ board }: Props) {
-  const { vendors, subscription, applyPackage, removePackage } = useStore()
+  const { vendors, subscription, onboardingData, applyPackage, removePackage } = useStore()
   const unlocked = subscription !== 'free'
   const [openDeal, setOpenDeal] = useState<PackageDeal | null>(null)
 
-  const deals = useMemo(() => generatePackages(vendors, board), [vendors, board])
+  const guests = guestCountFor(onboardingData?.eventGuests?.[board.name])
+  const deals = useMemo(() => generatePackages(vendors, board, guests), [vendors, board, guests])
   const activeIds = new Set((board.activePackages || []).map((p) => p.id))
 
   if (deals.length === 0) return null
@@ -145,6 +146,8 @@ export default function PackagesSection({ board }: Props) {
               {openDeal.memberListingIds.map((id) => {
                 const v = vendors[id]
                 if (!v) return null
+                const memberTotal = memberEffectivePrice(v, guests)
+                const isPlateTotal = memberTotal !== v.price
                 return (
                   <div key={id} className="flex items-center gap-3 p-2 rounded-xl bg-empty-bg">
                     <div className="w-11 h-11 rounded-lg shrink-0" style={bgStyle(v.photo)} />
@@ -152,7 +155,12 @@ export default function PackagesSection({ board }: Props) {
                       <p className="text-[9px] uppercase tracking-wide text-gray-400">{(v.category && CATEGORY_ICON[v.category]) || ''} {v.category}</p>
                       <p className="text-[12px] font-medium text-dark truncate">{vendorName(id)}</p>
                     </div>
-                    <span className="text-[11px] text-gray-500 shrink-0">{formatINR(v.price)}</span>
+                    <div className="text-right shrink-0">
+                      <span className="text-[11px] text-gray-500">{formatINR(memberTotal)}</span>
+                      {isPlateTotal && (
+                        <p className="text-[9px] text-gray-400 leading-none">{formatINR(v.price)}/plate · {guests} plates</p>
+                      )}
+                    </div>
                   </div>
                 )
               })}

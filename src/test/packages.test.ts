@@ -49,6 +49,34 @@ describe('generatePackages', () => {
     }
   })
 
+  it('counts a per-plate venue as rate × guests in the package total', () => {
+    const plateVendors: Record<string, Vendor> = {
+      ...VENDORS,
+      // ₹1,800/plate × 400 = ₹7,20,000 total — pricier than both flat venues.
+      'venue-plate': makeVendor({
+        id: 'venue-plate', category: 'Venue', price: 1800, rating: 4.6,
+        venuePricingModels: ['perPlate'], platePackages: [{ id: 'p1', name: 'Gold', pricePerPlate: 1800 }],
+      }),
+    }
+    const guests = 400
+    const deals = generatePackages(plateVendors, makeBoard(), guests)
+
+    // Ranking uses the effective total, so Smart Saver takes the cheapest total
+    // (the ₹1L flat venue), NOT the low ₹1,800/plate rate.
+    const saver = deals.find((d) => d.id === 'pkg-saver')!
+    expect(saver.memberListingIds).toContain('venue-cheap')
+
+    // Wherever the per-plate venue lands, it contributes rate × guests to the total.
+    const withPlate = deals.find((d) => d.memberListingIds.includes('venue-plate'))!
+    expect(withPlate).toBeTruthy()
+    const expectedValue = withPlate.memberListingIds.reduce((sum, id) => {
+      const v = plateVendors[id]
+      return sum + (id === 'venue-plate' ? v.price * guests : v.price)
+    }, 0)
+    expect(withPlate.value).toBe(expectedValue)
+    expect(withPlate.savings).toBe(Math.round(expectedValue * PACKAGE_DISCOUNT_PCT))
+  })
+
   it('only picks vendors whose category is on the board', () => {
     const deals = generatePackages(VENDORS, makeBoard())
     const allMembers = deals.flatMap((d) => d.memberListingIds)
