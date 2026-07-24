@@ -624,6 +624,7 @@ export async function fetchRitualBoards(coupleId: string) {
     name: b.name,
     dateStart: b.date_start,
     dateEnd: b.date_end,
+    activePackages: (b.active_packages as import('./types').ActivePackage[] | null) ?? [],
     categories: (categories || [])
       .filter(c => c.ritual_board_id === b.id)
       .map(c => ({
@@ -740,6 +741,16 @@ export async function updateBoardDatesDb(boardId: string, dateStart: string, dat
     .from('ritual_boards')
     .update({ date_start: dateStart, date_end: dateEnd })
     .eq('id', boardId)
+}
+
+/** Persist a board's multi-vendor package snapshots (migration 047). */
+export async function updateBoardPackages(boardId: string, activePackages: import('./types').ActivePackage[]) {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('ritual_boards')
+    .update({ active_packages: activePackages })
+    .eq('id', boardId)
+  if (error) console.error('[db] updateBoardPackages failed:', error.message)
 }
 
 // ─── PHOTO UPLOADS ─────────────────────────

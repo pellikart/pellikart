@@ -5,6 +5,8 @@ import { RitualBoard as RitualBoardType } from '@/lib/types'
 import { formatINR, formatDateRange, bgStyle, getCategorySelectionTotal } from '@/lib/helpers'
 import { getUnavailableVendors } from '@/lib/availability'
 import { ONBOARDING_CONFIG } from '@/lib/vendor-category-config'
+import { isPackageIntact, intactPackageForListing } from '@/lib/packages'
+import type { ActivePackage } from '@/lib/types'
 import CategoryCard from './CategoryCard'
 
 interface Props {
@@ -12,9 +14,12 @@ interface Props {
 }
 
 export default function RitualBoard({ board }: Props) {
-  const { vendors, subscription, removeCategory, restoreCategory, subscribe, addBoardCategory } = useStore()
+  const { vendors, subscription, removeCategory, restoreCategory, subscribe, addBoardCategory, removePackage } = useStore()
   const unlocked = subscription !== 'free'
   const navigate = useNavigate()
+  // The package-break prompt: set when a couple removes a card that belongs to an
+  // active package, so we can ask whether to keep or clear the rest of the bundle.
+  const [breakPrompt, setBreakPrompt] = useState<{ pkg: ActivePackage; categoryId: string } | null>(null)
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [showTierPicker, setShowTierPicker] = useState(false)
   const [showDateEditor, setShowDateEditor] = useState(false)
@@ -45,6 +50,13 @@ export default function RitualBoard({ board }: Props) {
     }
   }
 
+  // Package discount applies only while a package is intact (all members still
+  // selected). Broken packages contribute nothing — the vendors revert to full price.
+  const packageDiscount = (board.activePackages || [])
+    .filter((p) => isPackageIntact(p, board))
+    .reduce((sum, p) => sum + p.savings, 0)
+  const netTotal = Math.max(0, ritualTotal - packageDiscount)
+
   const dateStr = formatDateRange(board.dateStart, board.dateEnd)
 
   // Build a human-readable share message summarizing this board
@@ -69,7 +81,8 @@ export default function RitualBoard({ board }: Props) {
       lines.push(`Still picking: ${emptyCategories.map(c => c.label).join(', ')}`)
     }
     lines.push('')
-    lines.push(`Total so far: ${formatINR(ritualTotal)}`)
+    if (packageDiscount > 0) lines.push(`📦 Package savings: −${formatINR(packageDiscount)}`)
+    lines.push(`Total so far: ${formatINR(netTotal)}`)
     return lines.join('\n')
   })()
 
@@ -118,23 +131,46 @@ export default function RitualBoard({ board }: Props) {
               + Add date
             </button>
           )}
-          <span className="text-xs font-semibold text-magenta">{formatINR(ritualTotal)}</span>
+          {packageDiscount > 0 ? (
+            <div className="flex flex-col items-end leading-tight">
+              <span className="text-[9px] text-gray-400 line-through">{formatINR(ritualTotal)}</span>
+              <span className="text-xs font-semibold text-magenta">{formatINR(netTotal)}</span>
+            </div>
+          ) : (
+            <span className="text-xs font-semibold text-magenta">{formatINR(ritualTotal)}</span>
+          )}
         </div>
       </div>
 
+      {packageDiscount > 0 && (
+        <div className="flex items-center justify-between -mt-1 mb-2 px-0.5">
+          <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
+            <span>📦</span> Package discount
+          </span>
+          <span className="text-[10px] text-green-600 font-medium">−{formatINR(packageDiscount)}</span>
+        </div>
+      )}
+
       {/* Masonry Grid */}
       <div className="masonry-grid">
-        {filledCategories.map((cat, index) => (
-          <CategoryCard
-            key={cat.id}
-            category={cat}
-            ritualId={board.id}
-            vendor={vendors[cat.selectedVendorId!]}
-            spanTwo={index === 0 && (filledCategories.length + (emptyCategories.length > 0 ? 1 : 0)) > 2}
-            unlocked={unlocked}
-            onRemove={() => removeCategory(board.id, cat.id)}
-          />
-        ))}
+        {filledCategories.map((cat, index) => {
+          const pkg = intactPackageForListing(cat.selectedVendorId, board)
+          return (
+            <CategoryCard
+              key={cat.id}
+              category={cat}
+              ritualId={board.id}
+              vendor={vendors[cat.selectedVendorId!]}
+              spanTwo={index === 0 && (filledCategories.length + (emptyCategories.length > 0 ? 1 : 0)) > 2}
+              unlocked={unlocked}
+              packageName={pkg?.name}
+              onRemove={() => {
+                if (pkg) setBreakPrompt({ pkg, categoryId: cat.id })
+                else removeCategory(board.id, cat.id)
+              }}
+            />
+          )
+        })}
 
         {addableCount > 0 && (
           <div className="relative rounded-xl overflow-hidden min-h-[90px] md:min-h-[200px]">
@@ -359,6 +395,46 @@ export default function RitualBoard({ board }: Props) {
 
             <div className="p-3 rounded-xl bg-empty-bg">
               <p className="text-[10px] text-gray-500 whitespace-pre-line">{shareText}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Package break prompt — removing a member of an active package */}
+      {breakPrompt && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setBreakPrompt(null)}>
+          <div className="bg-white rounded-2xl p-4 max-w-[320px] w-full" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[13px] font-semibold text-dark mb-1">Break the {breakPrompt.pkg.name} package?</p>
+            <p className="text-[11px] text-gray-500 mb-4">
+              These vendors are booked together as a package. Removing one ends the {formatINR(breakPrompt.pkg.savings)} discount.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  // Keep the rest, drop just this vendor's category (discount ends).
+                  removePackage(board.id, breakPrompt.pkg.id, false)
+                  removeCategory(board.id, breakPrompt.categoryId)
+                  setBreakPrompt(null)
+                }}
+                className="w-full py-2.5 rounded-lg border border-gray-300 text-dark text-[11px] font-medium active:bg-empty-bg transition-colors"
+              >
+                Remove just this vendor
+              </button>
+              <button
+                onClick={() => {
+                  removePackage(board.id, breakPrompt.pkg.id, true)
+                  setBreakPrompt(null)
+                }}
+                className="w-full py-2.5 rounded-lg bg-red-500 text-white text-[11px] font-medium active:opacity-90 transition-opacity"
+              >
+                Remove the whole package
+              </button>
+              <button
+                onClick={() => setBreakPrompt(null)}
+                className="w-full py-2 text-gray-500 text-[11px] font-medium"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

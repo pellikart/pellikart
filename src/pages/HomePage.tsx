@@ -5,6 +5,7 @@ import GrandTotalBar from '@/components/GrandTotalBar'
 import UnlockBanner from '@/components/UnlockBanner'
 import TrialsBanner from '@/components/TrialsBanner'
 import RitualBoard from '@/components/RitualBoard'
+import PackagesSection from '@/components/PackagesSection'
 import SignOutButton from '@/components/SignOutButton'
 import RoleSwitch from '@/components/RoleSwitch'
 import AdminLink from '@/components/AdminLink'
@@ -111,6 +112,9 @@ export default function HomePage() {
           </button>
         )}
       </div>
+
+      {/* Multi-vendor packages — book several vendors together at a bundle price */}
+      {activeBoard && <PackagesSection board={activeBoard} />}
 
       {/* Account — mobile only; on desktop these live in the sidebar footer */}
       <div className="md:hidden px-4 mt-8 mb-2 max-w-[480px] mx-auto space-y-3">

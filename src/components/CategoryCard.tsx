@@ -11,9 +11,13 @@ interface Props {
   spanTwo: boolean
   unlocked: boolean
   onRemove: () => void
+  /** When set, this card is part of an active package — shows a bundle badge and
+   *  routes removal straight to onRemove (the parent shows the package break prompt)
+   *  instead of the generic remove confirmation. */
+  packageName?: string
 }
 
-export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlocked, onRemove }: Props) {
+export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlocked, onRemove, packageName }: Props) {
   const [showDetail, setShowDetail] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const navigate = useNavigate()
@@ -50,15 +54,21 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
                   <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
                 </svg>
               </div>
-              {/* Remove button */}
+              {/* Remove button — package members defer to the parent's break prompt */}
               <div
-                onClick={(e) => { e.stopPropagation(); setShowRemoveConfirm(true) }}
+                onClick={(e) => { e.stopPropagation(); if (packageName) { onRemove() } else { setShowRemoveConfirm(true) } }}
                 className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center backdrop-blur-sm cursor-pointer"
               >
                 <span className="text-white text-[10px] leading-none">✕</span>
               </div>
             </div>
           </div>
+          {packageName && (
+            <div className="absolute bottom-1.5 right-1.5 z-10 bg-magenta text-white text-[8px] md:text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+              <span>📦</span>
+              <span className="max-w-[64px] truncate">{packageName}</span>
+            </div>
+          )}
           {(() => {
             const photoSel = getCategorySelectionTotal(vendor, category)
             const perPlateSel = vendor.category === 'Venue' && !!category.selectedPlatePackageId

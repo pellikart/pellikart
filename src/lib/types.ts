@@ -172,12 +172,33 @@ export interface SuggestedVendor {
   suggestedBy: string;
 }
 
+/** A multi-vendor package the couple has added to a board. Stored as a snapshot
+ *  (not a live reference) so the grouping + discount stay stable even if a member
+ *  vendor's price later changes or the auto-generation logic evolves. Persisted on
+ *  ritual_boards.active_packages (jsonb). */
+export interface ActivePackage {
+  id: string;
+  name: string;
+  /** Listing ids of the member vendors — one per category the package spans. */
+  memberListingIds: string[];
+  /** Summed individual "from" price of the members at add time. */
+  value: number;
+  /** Discounted package price (value minus the bundle discount). */
+  price: number;
+  /** value − price. */
+  savings: number;
+  /** The bundle discount fraction applied (e.g. 0.12). */
+  discountPct: number;
+}
+
 export interface RitualBoard {
   id: string;
   name: string;
   dateStart?: string;
   dateEnd?: string;
   categories: Category[];
+  /** Multi-vendor packages the couple added to this board. */
+  activePackages?: ActivePackage[];
 }
 
 export interface TrialInfo {
@@ -235,6 +256,12 @@ export interface AppState {
   removeCategory: (ritualId: string, categoryId: string) => void;
   restoreCategory: (ritualId: string, categoryId: string) => void;
   addBoardCategory: (ritualId: string, label: string) => void;
+  /** Add a multi-vendor package to a board — fills each member into its category
+   *  (restoring removed ones) and records the package snapshot for the discount. */
+  applyPackage: (ritualId: string, pkg: import('./packages').PackageDeal) => void;
+  /** Remove a package's discount snapshot. When clearVendors is true, also clears
+   *  each member vendor from its category. */
+  removePackage: (ritualId: string, packageId: string, clearVendors: boolean) => void;
   bookVendor: (vendorId: string, amount: number) => void;
   bookAllVendors: (ritualId: string) => void;
   cancelBooking: (vendorId: string) => void;

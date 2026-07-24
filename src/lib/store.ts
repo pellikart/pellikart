@@ -20,8 +20,10 @@ import {
   fetchMilestones, completeMilestoneDb,
   fetchCoupleTrials, fetchCoupleBids,
   saveDecorBriefDb, insertBoardCategory,
+  updateBoardPackages,
 } from "./supabase-db";
-import type { Vendor } from "./types";
+import type { Vendor, ActivePackage } from "./types";
+import type { PackageDeal } from "./packages";
 
 function cloneVendors() {
   const cloned: Record<string, typeof mockVendors[string]> = {};
@@ -1091,6 +1093,102 @@ export const useStore = create<AppState & LiveModeState & {
           }))
         }
       })
+    }
+  },
+
+  // Add a multi-vendor package to a board: fill each member vendor into the
+  // category matching its label (restoring the category if it was removed), and
+  // record a snapshot so the board can show the bundle grouping + discount.
+  applyPackage: (ritualId, pkg: PackageDeal) => {
+    const { _liveMode, _userId, _listingVendorMap, vendors } = get()
+    const board = get().ritualBoards.find((b) => b.id === ritualId)
+    if (!board) return
+
+    // Map each member's target category label → { vendorId, plate package id }.
+    const byLabel = new Map<string, { vendorId: string; pkgId?: string }>()
+    for (const listingId of pkg.memberListingIds) {
+      const v = vendors[listingId]
+      if (!v?.category) continue
+      let pkgId: string | undefined
+      if (v.platePackages?.length) {
+        let bestPrice = Infinity
+        for (const p of v.platePackages) {
+          if (p.pricePerPlate > 0 && p.pricePerPlate < bestPrice) { bestPrice = p.pricePerPlate; pkgId = p.id }
+        }
+      }
+      byLabel.set(v.category, { vendorId: listingId, pkgId })
+    }
+
+    const snapshot: ActivePackage = {
+      id: pkg.id, name: pkg.name, memberListingIds: pkg.memberListingIds,
+      value: pkg.value, price: pkg.price, savings: pkg.savings, discountPct: pkg.discountPct,
+    }
+
+    // Track which categories we actually touched so we can persist them.
+    const touched: { id: string; vendorId: string; pkgId?: string }[] = []
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) => {
+        if (b.id !== ritualId) return b
+        const categories = b.categories.map((c) => {
+          const hit = byLabel.get(c.label)
+          if (!hit) return c
+          touched.push({ id: c.id, vendorId: hit.vendorId, pkgId: hit.pkgId })
+          const platePackageByVendor = hit.pkgId
+            ? { ...c.platePackageByVendor, [hit.vendorId]: hit.pkgId }
+            : c.platePackageByVendor
+          return {
+            ...c, removed: false, selectedVendorId: hit.vendorId,
+            selectedPlatePackageId: hit.pkgId, selectedTierHours: undefined, platePackageByVendor,
+          }
+        })
+        const others = (b.activePackages || []).filter((p) => p.id !== snapshot.id)
+        return { ...b, categories, activePackages: [...others, snapshot] }
+      }),
+    }))
+
+    if (_liveMode) {
+      for (const t of touched) {
+        updateBoardCategory(t.id, {
+          selectedVendorId: t.vendorId, selectedPlatePackageId: t.pkgId, selectedTierHours: undefined,
+        })
+        const vid = _listingVendorMap[t.vendorId]
+        if (vid) trackEvent(vid, 'vendor_select', _userId, t.vendorId)
+      }
+      const updated = get().ritualBoards.find((b) => b.id === ritualId)
+      if (updated) updateBoardPackages(ritualId, updated.activePackages || [])
+    }
+  },
+
+  // Drop a package's discount snapshot. When clearVendors is true, also remove
+  // every member vendor's category from the board.
+  removePackage: (ritualId, packageId, clearVendors) => {
+    const { _liveMode } = get()
+    const board = get().ritualBoards.find((b) => b.id === ritualId)
+    if (!board) return
+    const pkg = (board.activePackages || []).find((p) => p.id === packageId)
+    const memberIds = new Set(pkg?.memberListingIds || [])
+
+    const clearedCatIds: string[] = []
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) => {
+        if (b.id !== ritualId) return b
+        const categories = clearVendors
+          ? b.categories.map((c) => {
+              if (!c.removed && c.selectedVendorId && memberIds.has(c.selectedVendorId)) {
+                clearedCatIds.push(c.id)
+                return { ...c, removed: true }
+              }
+              return c
+            })
+          : b.categories
+        return { ...b, categories, activePackages: (b.activePackages || []).filter((p) => p.id !== packageId) }
+      }),
+    }))
+
+    if (_liveMode) {
+      for (const id of clearedCatIds) updateBoardCategory(id, { removed: true })
+      const updated = get().ritualBoards.find((b) => b.id === ritualId)
+      if (updated) updateBoardPackages(ritualId, updated.activePackages || [])
     }
   },
 
