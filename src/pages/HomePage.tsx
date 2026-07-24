@@ -112,8 +112,8 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Account */}
-      <div className="px-4 mt-8 mb-2 max-w-[480px] mx-auto space-y-3">
+      {/* Account — mobile only; on desktop these live in the sidebar footer */}
+      <div className="md:hidden px-4 mt-8 mb-2 max-w-[480px] mx-auto space-y-3">
         <AdminLink />
         <div className="text-[12px] text-gray-400">
           Are you a vendor? <RoleSwitch to="vendor" />

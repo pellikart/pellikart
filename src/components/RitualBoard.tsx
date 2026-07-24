@@ -137,10 +137,10 @@ export default function RitualBoard({ board }: Props) {
         ))}
 
         {addableCount > 0 && (
-          <div className="relative rounded-xl overflow-hidden min-h-[90px]">
+          <div className="relative rounded-xl overflow-hidden min-h-[90px] md:min-h-[150px]">
             <button
               onClick={() => setShowCategoryPicker(true)}
-              className="w-full h-full min-h-[90px] bg-empty-bg flex flex-col items-center justify-center gap-1 cursor-pointer active:bg-gray-200 transition-colors rounded-xl"
+              className="w-full h-full min-h-[90px] md:min-h-[150px] bg-empty-bg flex flex-col items-center justify-center gap-1 cursor-pointer active:bg-gray-200 transition-colors rounded-xl"
             >
               <div className="w-8 h-8 rounded-full border-[1.5px] border-dashed border-magenta flex items-center justify-center">
                 <span className="text-magenta text-base leading-none">+</span>

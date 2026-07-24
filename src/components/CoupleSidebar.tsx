@@ -1,6 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { formatINR, getCategorySelectionTotal } from '@/lib/helpers'
+import AdminLink from './AdminLink'
+import RoleSwitch from './RoleSwitch'
+import SignOutButton from './SignOutButton'
 
 /**
  * Desktop-only left sidebar for the couple app. Hidden below `md` — on mobile
@@ -91,6 +94,16 @@ export default function CoupleSidebar() {
           <span className="text-base leading-none">+</span>
           New event
         </button>
+      </div>
+
+      {/* Account — pinned to the bottom-left. AdminLink self-checks and renders
+          nothing for non-admins, so only admins see the admin panel link. */}
+      <div className="shrink-0 border-t border-card-border px-3 py-4 space-y-2.5">
+        <AdminLink className="block px-2 text-[13px] font-semibold text-magenta hover:underline" />
+        <div className="px-2 text-[12px] text-gray-400">
+          Are you a vendor? <RoleSwitch to="vendor" />
+        </div>
+        <SignOutButton />
       </div>
     </aside>
   )

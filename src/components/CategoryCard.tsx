@@ -17,7 +17,7 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
   const [showDetail, setShowDetail] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const navigate = useNavigate()
-  const wrapperClass = `rounded-xl overflow-hidden relative ${spanTwo ? 'span-2' : ''} min-h-[90px]`
+  const wrapperClass = `rounded-xl overflow-hidden relative ${spanTwo ? 'span-2' : ''} min-h-[90px] md:min-h-[150px]`
 
   return (
     <>
@@ -33,10 +33,10 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
         {/* Tap card → open vendor detail */}
         <button
           onClick={() => setShowDetail(true)}
-          className="relative z-10 h-full w-full flex flex-col justify-between p-2 min-h-[90px] text-left"
+          className="relative z-10 h-full w-full flex flex-col justify-between p-2 md:p-3 min-h-[90px] md:min-h-[150px] text-left"
         >
           <div className="flex items-start justify-between">
-            <span className="bg-white/90 text-dark text-[10px] font-medium px-1.5 py-0.5 rounded-full">
+            <span className="bg-white/90 text-dark text-[10px] md:text-[12px] font-medium px-1.5 py-0.5 rounded-full">
               {category.label}
             </span>
             <div className="flex items-center gap-1">
@@ -62,8 +62,8 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
           {(() => {
             const photoSel = getCategorySelectionTotal(vendor, category)
             const perPlateSel = vendor.category === 'Venue' && !!category.selectedPlatePackageId
-            if (photoSel != null) return <p className="text-white font-bold text-xs">{formatINR(photoSel)}{perPlateSel ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
-            return <p className="text-white font-bold text-xs">{vendor.eventPackages?.length ? <span className="font-normal text-[10px]">from </span> : ''}{formatINR(vendor.price)}{vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
+            if (photoSel != null) return <p className="text-white font-bold text-xs md:text-base">{formatINR(photoSel)}{perPlateSel ? <span className="font-normal text-[10px] md:text-[12px]">/plate</span> : ''}</p>
+            return <p className="text-white font-bold text-xs md:text-base">{vendor.eventPackages?.length ? <span className="font-normal text-[10px] md:text-[12px]">from </span> : ''}{formatINR(vendor.price)}{vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px] md:text-[12px]">/plate</span> : ''}</p>
           })()}
         </button>
       </div>
