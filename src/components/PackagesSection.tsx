@@ -46,53 +46,53 @@ export default function PackagesSection({ board }: Props) {
             <button
               key={deal.id}
               onClick={() => setOpenDeal(deal)}
-              className={`snap-start shrink-0 w-[250px] text-left rounded-2xl overflow-hidden bg-white border transition-all active:scale-[0.98] ${
+              className={`snap-start shrink-0 w-[300px] md:w-[330px] text-left rounded-2xl overflow-hidden bg-white border transition-all active:scale-[0.98] ${
                 isActive ? 'border-green-400 ring-1 ring-green-300' : 'border-card-border'
               }`}
             >
               {/* Accent header band */}
-              <div className="h-1.5 bg-gradient-to-r from-magenta to-mustard" />
+              <div className="h-2 bg-gradient-to-r from-magenta to-mustard" />
 
-              <div className="p-3.5">
+              <div className="p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-[14px] font-bold text-dark truncate">{deal.name}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{deal.tagline}</p>
+                    <p className="text-[18px] font-bold text-dark truncate">{deal.name}</p>
+                    <p className="text-[12px] text-gray-400 truncate">{deal.tagline}</p>
                   </div>
                   {isActive ? (
-                    <span className="bg-green-500 text-white text-[8px] font-semibold px-1.5 py-0.5 rounded-full shrink-0">Added ✓</span>
+                    <span className="bg-green-500 text-white text-[10px] font-semibold px-2 py-1 rounded-full shrink-0">Added ✓</span>
                   ) : (
-                    <span className="bg-mustard-light text-mustard text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                    <span className="bg-mustard-light text-mustard text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
                       Save {formatINR(deal.savings)}
                     </span>
                   )}
                 </div>
 
                 {/* Overlapping vendor avatars */}
-                <div className="flex items-center mt-3.5 mb-3">
+                <div className="flex items-center mt-5 mb-5">
                   <div className="flex items-center">
                     {deal.memberListingIds.slice(0, 4).map((id, i) => (
                       <div
                         key={id}
-                        className="w-8 h-8 rounded-full ring-2 ring-white shrink-0"
-                        style={{ ...bgStyle(vendors[id]?.photo || ''), marginLeft: i === 0 ? 0 : -9 }}
+                        className="w-11 h-11 rounded-full ring-2 ring-white shrink-0"
+                        style={{ ...bgStyle(vendors[id]?.photo || ''), marginLeft: i === 0 ? 0 : -11 }}
                       />
                     ))}
                     {deal.memberListingIds.length > 4 && (
-                      <div className="w-8 h-8 rounded-full ring-2 ring-white bg-empty-bg flex items-center justify-center text-[9px] font-semibold text-gray-500 shrink-0" style={{ marginLeft: -9 }}>
+                      <div className="w-11 h-11 rounded-full ring-2 ring-white bg-empty-bg flex items-center justify-center text-[11px] font-semibold text-gray-500 shrink-0" style={{ marginLeft: -11 }}>
                         +{deal.memberListingIds.length - 4}
                       </div>
                     )}
                   </div>
-                  <span className="text-[9px] text-gray-400 ml-2 truncate">{cats.join(' · ')}</span>
+                  <span className="text-[11px] text-gray-400 ml-3 truncate">{cats.join(' · ')}</span>
                 </div>
 
-                <div className="flex items-end justify-between pt-2.5 border-t border-card-border">
+                <div className="flex items-end justify-between pt-4 border-t border-card-border">
                   <div>
-                    <p className="text-[10px] text-gray-400 line-through leading-none mb-0.5">{formatINR(deal.value)}</p>
-                    <p className="text-[18px] font-bold text-magenta leading-none">{formatINR(deal.price)}</p>
+                    <p className="text-[12px] text-gray-400 line-through leading-none mb-1.5">{formatINR(deal.value)}</p>
+                    <p className="text-[24px] font-bold text-magenta leading-none">{formatINR(deal.price)}</p>
                   </div>
-                  <span className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-empty-bg text-gray-600' : 'bg-magenta text-white'}`}>
+                  <span className={`text-[13px] font-semibold px-4 py-2.5 rounded-xl ${isActive ? 'bg-empty-bg text-gray-600' : 'bg-magenta text-white'}`}>
                     {isActive ? 'View' : 'Add +'}
                   </span>
                 </div>
