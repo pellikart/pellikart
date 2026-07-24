@@ -55,22 +55,35 @@ describe('generatePackages', () => {
     expect(allMembers).not.toContain('dj-1')
   })
 
-  it('Essentials picks the cheapest vendor per category; Luxe picks the top-rated', () => {
+  it('Smart Saver picks the cheapest per category; Top Rated picks the highest-rated', () => {
     const deals = generatePackages(VENDORS, makeBoard())
-    const essentials = deals.find((d) => d.id === 'pkg-essentials')
-    const luxe = deals.find((d) => d.id === 'pkg-luxe')
-    expect(essentials?.memberListingIds).toContain('venue-cheap')
-    expect(essentials?.memberListingIds).toContain('decor-cheap')
-    expect(luxe?.memberListingIds).toContain('venue-lux')
-    expect(luxe?.memberListingIds).toContain('photo-lux')
+    const saver = deals.find((d) => d.id === 'pkg-saver')
+    const toprated = deals.find((d) => d.id === 'pkg-toprated')
+    expect(saver?.memberListingIds).toContain('venue-cheap')
+    expect(saver?.memberListingIds).toContain('decor-cheap')
+    expect(toprated?.memberListingIds).toContain('venue-lux')
+    expect(toprated?.memberListingIds).toContain('photo-lux')
+  })
+
+  it('excludes vendors priced at 0', () => {
+    const withFree = {
+      ...VENDORS,
+      'decor-free': makeVendor({ id: 'decor-free', category: 'Decor', price: 0, rating: 5.0 }),
+    }
+    const members = generatePackages(withFree, makeBoard()).flatMap((d) => d.memberListingIds)
+    expect(members).not.toContain('decor-free')
   })
 
   it('is deterministic', () => {
     expect(generatePackages(VENDORS, makeBoard())).toEqual(generatePackages(VENDORS, makeBoard()))
   })
 
-  it('dedupes tiers that resolve to the same members', () => {
-    // Only one vendor per category → every tier picks the same members → one package.
+  it('never returns more than 10 packages', () => {
+    expect(generatePackages(VENDORS, makeBoard()).length).toBeLessThanOrEqual(10)
+  })
+
+  it('dedupes recipes that resolve to the same members', () => {
+    // Only one vendor per category → every recipe picks the same members → one package.
     const single = { 'v': VENDORS['venue-cheap'], 'd': VENDORS['decor-cheap'] }
     const deals = generatePackages(single, makeBoard({ categories: [cat({ label: 'Venue' }), cat({ label: 'Decor' })] }))
     expect(deals).toHaveLength(1)

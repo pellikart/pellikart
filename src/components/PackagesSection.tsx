@@ -25,55 +25,77 @@ export default function PackagesSection({ board }: Props) {
   }
 
   return (
-    <div className="px-4 mt-6 md:px-6 md:mt-8">
-      <div className="flex items-baseline justify-between mb-1">
-        <h2 className="text-[14px] font-bold text-dark">Packages</h2>
-        <span className="text-[10px] text-gray-400">Book together &amp; save</span>
+    <div className="mt-6 md:mt-8">
+      <div className="px-4 md:px-6 flex items-end justify-between mb-3">
+        <div>
+          <h2 className="text-[15px] font-bold text-dark">Packages</h2>
+          <p className="text-[11px] text-gray-500">Book multiple vendors together &amp; save</p>
+        </div>
+        <span className="text-[10px] text-gray-400 flex items-center gap-1 shrink-0">
+          Swipe
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+        </span>
       </div>
-      <p className="text-[11px] text-gray-500 mb-3">Ready-made vendor bundles at a discounted price.</p>
 
-      {/* Horizontal scroll on mobile; wraps to a grid on desktop */}
-      <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-2 md:overflow-visible">
+      {/* Swipeable snap carousel — a sliver of the next card peeks to invite the swipe */}
+      <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-4 px-4 md:px-6 pb-1">
         {deals.map((deal) => {
           const isActive = activeIds.has(deal.id)
+          const cats = deal.memberListingIds.map((id) => vendors[id]?.category).filter(Boolean)
           return (
             <button
               key={deal.id}
               onClick={() => setOpenDeal(deal)}
-              className="shrink-0 w-[240px] md:w-auto text-left rounded-2xl border border-card-border bg-white p-3 active:bg-empty-bg transition-colors"
+              className={`snap-start shrink-0 w-[250px] text-left rounded-2xl overflow-hidden bg-white border transition-all active:scale-[0.98] ${
+                isActive ? 'border-green-400 ring-1 ring-green-300' : 'border-card-border'
+              }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <p className="text-[13px] font-bold text-dark">{deal.name}</p>
-                  <p className="text-[10px] text-gray-400">{deal.tagline}</p>
-                </div>
-                {isActive && (
-                  <span className="bg-green-500 text-white text-[8px] font-semibold px-1.5 py-0.5 rounded-full shrink-0">Added ✓</span>
-                )}
-              </div>
+              {/* Accent header band */}
+              <div className="h-1.5 bg-gradient-to-r from-magenta to-mustard" />
 
-              {/* Member vendor thumbnails */}
-              <div className="flex items-center gap-1.5 mb-3">
-                {deal.memberListingIds.slice(0, 5).map((id) => {
-                  const v = vendors[id]
-                  return (
-                    <div key={id} className="flex flex-col items-center gap-0.5 w-9">
-                      <div className="w-9 h-9 rounded-lg shrink-0" style={bgStyle(v?.photo || '')} />
-                      <span className="text-[7px] text-gray-400 truncate w-full text-center">{v?.category}</span>
-                    </div>
-                  )
-                })}
-                <span className="text-[9px] text-gray-400 ml-0.5">{deal.memberListingIds.length} vendors</span>
-              </div>
-
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-[10px] text-gray-400 line-through">{formatINR(deal.value)}</p>
-                  <p className="text-[16px] font-bold text-magenta leading-tight">{formatINR(deal.price)}</p>
+              <div className="p-3.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold text-dark truncate">{deal.name}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{deal.tagline}</p>
+                  </div>
+                  {isActive ? (
+                    <span className="bg-green-500 text-white text-[8px] font-semibold px-1.5 py-0.5 rounded-full shrink-0">Added ✓</span>
+                  ) : (
+                    <span className="bg-mustard-light text-mustard text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                      Save {formatINR(deal.savings)}
+                    </span>
+                  )}
                 </div>
-                <span className="bg-mustard-light text-mustard text-[9px] font-semibold px-1.5 py-0.5 rounded-full">
-                  Save {formatINR(deal.savings)}
-                </span>
+
+                {/* Overlapping vendor avatars */}
+                <div className="flex items-center mt-3.5 mb-3">
+                  <div className="flex items-center">
+                    {deal.memberListingIds.slice(0, 4).map((id, i) => (
+                      <div
+                        key={id}
+                        className="w-8 h-8 rounded-full ring-2 ring-white shrink-0"
+                        style={{ ...bgStyle(vendors[id]?.photo || ''), marginLeft: i === 0 ? 0 : -9 }}
+                      />
+                    ))}
+                    {deal.memberListingIds.length > 4 && (
+                      <div className="w-8 h-8 rounded-full ring-2 ring-white bg-empty-bg flex items-center justify-center text-[9px] font-semibold text-gray-500 shrink-0" style={{ marginLeft: -9 }}>
+                        +{deal.memberListingIds.length - 4}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-gray-400 ml-2 truncate">{cats.join(' · ')}</span>
+                </div>
+
+                <div className="flex items-end justify-between pt-2.5 border-t border-card-border">
+                  <div>
+                    <p className="text-[10px] text-gray-400 line-through leading-none mb-0.5">{formatINR(deal.value)}</p>
+                    <p className="text-[18px] font-bold text-magenta leading-none">{formatINR(deal.price)}</p>
+                  </div>
+                  <span className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-empty-bg text-gray-600' : 'bg-magenta text-white'}`}>
+                    {isActive ? 'View' : 'Add +'}
+                  </span>
+                </div>
               </div>
             </button>
           )

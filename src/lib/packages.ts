@@ -32,42 +32,56 @@ export interface PackageDeal {
  */
 const CORE_CATEGORIES = ['Venue', 'Catering', 'Decor', 'Photography', 'Makeup']
 
-interface Tier {
+type SortKey = 'priceAsc' | 'priceDesc' | 'ratingDesc' | 'value'
+
+interface Recipe {
   id: string
   name: string
   tagline: string
-  /** How to rank a category's vendors — the first after sort is chosen. */
-  pick: 'value' | 'balanced' | 'premium'
+  /** How to rank each category's vendors. */
+  sort: SortKey
+  /** Which rank to pick from the sorted list (clamped to the last vendor). */
+  offset?: number
+  /** Pick the middle-ranked vendor instead of an offset. */
+  mid?: boolean
 }
 
-const TIERS: Tier[] = [
-  { id: 'essentials', name: 'Essentials', tagline: 'Everything you need, budget-friendly', pick: 'value' },
-  { id: 'signature', name: 'Signature', tagline: 'Our balanced crowd-favourite', pick: 'balanced' },
-  { id: 'luxe', name: 'Luxe', tagline: 'Top-rated vendors, all premium', pick: 'premium' },
+// A spread of "recipes" so a board with a decent vendor pool yields up to 10
+// visibly different packages. Order here is the display order in the carousel.
+const RECIPES: Recipe[] = [
+  { id: 'saver', name: 'Smart Saver', tagline: 'Lowest price in every category', sort: 'priceAsc', offset: 0 },
+  { id: 'value', name: 'Best Value', tagline: 'The most for your money', sort: 'value', offset: 0 },
+  { id: 'toprated', name: 'Top Rated', tagline: 'Highest-rated vendors all round', sort: 'ratingDesc', offset: 0 },
+  { id: 'classic', name: 'Classic', tagline: 'A balanced, safe choice', sort: 'priceAsc', mid: true },
+  { id: 'crowd', name: 'Crowd Favourite', tagline: 'Loved by other couples', sort: 'ratingDesc', offset: 1 },
+  { id: 'budget', name: 'Budget Plus', tagline: 'Smart picks, easy on the wallet', sort: 'priceAsc', offset: 1 },
+  { id: 'editors', name: "Editor's Pick", tagline: 'Our hand-balanced favourite', sort: 'value', offset: 1 },
+  { id: 'luxe', name: 'Luxe', tagline: 'A touch of premium throughout', sort: 'priceDesc', offset: 1 },
+  { id: 'platinum', name: 'Platinum', tagline: 'All-premium, no compromises', sort: 'priceDesc', offset: 0 },
+  { id: 'essentials', name: 'Essentials', tagline: 'Everything you need, sorted', sort: 'priceAsc', offset: 2 },
 ]
 
-/** Stable-sort a category's vendors for a tier and return the top pick. */
-function pickForTier(list: Vendor[], pick: Tier['pick']): Vendor | undefined {
-  if (list.length === 0) return undefined
-  const sorted = [...list]
-  if (pick === 'value') {
-    // Cheapest first; tie-break on higher rating.
-    sorted.sort((a, b) => a.price - b.price || b.rating - a.rating)
-  } else if (pick === 'premium') {
-    // Highest rating first; tie-break on higher price (more premium).
-    sorted.sort((a, b) => b.rating - a.rating || b.price - a.price)
-  } else {
-    // Balanced: best rating-per-rupee; tie-break on higher rating.
-    sorted.sort((a, b) => (b.rating / Math.max(b.price, 1)) - (a.rating / Math.max(a.price, 1)) || b.rating - a.rating)
-  }
-  return sorted[0]
+function sortVendors(list: Vendor[], key: SortKey): Vendor[] {
+  const s = [...list]
+  if (key === 'priceAsc') s.sort((a, b) => a.price - b.price || b.rating - a.rating)
+  else if (key === 'priceDesc') s.sort((a, b) => b.price - a.price || b.rating - a.rating)
+  else if (key === 'ratingDesc') s.sort((a, b) => b.rating - a.rating || a.price - b.price)
+  else s.sort((a, b) => (b.rating / Math.max(b.price, 1)) - (a.rating / Math.max(a.price, 1)) || b.rating - a.rating)
+  return s
+}
+
+function pickFrom(sorted: Vendor[], offset = 0, mid = false): Vendor | undefined {
+  if (sorted.length === 0) return undefined
+  const idx = mid ? Math.floor((sorted.length - 1) / 2) : Math.min(offset, sorted.length - 1)
+  return sorted[idx]
 }
 
 /**
  * Auto-generate multi-vendor packages for a board from the loaded vendors. Each
- * package spans the board's core categories (those present with ≥1 vendor) and
- * prices them at the summed "from" price minus {@link PACKAGE_DISCOUNT_PCT}.
- * Deterministic — same inputs always yield the same packages.
+ * package spans the board's core categories (those present with a priced vendor).
+ * Only vendors with a price > 0 are eligible. The package price is the summed
+ * "from" prices minus {@link PACKAGE_DISCOUNT_PCT} of the single cheapest member.
+ * Deterministic — same inputs always yield the same packages (up to 10).
  */
 export function generatePackages(
   vendors: Record<string, Vendor>,
@@ -80,39 +94,47 @@ export function generatePackages(
   const boardLabels = new Set(board.categories.map((c) => c.label))
   const labels = CORE_CATEGORIES.filter((l) => boardLabels.has(l))
 
-  // Group available vendors by their category label, keeping only board categories.
+  // Group available vendors by category label — only priced vendors (price > 0)
+  // are eligible for a package.
   const byCategory: Record<string, Vendor[]> = {}
   for (const v of Object.values(vendors)) {
     const cat = v.category
-    if (!cat || !labels.includes(cat)) continue
+    if (!cat || !labels.includes(cat) || !(v.price > 0)) continue
     ;(byCategory[cat] ||= []).push(v)
   }
 
-  // Categories that actually have a vendor to offer, in display order.
+  // Categories that actually have a priced vendor to offer, in display order.
   const usable = labels.filter((l) => (byCategory[l]?.length ?? 0) > 0)
   // A package needs at least two vendors to be a meaningful bundle.
   if (usable.length < 2) return []
 
+  // Pre-sort each usable category once per sort key.
+  const sortedCache: Record<string, Partial<Record<SortKey, Vendor[]>>> = {}
+  const sortedFor = (label: string, key: SortKey) => {
+    const c = (sortedCache[label] ||= {})
+    return (c[key] ||= sortVendors(byCategory[label], key))
+  }
+
   const deals: PackageDeal[] = []
-  for (const tier of TIERS) {
+  for (const recipe of RECIPES) {
     const members: Vendor[] = []
     for (const label of usable) {
-      const picked = pickForTier(byCategory[label], tier.pick)
+      const picked = pickFrom(sortedFor(label, recipe.sort), recipe.offset, recipe.mid)
       if (picked) members.push(picked)
     }
     if (members.length < 2) continue
 
     const memberListingIds = members.map((m) => m.id)
-    const value = members.reduce((sum, m) => sum + (m.price || 0), 0)
+    const value = members.reduce((sum, m) => sum + m.price, 0)
     if (value <= 0) continue
     // The discount comes off the single cheapest member only, not the whole bundle.
-    const lowest = Math.min(...members.map((m) => m.price || 0))
+    const lowest = Math.min(...members.map((m) => m.price))
     const savings = Math.round(lowest * discountPct)
     const price = value - savings
     deals.push({
-      id: `pkg-${tier.id}`,
-      name: tier.name,
-      tagline: tier.tagline,
+      id: `pkg-${recipe.id}`,
+      name: recipe.name,
+      tagline: recipe.tagline,
       memberListingIds,
       value,
       price,
@@ -121,15 +143,17 @@ export function generatePackages(
     })
   }
 
-  // Drop duplicate packages (different tiers can pick the same members when a
-  // category has only one vendor) — keep the first (cheapest-tier) occurrence.
+  // Drop duplicate packages (different recipes can pick the same members when a
+  // category has few vendors) — keep the first occurrence — then cap at 10.
   const seen = new Set<string>()
-  return deals.filter((d) => {
-    const key = [...d.memberListingIds].sort().join('|')
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
+  return deals
+    .filter((d) => {
+      const key = [...d.memberListingIds].sort().join('|')
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, 10)
 }
 
 /**
