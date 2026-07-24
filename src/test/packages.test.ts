@@ -35,13 +35,13 @@ const VENDORS: Record<string, Vendor> = {
 }
 
 describe('generatePackages', () => {
-  it('discounts the single cheapest member; value is the summed "from" price', () => {
+  it('discounts the whole bundle total; value is the summed "from" price', () => {
     const deals = generatePackages(VENDORS, makeBoard())
     expect(deals.length).toBeGreaterThan(0)
     for (const d of deals) {
       const memberPrices = d.memberListingIds.map((id) => VENDORS[id].price)
       const expectedValue = memberPrices.reduce((s, p) => s + p, 0)
-      const expectedSavings = Math.round(Math.min(...memberPrices) * PACKAGE_DISCOUNT_PCT)
+      const expectedSavings = Math.round(expectedValue * PACKAGE_DISCOUNT_PCT)
       expect(d.value).toBe(expectedValue)
       expect(d.savings).toBe(expectedSavings)
       expect(d.price).toBe(expectedValue - expectedSavings)
