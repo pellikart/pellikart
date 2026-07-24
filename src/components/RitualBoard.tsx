@@ -100,7 +100,7 @@ export default function RitualBoard({ board }: Props) {
   }
 
   return (
-    <div className="mx-4 mb-4 border border-card-border rounded-2xl bg-white p-3">
+    <div className="mx-4 mb-4 border border-card-border rounded-2xl bg-white p-3 md:mx-0 md:mb-0 md:border-0 md:rounded-none md:p-6 md:flex-1">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

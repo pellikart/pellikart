@@ -53,7 +53,7 @@ export default function HomePage() {
   const activeBoard = ritualBoards.find((b) => b.id === activeBoardId) ?? ritualBoards[0]
 
   return (
-    <div className="pb-8 page-enter">
+    <div className="pb-8 page-enter md:pb-0 md:-mx-6 md:min-h-dvh md:flex md:flex-col">
       <GrandTotalBar />
       <UnlockBanner />
       <TrialsBanner />
@@ -95,7 +95,7 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className="mt-3">
+      <div className="mt-3 md:mt-0 md:flex-1 md:flex md:flex-col md:min-h-0">
         {activeBoard ? (
           <RitualBoard key={activeBoard.id} board={activeBoard} />
         ) : (

@@ -24,7 +24,7 @@ export default function GrandTotalBar() {
   }
 
   return (
-    <div className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border sticky top-0 z-20">
+    <div className="px-4 md:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-white border-b border-card-border sticky top-0 z-20">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
