@@ -8,6 +8,15 @@ interface Props {
   board: RitualBoard
 }
 
+/** A small emoji marker per core category — used to label package inclusions. */
+const CATEGORY_ICON: Record<string, string> = {
+  Venue: '🏛️',
+  Catering: '🍽️',
+  Decor: '🎀',
+  Photography: '📸',
+  Makeup: '💄',
+}
+
 export default function PackagesSection({ board }: Props) {
   const { vendors, subscription, applyPackage, removePackage } = useStore()
   const unlocked = subscription !== 'free'
@@ -24,12 +33,21 @@ export default function PackagesSection({ board }: Props) {
     return unlocked ? v.name : (v.publicCode || v.code)
   }
 
+  const offPct = (d: PackageDeal) => Math.round(d.discountPct * 100)
+
+  // Average member rating — shown as an MMT-style rating pill.
+  const avgRating = (d: PackageDeal) => {
+    const rs = d.memberListingIds.map((id) => vendors[id]?.rating || 0).filter((r) => r > 0)
+    if (rs.length === 0) return 0
+    return rs.reduce((s, r) => s + r, 0) / rs.length
+  }
+
   return (
     <div className="h-full min-h-0 flex flex-col pt-3 pb-2">
       <div className="px-4 md:px-6 flex items-end justify-between mb-3 shrink-0">
         <div>
-          <h2 className="text-[15px] font-bold text-dark">Packages</h2>
-          <p className="text-[11px] text-gray-500">Book multiple vendors together &amp; save</p>
+          <h2 className="text-[15px] font-bold text-dark">Wedding Packages</h2>
+          <p className="text-[11px] text-gray-500">Book multiple vendors together &amp; save {offPct(deals[0])}%</p>
         </div>
         <span className="text-[10px] text-gray-400 flex items-center gap-1 shrink-0">
           Swipe
@@ -41,7 +59,8 @@ export default function PackagesSection({ board }: Props) {
       <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-4 px-4 md:px-6 pb-1 items-stretch">
         {deals.map((deal) => {
           const isActive = activeIds.has(deal.id)
-          const cats = deal.memberListingIds.map((id) => vendors[id]?.category).filter(Boolean)
+          const cats = deal.memberListingIds.map((id) => vendors[id]?.category).filter(Boolean) as string[]
+          const rating = avgRating(deal)
           return (
             <button
               key={deal.id}
@@ -50,49 +69,51 @@ export default function PackagesSection({ board }: Props) {
                 isActive ? 'border-green-400 ring-1 ring-green-300' : 'border-card-border'
               }`}
             >
-              {/* Accent header band */}
-              <div className="h-2 bg-gradient-to-r from-magenta to-mustard shrink-0" />
+              {/* Photo strip header with an MMT-style % OFF ribbon */}
+              <div className="relative h-[92px] shrink-0 flex">
+                {deal.memberListingIds.slice(0, 3).map((id) => (
+                  <div key={id} className="flex-1" style={bgStyle(vendors[id]?.photo || '')} />
+                ))}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+                {!isActive && (
+                  <span className="absolute top-0 left-0 bg-green-600 text-white text-[11px] font-bold px-3 py-1 rounded-br-xl shadow-sm">
+                    {offPct(deal)}% OFF
+                  </span>
+                )}
+                {isActive && (
+                  <span className="absolute top-2 left-2 bg-green-500 text-white text-[10px] font-semibold px-2 py-1 rounded-full shadow-sm">Added ✓</span>
+                )}
+                {rating > 0 && (
+                  <span className="absolute bottom-2 right-2 bg-white/95 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-sm">
+                    {rating.toFixed(1)}
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" /></svg>
+                  </span>
+                )}
+              </div>
 
-              <div className="p-5 flex-1 flex flex-col min-h-0">
-                <div className="flex items-start justify-between gap-2 shrink-0">
-                  <div className="min-w-0">
-                    <p className="text-[18px] font-bold text-dark truncate">{deal.name}</p>
-                    <p className="text-[12px] text-gray-400 truncate">{deal.tagline}</p>
-                  </div>
-                  {isActive ? (
-                    <span className="bg-green-500 text-white text-[10px] font-semibold px-2 py-1 rounded-full shrink-0">Added ✓</span>
-                  ) : (
-                    <span className="bg-mustard-light text-mustard text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
-                      Save {formatINR(deal.savings)}
-                    </span>
-                  )}
+              <div className="p-4 flex-1 flex flex-col min-h-0">
+                <p className="text-[17px] font-bold text-dark truncate shrink-0">{deal.name}</p>
+                <p className="text-[11px] text-gray-400 truncate shrink-0">{deal.tagline}</p>
+
+                {/* Inclusions — MMT-style labelled list of what's bundled */}
+                <div className="flex-1 flex flex-col justify-center gap-1 min-h-0 py-2 overflow-hidden">
+                  {cats.map((cat, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-[11px] text-gray-600 truncate">
+                      <span className="shrink-0">{CATEGORY_ICON[cat] || '•'}</span>
+                      <span className="truncate">{cat}</span>
+                    </div>
+                  ))}
                 </div>
 
-                {/* Overlapping vendor avatars — centered in the card's free space */}
-                <div className="flex-1 flex flex-col justify-center gap-2 min-h-0 py-3">
-                  <div className="flex items-center">
-                    {deal.memberListingIds.slice(0, 5).map((id, i) => (
-                      <div
-                        key={id}
-                        className="w-12 h-12 rounded-full ring-2 ring-white shrink-0"
-                        style={{ ...bgStyle(vendors[id]?.photo || ''), marginLeft: i === 0 ? 0 : -12 }}
-                      />
-                    ))}
-                    {deal.memberListingIds.length > 5 && (
-                      <div className="w-12 h-12 rounded-full ring-2 ring-white bg-empty-bg flex items-center justify-center text-[11px] font-semibold text-gray-500 shrink-0" style={{ marginLeft: -12 }}>
-                        +{deal.memberListingIds.length - 5}
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-[11px] text-gray-400 truncate">{cats.join(' · ')}</span>
-                </div>
-
-                <div className="flex items-end justify-between pt-4 border-t border-card-border shrink-0">
+                <div className="flex items-end justify-between pt-3 border-t border-card-border shrink-0">
                   <div>
-                    <p className="text-[12px] text-gray-400 line-through leading-none mb-1.5">{formatINR(deal.value)}</p>
-                    <p className="text-[24px] font-bold text-magenta leading-none">{formatINR(deal.price)}</p>
+                    <p className="text-[11px] text-gray-400 leading-none mb-1">
+                      <span className="line-through">{formatINR(deal.value)}</span>
+                    </p>
+                    <p className="text-[22px] font-bold text-dark leading-none">{formatINR(deal.price)}</p>
+                    <p className="text-[11px] text-green-600 font-semibold leading-none mt-1">You save {formatINR(deal.savings)}</p>
                   </div>
-                  <span className={`text-[13px] font-semibold px-4 py-2.5 rounded-xl ${isActive ? 'bg-empty-bg text-gray-600' : 'bg-magenta text-white'}`}>
+                  <span className={`text-[13px] font-semibold px-4 py-2.5 rounded-xl shrink-0 ${isActive ? 'bg-empty-bg text-gray-600' : 'bg-magenta text-white'}`}>
                     {isActive ? 'View' : 'Add +'}
                   </span>
                 </div>
@@ -115,8 +136,8 @@ export default function PackagesSection({ board }: Props) {
                 <p className="text-[15px] font-bold text-dark">{openDeal.name} package</p>
                 <p className="text-[11px] text-gray-500">{openDeal.tagline}</p>
               </div>
-              <span className="bg-mustard-light text-mustard text-[10px] font-semibold px-2 py-1 rounded-full shrink-0">
-                Save {formatINR(openDeal.savings)}
+              <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shrink-0">
+                {offPct(openDeal)}% OFF
               </span>
             </div>
 
@@ -128,7 +149,7 @@ export default function PackagesSection({ board }: Props) {
                   <div key={id} className="flex items-center gap-3 p-2 rounded-xl bg-empty-bg">
                     <div className="w-11 h-11 rounded-lg shrink-0" style={bgStyle(v.photo)} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[9px] uppercase tracking-wide text-gray-400">{v.category}</p>
+                      <p className="text-[9px] uppercase tracking-wide text-gray-400">{(v.category && CATEGORY_ICON[v.category]) || ''} {v.category}</p>
                       <p className="text-[12px] font-medium text-dark truncate">{vendorName(id)}</p>
                     </div>
                     <span className="text-[11px] text-gray-500 shrink-0">{formatINR(v.price)}</span>
@@ -143,7 +164,7 @@ export default function PackagesSection({ board }: Props) {
                 <span className="line-through">{formatINR(openDeal.value)}</span>
               </div>
               <div className="flex items-center justify-between text-[11px] text-green-600 mt-1">
-                <span>Package discount</span>
+                <span>Package discount ({offPct(openDeal)}%)</span>
                 <span>−{formatINR(openDeal.savings)}</span>
               </div>
               <div className="flex items-center justify-between text-[14px] font-bold text-dark mt-2 pt-2 border-t border-card-border">
@@ -171,7 +192,7 @@ export default function PackagesSection({ board }: Props) {
               </button>
             )}
             <p className="text-[9px] text-gray-400 text-center mt-2">
-              Adds all {openDeal.memberListingIds.length} vendors to your event board. The discount holds while all stay selected.
+              Adds all {openDeal.memberListingIds.length} vendors to your event board. The {offPct(openDeal)}% discount holds while all stay selected.
             </p>
           </div>
         </div>

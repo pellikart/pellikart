@@ -2,11 +2,10 @@ import type { Vendor, RitualBoard, ActivePackage } from './types'
 
 /**
  * The bundle discount applied to an auto-generated package: this fraction is taken
- * off the price of the package's single cheapest member (not the whole bundle), so
- * the package price = summed "from" prices − discountPct × lowest member price.
- * Single knob — change it here to re-price every package.
+ * off the whole bundle total, so the package price = summed "from" prices ×
+ * (1 − discountPct). Single knob — change it here to re-price every package.
  */
-export const PACKAGE_DISCOUNT_PCT = 0.10
+export const PACKAGE_DISCOUNT_PCT = 0.05
 
 /** A package offer computed from the currently-loaded vendors (not persisted). */
 export interface PackageDeal {
@@ -80,7 +79,7 @@ function pickFrom(sorted: Vendor[], offset = 0, mid = false): Vendor | undefined
  * Auto-generate multi-vendor packages for a board from the loaded vendors. Each
  * package spans the board's core categories (those present with a priced vendor).
  * Only vendors with a price > 0 are eligible. The package price is the summed
- * "from" prices minus {@link PACKAGE_DISCOUNT_PCT} of the single cheapest member.
+ * "from" prices minus {@link PACKAGE_DISCOUNT_PCT} of that bundle total.
  * Deterministic — same inputs always yield the same packages (up to 10).
  */
 export function generatePackages(
@@ -127,9 +126,8 @@ export function generatePackages(
     const memberListingIds = members.map((m) => m.id)
     const value = members.reduce((sum, m) => sum + m.price, 0)
     if (value <= 0) continue
-    // The discount comes off the single cheapest member only, not the whole bundle.
-    const lowest = Math.min(...members.map((m) => m.price))
-    const savings = Math.round(lowest * discountPct)
+    // The discount comes off the whole bundle total.
+    const savings = Math.round(value * discountPct)
     const price = value - savings
     deals.push({
       id: `pkg-${recipe.id}`,
