@@ -282,16 +282,18 @@ export function getHairSelectionTotal(
  * Mehendi, Makeup, Saree Draping, Hair Styling). Returns null when nothing is
  * configured, so the card/total falls back to the vendor's `price`.
  */
-export function getCategorySelectionTotal(vendor: Vendor | undefined, category: Category | undefined): number | null {
+export function getCategorySelectionTotal(vendor: Vendor | undefined, category: Category | undefined, guests?: number): number | null {
   if (!vendor || !category) return null
   // Most categories are exclusive, but a Makeup artist can also offer Saree
   // Draping and Hair Styling as add-ons — sum whatever the couple configured.
-  // Venue per-plate: reflect the couple's chosen package's per-plate price
-  // (falls back to the venue's "from" price via getListingTotal when unset).
+  // Venue per-plate: reflect the couple's chosen package's per-plate price.
+  // When a guest count is passed, return the full plate total (price/plate ×
+  // guests); otherwise return the per-plate rate (for the "/plate" display).
   const venuePlate = (() => {
     if (!category.selectedPlatePackageId || !vendor.platePackages?.length) return null
     const pkg = vendor.platePackages.find(p => p.id === category.selectedPlatePackageId)
-    return pkg ? pkg.pricePerPlate : null
+    if (!pkg) return null
+    return guests && guests > 0 ? pkg.pricePerPlate * guests : pkg.pricePerPlate
   })()
   const parts = [
     venuePlate,
@@ -398,6 +400,19 @@ export function formatDateRange(start?: string, end?: string): string {
 // A couple picks a guest-count bucket per event (e.g. "200-500", "1000+"); a
 // venue listing stores its served capacity as a [min, max] range. These let the
 // couple-side UI softly flag venues whose capacity covers the couple's count.
+
+/**
+ * A couple's guest count as a single number, for per-plate totals. Onboarding now
+ * captures an exact number ("400" → 400). For couples onboarded under the old
+ * range buckets ("200-500", "1000+"), use the UPPER limit ("200-500" → 500,
+ * "1000+" → 1000). Returns 0 when unset.
+ */
+export function guestCountFor(bucket: string | undefined): number {
+  const r = parseGuestBucket(bucket)
+  if (!r) return 0
+  const [min, max] = r
+  return Number.isFinite(max) ? max : min
+}
 
 /** Parse a couple's guest bucket ("200-500", "1000+") into [min, max]. */
 export function parseGuestBucket(bucket: string | undefined): [number, number] | null {

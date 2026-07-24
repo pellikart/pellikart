@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { OnboardingData } from '@/lib/types'
@@ -6,7 +6,10 @@ import { formatINR } from '@/lib/helpers'
 import RoleSwitch from '@/components/RoleSwitch'
 
 const PRESET_EVENTS = ['Engagement', 'Pelli Choopulu', 'Bottu', 'Haldi', 'Mehendi', 'Sangeeth', 'Pelli Koduku/Pellikuthuru Function', 'Pelli (Wedding)', 'Reception']
-const GUEST_OPTIONS = ['100-200', '200-500', '500-1000', '1000+']
+// Guest count is captured per event as an exact number via a +/- stepper.
+const GUEST_STEP = 50
+const GUEST_MIN = 50
+const GUEST_DEFAULT = 300
 const EVENT_BUDGET_MIN = 25000
 const EVENT_BUDGET_MAX = 5000000
 const EVENT_BUDGET_STEP = 25000
@@ -41,6 +44,33 @@ export default function OnboardingPage() {
   const totalSteps = 7
   const allEvents = [...selectedEvents, ...customEvents]
   const totalBudget = allEvents.reduce((sum, e) => sum + (eventBudgets[e] ?? defaultBudgetFor(e)), 0)
+
+  // Read the current guest count for an event as a number (defaulting when unset;
+  // leading-number parse also migrates any legacy "200-500" bucket to a number).
+  const guestValue = (e: string) => {
+    const n = parseInt(eventGuests[e] ?? '', 10)
+    return Number.isFinite(n) && n > 0 ? n : GUEST_DEFAULT
+  }
+  const setGuest = (e: string, n: number) =>
+    setEventGuests((prev) => ({ ...prev, [e]: String(Math.max(GUEST_MIN, n)) }))
+
+  // On the guests step, ensure every event has a stored numeric value (fill the
+  // default, and normalize any legacy bucket string to its number) so "Next" is
+  // enabled and an exact count is always persisted.
+  useEffect(() => {
+    if (step !== 5) return
+    setEventGuests((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const e of allEvents) {
+        const n = parseInt(next[e] ?? '', 10)
+        const normalized = Number.isFinite(n) && n > 0 ? String(n) : String(GUEST_DEFAULT)
+        if (next[e] !== normalized) { next[e] = normalized; changed = true }
+      }
+      return changed ? next : prev
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, allEvents.join('|')])
 
   function detectLocation() {
     if (!('geolocation' in navigator)) {
@@ -332,41 +362,44 @@ export default function OnboardingPage() {
         {step === 5 && (
           <div className="animate-fadeIn">
             <h1 className="text-[22px] font-bold text-dark">How many guests per event?</h1>
-            <p className="text-[12px] text-gray-400 mt-1 mb-5">Guest count shapes venue options, catering packages, and pricing.</p>
-            <div className="space-y-3">
-              {allEvents.map((e) => (
-                <div key={e} className="py-2.5 border-b border-card-border/50">
-                  <p className="text-[13px] font-medium text-dark mb-2">{e}</p>
-                  <div className="flex gap-1.5">
-                    {GUEST_OPTIONS.map((g) => (
+            <p className="text-[12px] text-gray-400 mt-1 mb-5">Guest count shapes venue options, catering packages, and pricing. Adjust in steps of {GUEST_STEP}.</p>
+            <div className="space-y-1">
+              {allEvents.map((e) => {
+                const val = guestValue(e)
+                return (
+                  <div key={e} className="py-3 border-b border-card-border/50 flex items-center justify-between gap-3">
+                    <p className="text-[13px] font-medium text-dark min-w-0 truncate">{e}</p>
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
-                        key={g}
-                        onClick={() => setEventGuests((prev) => ({ ...prev, [e]: g }))}
-                        className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${
-                          eventGuests[e] === g ? 'border-2 border-magenta bg-magenta-light text-magenta' : 'border border-card-border text-dark'
-                        }`}
+                        onClick={() => setGuest(e, val - GUEST_STEP)}
+                        disabled={val <= GUEST_MIN}
+                        aria-label={`Decrease guests for ${e}`}
+                        className="w-9 h-9 rounded-full border border-card-border text-dark text-xl leading-none flex items-center justify-center active:bg-empty-bg disabled:opacity-40 transition-colors"
                       >
-                        {g}
+                        −
                       </button>
-                    ))}
+                      <div className="w-[64px] text-center">
+                        <span className="text-[17px] font-bold text-dark leading-none">{val}</span>
+                        <span className="block text-[9px] text-gray-400 leading-none mt-0.5">guests</span>
+                      </div>
+                      <button
+                        onClick={() => setGuest(e, val + GUEST_STEP)}
+                        aria-label={`Increase guests for ${e}`}
+                        className="w-9 h-9 rounded-full border border-magenta text-magenta text-xl leading-none flex items-center justify-center active:bg-magenta-light transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
-            {(() => {
-              const allGuestsSet = allEvents.every(e => eventGuests[e])
-              return (
-                <button
-                  onClick={next}
-                  disabled={!allGuestsSet}
-                  className={`mt-6 w-full py-3.5 rounded-xl font-semibold text-[15px] active:scale-[0.98] transition-transform ${
-                    allGuestsSet ? 'bg-magenta text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  Next
-                </button>
-              )
-            })()}
+            <button
+              onClick={next}
+              className="mt-6 w-full py-3.5 rounded-xl font-semibold text-[15px] bg-magenta text-white active:scale-[0.98] transition-transform"
+            >
+              Next
+            </button>
           </div>
         )}
 

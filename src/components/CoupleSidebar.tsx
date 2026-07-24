@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useStore } from '@/lib/store'
-import { formatINR, getCategorySelectionTotal } from '@/lib/helpers'
+import { formatINR, getCategorySelectionTotal, guestCountFor } from '@/lib/helpers'
 import AdminLink from './AdminLink'
 import RoleSwitch from './RoleSwitch'
 import SignOutButton from './SignOutButton'
@@ -19,10 +19,11 @@ export default function CoupleSidebar() {
   let grandTotal = 0
   let vendorCount = 0
   for (const board of ritualBoards) {
+    const guests = guestCountFor(onboardingData?.eventGuests?.[board.name])
     for (const cat of board.categories.filter((c) => !c.removed)) {
       if (cat.selectedVendorId && vendors[cat.selectedVendorId]) {
         const v = vendors[cat.selectedVendorId]
-        const sel = getCategorySelectionTotal(v, cat)
+        const sel = getCategorySelectionTotal(v, cat, guests)
         grandTotal += sel != null ? sel : v.price
         vendorCount++
       }

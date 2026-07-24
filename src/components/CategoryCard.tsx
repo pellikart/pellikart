@@ -11,13 +11,16 @@ interface Props {
   spanTwo: boolean
   unlocked: boolean
   onRemove: () => void
+  /** Guest count for this event — used to show a per-plate venue's total
+   *  (price/plate × guests) below the rate. */
+  guests?: number
   /** When set, this card is part of an active package — shows a bundle badge and
    *  routes removal straight to onRemove (the parent shows the package break prompt)
    *  instead of the generic remove confirmation. */
   packageName?: string
 }
 
-export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlocked, onRemove, packageName }: Props) {
+export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlocked, onRemove, guests, packageName }: Props) {
   const [showDetail, setShowDetail] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const navigate = useNavigate()
@@ -72,8 +75,25 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
           {(() => {
             const photoSel = getCategorySelectionTotal(vendor, category)
             const perPlateSel = vendor.category === 'Venue' && !!category.selectedPlatePackageId
-            if (photoSel != null) return <p className="text-white font-bold text-xs md:text-lg">{formatINR(photoSel)}{perPlateSel ? <span className="font-normal text-[10px] md:text-[13px]">/plate</span> : ''}</p>
-            return <p className="text-white font-bold text-xs md:text-lg">{vendor.eventPackages?.length ? <span className="font-normal text-[10px] md:text-[13px]">from </span> : ''}{formatINR(vendor.price)}{vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px] md:text-[13px]">/plate</span> : ''}</p>
+            // For a per-plate venue, show the per-plate rate AND, below it, the
+            // total for the event's guest count (price/plate × guests).
+            const plateTotal = perPlateSel && photoSel != null && guests && guests > 0 ? photoSel * guests : null
+            if (photoSel != null) return (
+              <div>
+                <p className="text-white font-bold text-xs md:text-lg">{formatINR(photoSel)}{perPlateSel ? <span className="font-normal text-[10px] md:text-[13px]">/plate</span> : ''}</p>
+                {plateTotal != null && <p className="text-white/85 font-semibold text-[10px] md:text-[13px] leading-tight">{formatINR(plateTotal)} <span className="font-normal text-white/70">· {guests} plates</span></p>}
+              </div>
+            )
+            // Fallback: no package picked yet. A per-plate-only venue shows its
+            // "from" per-plate rate; add the "from" total for the guest count.
+            const perPlateOnly = vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent')
+            const fromTotal = perPlateOnly && guests && guests > 0 ? vendor.price * guests : null
+            return (
+              <div>
+                <p className="text-white font-bold text-xs md:text-lg">{vendor.eventPackages?.length ? <span className="font-normal text-[10px] md:text-[13px]">from </span> : ''}{formatINR(vendor.price)}{perPlateOnly ? <span className="font-normal text-[10px] md:text-[13px]">/plate</span> : ''}</p>
+                {fromTotal != null && <p className="text-white/85 font-semibold text-[10px] md:text-[13px] leading-tight"><span className="font-normal text-white/70">from </span>{formatINR(fromTotal)} <span className="font-normal text-white/70">· {guests} plates</span></p>}
+              </div>
+            )
           })()}
         </button>
       </div>

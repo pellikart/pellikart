@@ -1,5 +1,5 @@
 import { useStore } from '@/lib/store'
-import { formatINR, getCategorySelectionTotal } from '@/lib/helpers'
+import { formatINR, getCategorySelectionTotal, guestCountFor } from '@/lib/helpers'
 
 export default function GrandTotalBar() {
   const { ritualBoards, vendors, onboardingData } = useStore()
@@ -10,11 +10,12 @@ export default function GrandTotalBar() {
 
   for (const board of ritualBoards) {
     const activeCats = board.categories.filter((c) => !c.removed)
+    const guests = guestCountFor(onboardingData?.eventGuests?.[board.name])
     let hasSelected = false
     for (const cat of activeCats) {
       if (cat.selectedVendorId && vendors[cat.selectedVendorId]) {
         const v = vendors[cat.selectedVendorId]
-        const sel = getCategorySelectionTotal(v, cat)
+        const sel = getCategorySelectionTotal(v, cat, guests)
         grandTotal += sel != null ? sel : v.price
         vendorCount++
         hasSelected = true

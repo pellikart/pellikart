@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { RitualBoard as RitualBoardType } from '@/lib/types'
-import { formatINR, formatDateRange, bgStyle, getCategorySelectionTotal } from '@/lib/helpers'
+import { formatINR, formatDateRange, bgStyle, getCategorySelectionTotal, guestCountFor } from '@/lib/helpers'
 import { getUnavailableVendors } from '@/lib/availability'
 import { ONBOARDING_CONFIG } from '@/lib/vendor-category-config'
 import { isPackageIntact, intactPackageForListing } from '@/lib/packages'
@@ -14,8 +14,11 @@ interface Props {
 }
 
 export default function RitualBoard({ board }: Props) {
-  const { vendors, subscription, removeCategory, restoreCategory, subscribe, addBoardCategory, removePackage } = useStore()
+  const { vendors, subscription, removeCategory, restoreCategory, subscribe, addBoardCategory, removePackage, onboardingData } = useStore()
   const unlocked = subscription !== 'free'
+  // Guests for this event (exact number now; upper limit of a legacy range) —
+  // drives per-plate venue totals (price/plate × guests).
+  const guests = guestCountFor(onboardingData?.eventGuests?.[board.name])
   const navigate = useNavigate()
   // The package-break prompt: set when a couple removes a card that belongs to an
   // active package, so we can ask whether to keep or clear the rest of the bundle.
@@ -45,7 +48,7 @@ export default function RitualBoard({ board }: Props) {
   for (const cat of filledCategories) {
     if (cat.selectedVendorId && vendors[cat.selectedVendorId]) {
       const v = vendors[cat.selectedVendorId]
-      const sel = getCategorySelectionTotal(v, cat)
+      const sel = getCategorySelectionTotal(v, cat, guests)
       ritualTotal += sel != null ? sel : v.price
     }
   }
@@ -73,7 +76,7 @@ export default function RitualBoard({ board }: Props) {
       const v = vendors[cat.selectedVendorId!]
       if (!v) continue
       const name = unlocked ? v.name : v.code
-      const sel = getCategorySelectionTotal(v, cat)
+      const sel = getCategorySelectionTotal(v, cat, guests)
       lines.push(`✅ ${cat.label}: ${name} — ${formatINR(sel != null ? sel : v.price)}`)
     }
     if (emptyCategories.length > 0) {
@@ -163,6 +166,7 @@ export default function RitualBoard({ board }: Props) {
               vendor={vendors[cat.selectedVendorId!]}
               spanTwo={index === 0 && (filledCategories.length + (emptyCategories.length > 0 ? 1 : 0)) > 2}
               unlocked={unlocked}
+              guests={guests}
               packageName={pkg?.name}
               onRemove={() => {
                 if (pkg) setBreakPrompt({ pkg, categoryId: cat.id })

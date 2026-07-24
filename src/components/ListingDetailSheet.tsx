@@ -4,7 +4,7 @@ import ExpandableText from '@/components/ExpandableText'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
 import { getListingConfig, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
@@ -436,6 +436,8 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
     return board ? onboardingData?.eventGuests?.[board.name] : undefined
   })()
   const capacityFits = derivedCategory === 'Venue' && venueFitsGuestBucket(categoryFields.capacity, eventGuestBucket)
+  // Exact guest count (upper limit for legacy ranges) for per-plate venue totals.
+  const eventGuests = guestCountFor(eventGuestBucket)
 
   return (
     <>
@@ -1145,7 +1147,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                             {pkg.minPlates ? <span className="text-[10px] text-gray-400 font-normal"> · min {pkg.minPlates}</span> : null}
                           </span>
                         </span>
-                        <span className="text-[12px] font-semibold text-magenta shrink-0">{formatINR(pkg.pricePerPlate)} <span className="text-[10px] font-normal text-gray-400">/plate</span></span>
+                        <span className="text-right shrink-0">
+                          <span className="block text-[12px] font-semibold text-magenta">{formatINR(pkg.pricePerPlate)} <span className="text-[10px] font-normal text-gray-400">/plate</span></span>
+                          {eventGuests > 0 && (
+                            <span className="block text-[10px] text-gray-500">{formatINR(pkg.pricePerPlate * eventGuests)} <span className="text-gray-400">· {eventGuests} plates</span></span>
+                          )}
+                        </span>
                       </button>
                       {(() => {
                         const pkgShowPhotos = pkg.menuMode === 'photos' && (pkg.menuPhotos?.length ?? 0) > 0

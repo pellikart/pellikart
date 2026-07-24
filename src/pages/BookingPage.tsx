@@ -1,14 +1,14 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { formatINR, bgStyle, getCategorySelectionTotal } from '@/lib/helpers'
+import { formatINR, bgStyle, getCategorySelectionTotal, guestCountFor } from '@/lib/helpers'
 import MilestoneTracker from '@/components/MilestoneTracker'
 
 export default function BookingPage() {
   const { ritualId } = useParams<{ ritualId: string }>()
   const navigate = useNavigate()
 
-  const { ritualBoards, vendors, subscription, bookVendor, bookAllVendors, cancelBooking, trialSessions } = useStore()
+  const { ritualBoards, vendors, subscription, bookVendor, bookAllVendors, cancelBooking, trialSessions, onboardingData } = useStore()
   const unlocked = subscription !== 'free'
   const [swapDialog, setSwapDialog] = useState<{ vendorId: string; amount: number } | null>(null)
   const [cancelDialog, setCancelDialog] = useState<{ vendorId: string; vendorName: string; amount: number } | null>(null)
@@ -23,11 +23,13 @@ export default function BookingPage() {
     )
   }
 
+  const guests = guestCountFor(onboardingData?.eventGuests?.[board.name])
   const activeCategories = board.categories.filter((c) => !c.removed && c.selectedVendorId)
   const vendorList = activeCategories.map((cat) => {
     const vendor = vendors[cat.selectedVendorId!]
-    // For Photography rate-card listings, the couple's team selection sets the price.
-    const effectivePrice = getCategorySelectionTotal(vendor, cat) ?? vendor?.price ?? 0
+    // For Photography rate-card listings, the couple's team selection sets the
+    // price; for a per-plate venue it's price/plate × guests.
+    const effectivePrice = getCategorySelectionTotal(vendor, cat, guests) ?? vendor?.price ?? 0
     return { category: cat, vendor, effectivePrice }
   }).filter((item) => item.vendor)
 
