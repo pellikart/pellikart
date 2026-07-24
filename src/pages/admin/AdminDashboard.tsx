@@ -31,6 +31,10 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  // List search + category filter (many vendors onboarded — narrow the list down).
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+
   async function load() {
     const rows = await fetchAdminVendors()
     setVendors(rows as AdminVendorRow[])
@@ -71,6 +75,21 @@ export default function AdminDashboard() {
     })
   }
 
+  // Categories actually present among the created vendors (for the filter dropdown).
+  const presentCategories = Array.from(new Set(vendors.map(v => v.category).filter(Boolean))).sort()
+
+  const q = search.trim().toLowerCase()
+  const filteredVendors = vendors.filter(v => {
+    if (categoryFilter && v.category !== categoryFilter) return false
+    if (!q) return true
+    return (
+      v.business_name.toLowerCase().includes(q) ||
+      (v.claim_code || '').toLowerCase().includes(q) ||
+      (v.claim_phone || '').toLowerCase().includes(q)
+    )
+  })
+  const isFiltering = q !== '' || categoryFilter !== ''
+
   function status(v: AdminVendorRow): { label: string; cls: string } {
     if (v.claimed_at || v.user_id) return { label: 'Claimed', cls: 'bg-green-100 text-green-700' }
     if (v.is_live) return { label: 'Live · unclaimed', cls: 'bg-mustard-light text-mustard-dark' }
@@ -93,7 +112,11 @@ export default function AdminDashboard() {
       <main className="max-w-2xl mx-auto px-5 py-6">
         <div className="flex items-center justify-between mb-4">
           <p className="text-[13px] text-gray-500">
-            {loading ? 'Loading…' : `${vendors.length} vendor${vendors.length === 1 ? '' : 's'} created`}
+            {loading
+              ? 'Loading…'
+              : isFiltering
+                ? `${filteredVendors.length} of ${vendors.length} vendor${vendors.length === 1 ? '' : 's'}`
+                : `${vendors.length} vendor${vendors.length === 1 ? '' : 's'} created`}
           </p>
           <button
             onClick={() => { setShowAdd(true); setError(null) }}
@@ -103,14 +126,54 @@ export default function AdminDashboard() {
           </button>
         </div>
 
+        {/* Search + category filter */}
+        {!loading && vendors.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-2.5 mb-4">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]">🔍</span>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name, claim code or phone…"
+                className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-card-border text-[13px] focus:border-magenta outline-none bg-white"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[15px] leading-none hover:text-gray-600"
+                >×</button>
+              )}
+            </div>
+            <select
+              value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)}
+              className="sm:w-52 px-3.5 py-2.5 rounded-xl border border-card-border text-[13px] focus:border-magenta outline-none bg-white"
+            >
+              <option value="">All categories</option>
+              {presentCategories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+
         {loading ? null : vendors.length === 0 ? (
           <div className="bg-white rounded-2xl border border-card-border p-8 text-center">
             <p className="text-[14px] text-gray-500">No vendors yet.</p>
             <p className="text-[12px] text-gray-400 mt-1">Tap “Add vendor” to enter your first quotation.</p>
           </div>
+        ) : filteredVendors.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-card-border p-8 text-center">
+            <p className="text-[14px] text-gray-500">No vendors match your search.</p>
+            <button
+              onClick={() => { setSearch(''); setCategoryFilter('') }}
+              className="text-[12px] font-semibold text-magenta mt-2"
+            >
+              Clear filters
+            </button>
+          </div>
         ) : (
           <ul className="space-y-2.5">
-            {vendors.map(v => {
+            {filteredVendors.map(v => {
               const st = status(v)
               return (
                 <li key={v.id} className="bg-white rounded-2xl border border-card-border p-4">
