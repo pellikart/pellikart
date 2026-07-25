@@ -1,59 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/lib/store'
 import type { RitualBoard, Vendor } from '@/lib/types'
-import { generatePackages, memberEffectivePrice, type PackageDeal } from '@/lib/packages'
+import { generatePackages, type PackageDeal } from '@/lib/packages'
 import { formatINR, bgStyle, guestCountFor } from '@/lib/helpers'
-
-/** Coerce a categoryFields value (string | string[]) to a readable string. */
-function asText(x: unknown): string {
-  if (Array.isArray(x)) return x.join(', ')
-  return (x ?? '').toString().trim()
-}
-
-/** Up to 4 short, human-readable facts about a vendor's offering, by category —
- *  drawn from its structured fields so the package sheet shows real services, not
- *  just a name and a price. */
-function vendorFacts(v: Vendor): string[] {
-  const cf = v.categoryFields || {}
-  const facts: string[] = []
-  const push = (s: string) => { if (s && s.trim()) facts.push(s.trim()) }
-  switch (v.category) {
-    case 'Venue':
-      push(asText(cf.venueType))
-      push(v.capacity ? `${v.capacity} guests` : (cf.capacity ? `${asText(cf.capacity)} guests` : ''))
-      push(asText(cf.setting) ? `${asText(cf.setting)} setting` : '')
-      push(asText(cf.foodPolicy))
-      break
-    case 'Catering':
-      push(asText(cf.cuisineTypes))
-      push(cf.menuItems ? `${asText(cf.menuItems)} dishes` : '')
-      push(cf.liveCounters ? `${asText(cf.liveCounters)} live counters` : '')
-      push(asText(cf.teamSize))
-      break
-    case 'Photography':
-      push(v.experience ? `${v.experience} yrs experience` : '')
-      push(v.teamSize ? `Team of ${v.teamSize}` : '')
-      push(v.eventPackages?.length ? `${v.eventPackages.length} event package${v.eventPackages.length > 1 ? 's' : ''}` : '')
-      break
-    case 'Decor':
-      push(asText(v.style))
-      push(v.sizes?.length ? `${v.sizes.length} size options` : '')
-      break
-    default:
-      push(asText(v.style))
-      push(v.experience ? `${v.experience} yrs experience` : '')
-  }
-  if (facts.length === 0) { push(v.packageTier); push(v.area) }
-  return facts.slice(0, 4)
-}
-
-/** Best-effort "what's included" chips for a vendor. */
-function vendorIncludes(v: Vendor): string[] {
-  if (v.includes?.length) return v.includes
-  const cf = v.categoryFields || {}
-  if (Array.isArray(cf.specialCounters)) return cf.specialCounters as string[]
-  return []
-}
+import ListingDetailSheet from './ListingDetailSheet'
 
 interface Props {
   board: RitualBoard
@@ -72,6 +22,9 @@ export default function PackagesSection({ board }: Props) {
   const { vendors, subscription, onboardingData, applyPackage, removePackage } = useStore()
   const unlocked = subscription !== 'free'
   const [openDeal, setOpenDeal] = useState<PackageDeal | null>(null)
+  // A package member the couple tapped → opens the same rich vendor detail sheet
+  // they'd get from the board (with the matching board category for context).
+  const [detailVendor, setDetailVendor] = useState<Vendor | null>(null)
 
   const guests = guestCountFor(onboardingData?.eventGuests?.[board.name])
   const deals = useMemo(() => generatePackages(vendors, board, guests), [vendors, board, guests])
@@ -93,6 +46,11 @@ export default function PackagesSection({ board }: Props) {
     if (rs.length === 0) return 0
     return rs.reduce((s, r) => s + r, 0) / rs.length
   }
+
+  // The (non-removed) board category matching a member's category label, so the
+  // detail sheet opens with the same board context as tapping from the board.
+  const categoryIdFor = (v: Vendor) =>
+    board.categories.find((c) => !c.removed && c.label === v.category)?.id
 
   return (
     <div className="h-full min-h-0 flex flex-col pt-3 pb-2">
@@ -193,68 +151,39 @@ export default function PackagesSection({ board }: Props) {
               </span>
             </div>
 
-            <div className="mt-4 space-y-2.5">
+            {/* All member vendors as the same photo-tile cards used on the board —
+                tap any to open its full detail sheet (identical to the board). */}
+            <div className="mt-4 grid grid-cols-2 gap-2">
               {openDeal.memberListingIds.map((id) => {
                 const v = vendors[id]
                 if (!v) return null
-                const memberTotal = memberEffectivePrice(v, guests)
-                const isPlateTotal = memberTotal !== v.price
-                const facts = vendorFacts(v)
-                const includes = vendorIncludes(v)
-                const plates = v.category === 'Venue' ? (v.platePackages || []) : []
+                const perPlateOnly = v.category === 'Venue' && v.venuePricingModels?.includes('perPlate') && !v.venuePricingModels?.includes('rent')
+                const fromTotal = perPlateOnly && guests > 0 ? v.price * guests : null
                 return (
-                  <div key={id} className="p-3 rounded-xl bg-empty-bg">
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-lg shrink-0" style={bgStyle(v.photo)} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[9px] uppercase tracking-wide text-gray-400">{(v.category && CATEGORY_ICON[v.category]) || ''} {v.category}</p>
-                        <p className="text-[13px] font-semibold text-dark truncate">{vendorName(id)}</p>
-                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mt-0.5">
-                          {v.packageTier && <span className="truncate">{v.packageTier}</span>}
-                          {v.rating > 0 && <span className="shrink-0">· ★ {v.rating.toFixed(1)}</span>}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-[12px] font-semibold text-dark">{formatINR(memberTotal)}</span>
-                        {isPlateTotal && (
-                          <p className="text-[9px] text-gray-400 leading-none">{formatINR(v.price)}/plate · {guests} plates</p>
+                  <button
+                    key={id}
+                    onClick={() => setDetailVendor(v)}
+                    className="relative rounded-xl overflow-hidden min-h-[128px] text-left active:scale-[0.98] transition-transform"
+                    style={bgStyle(v.photo)}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+                    <div className="relative z-10 h-full w-full flex flex-col justify-between p-2.5 min-h-[128px]">
+                      <span className="self-start bg-white/90 text-dark text-[10px] font-medium px-2 py-0.5 rounded-full">{v.category}</span>
+                      <div>
+                        <p className="text-white font-semibold text-[12px] truncate leading-tight mb-0.5">{vendorName(id)}</p>
+                        <p className="text-white font-bold text-[13px] leading-none">
+                          {v.eventPackages?.length ? <span className="font-normal text-[10px]">from </span> : ''}
+                          {formatINR(v.price)}
+                          {perPlateOnly ? <span className="font-normal text-[10px]">/plate</span> : ''}
+                        </p>
+                        {fromTotal != null && (
+                          <p className="text-white/85 font-semibold text-[10px] leading-tight mt-0.5">
+                            <span className="font-normal text-white/70">from </span>{formatINR(fromTotal)} <span className="font-normal text-white/70">· {guests} plates</span>
+                          </p>
                         )}
                       </div>
                     </div>
-
-                    {v.description && <p className="text-[11px] text-gray-500 mt-2 line-clamp-2">{v.description}</p>}
-
-                    {facts.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {facts.map((f, i) => (
-                          <span key={i} className="text-[10px] text-gray-600 bg-white rounded-full px-2 py-0.5 border border-card-border">{f}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {plates.length > 0 && (
-                      <div className="mt-2 space-y-0.5">
-                        {plates.map((p) => (
-                          <div key={p.id} className="flex items-center justify-between text-[10px]">
-                            <span className="text-gray-500 truncate">🍽️ {p.name || 'Plate package'}</span>
-                            <span className="text-gray-600 font-medium shrink-0">{formatINR(p.pricePerPlate)}/plate</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {includes.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-[9px] uppercase tracking-wide text-gray-400 mb-1">Includes</p>
-                        <div className="flex flex-wrap gap-1">
-                          {includes.slice(0, 8).map((inc, i) => (
-                            <span key={i} className="text-[10px] text-green-700 bg-green-50 rounded px-1.5 py-0.5">{inc}</span>
-                          ))}
-                          {includes.length > 8 && <span className="text-[10px] text-gray-400 self-center">+{includes.length - 8} more</span>}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -297,6 +226,17 @@ export default function PackagesSection({ board }: Props) {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Full vendor detail — the same sheet couples get from the board */}
+      {detailVendor && (
+        <ListingDetailSheet
+          vendor={detailVendor}
+          unlocked={unlocked}
+          onClose={() => setDetailVendor(null)}
+          ritualId={board.id}
+          categoryId={categoryIdFor(detailVendor)}
+        />
       )}
     </div>
   )
