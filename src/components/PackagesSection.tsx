@@ -1,8 +1,59 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/lib/store'
-import type { RitualBoard } from '@/lib/types'
+import type { RitualBoard, Vendor } from '@/lib/types'
 import { generatePackages, memberEffectivePrice, type PackageDeal } from '@/lib/packages'
 import { formatINR, bgStyle, guestCountFor } from '@/lib/helpers'
+
+/** Coerce a categoryFields value (string | string[]) to a readable string. */
+function asText(x: unknown): string {
+  if (Array.isArray(x)) return x.join(', ')
+  return (x ?? '').toString().trim()
+}
+
+/** Up to 4 short, human-readable facts about a vendor's offering, by category —
+ *  drawn from its structured fields so the package sheet shows real services, not
+ *  just a name and a price. */
+function vendorFacts(v: Vendor): string[] {
+  const cf = v.categoryFields || {}
+  const facts: string[] = []
+  const push = (s: string) => { if (s && s.trim()) facts.push(s.trim()) }
+  switch (v.category) {
+    case 'Venue':
+      push(asText(cf.venueType))
+      push(v.capacity ? `${v.capacity} guests` : (cf.capacity ? `${asText(cf.capacity)} guests` : ''))
+      push(asText(cf.setting) ? `${asText(cf.setting)} setting` : '')
+      push(asText(cf.foodPolicy))
+      break
+    case 'Catering':
+      push(asText(cf.cuisineTypes))
+      push(cf.menuItems ? `${asText(cf.menuItems)} dishes` : '')
+      push(cf.liveCounters ? `${asText(cf.liveCounters)} live counters` : '')
+      push(asText(cf.teamSize))
+      break
+    case 'Photography':
+      push(v.experience ? `${v.experience} yrs experience` : '')
+      push(v.teamSize ? `Team of ${v.teamSize}` : '')
+      push(v.eventPackages?.length ? `${v.eventPackages.length} event package${v.eventPackages.length > 1 ? 's' : ''}` : '')
+      break
+    case 'Decor':
+      push(asText(v.style))
+      push(v.sizes?.length ? `${v.sizes.length} size options` : '')
+      break
+    default:
+      push(asText(v.style))
+      push(v.experience ? `${v.experience} yrs experience` : '')
+  }
+  if (facts.length === 0) { push(v.packageTier); push(v.area) }
+  return facts.slice(0, 4)
+}
+
+/** Best-effort "what's included" chips for a vendor. */
+function vendorIncludes(v: Vendor): string[] {
+  if (v.includes?.length) return v.includes
+  const cf = v.categoryFields || {}
+  if (Array.isArray(cf.specialCounters)) return cf.specialCounters as string[]
+  return []
+}
 
 interface Props {
   board: RitualBoard
@@ -142,25 +193,67 @@ export default function PackagesSection({ board }: Props) {
               </span>
             </div>
 
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-2.5">
               {openDeal.memberListingIds.map((id) => {
                 const v = vendors[id]
                 if (!v) return null
                 const memberTotal = memberEffectivePrice(v, guests)
                 const isPlateTotal = memberTotal !== v.price
+                const facts = vendorFacts(v)
+                const includes = vendorIncludes(v)
+                const plates = v.category === 'Venue' ? (v.platePackages || []) : []
                 return (
-                  <div key={id} className="flex items-center gap-3 p-2 rounded-xl bg-empty-bg">
-                    <div className="w-11 h-11 rounded-lg shrink-0" style={bgStyle(v.photo)} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[9px] uppercase tracking-wide text-gray-400">{(v.category && CATEGORY_ICON[v.category]) || ''} {v.category}</p>
-                      <p className="text-[12px] font-medium text-dark truncate">{vendorName(id)}</p>
+                  <div key={id} className="p-3 rounded-xl bg-empty-bg">
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-lg shrink-0" style={bgStyle(v.photo)} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] uppercase tracking-wide text-gray-400">{(v.category && CATEGORY_ICON[v.category]) || ''} {v.category}</p>
+                        <p className="text-[13px] font-semibold text-dark truncate">{vendorName(id)}</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mt-0.5">
+                          {v.packageTier && <span className="truncate">{v.packageTier}</span>}
+                          {v.rating > 0 && <span className="shrink-0">· ★ {v.rating.toFixed(1)}</span>}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[12px] font-semibold text-dark">{formatINR(memberTotal)}</span>
+                        {isPlateTotal && (
+                          <p className="text-[9px] text-gray-400 leading-none">{formatINR(v.price)}/plate · {guests} plates</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-[11px] text-gray-500">{formatINR(memberTotal)}</span>
-                      {isPlateTotal && (
-                        <p className="text-[9px] text-gray-400 leading-none">{formatINR(v.price)}/plate · {guests} plates</p>
-                      )}
-                    </div>
+
+                    {v.description && <p className="text-[11px] text-gray-500 mt-2 line-clamp-2">{v.description}</p>}
+
+                    {facts.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {facts.map((f, i) => (
+                          <span key={i} className="text-[10px] text-gray-600 bg-white rounded-full px-2 py-0.5 border border-card-border">{f}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    {plates.length > 0 && (
+                      <div className="mt-2 space-y-0.5">
+                        {plates.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between text-[10px]">
+                            <span className="text-gray-500 truncate">🍽️ {p.name || 'Plate package'}</span>
+                            <span className="text-gray-600 font-medium shrink-0">{formatINR(p.pricePerPlate)}/plate</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {includes.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[9px] uppercase tracking-wide text-gray-400 mb-1">Includes</p>
+                        <div className="flex flex-wrap gap-1">
+                          {includes.slice(0, 8).map((inc, i) => (
+                            <span key={i} className="text-[10px] text-green-700 bg-green-50 rounded px-1.5 py-0.5">{inc}</span>
+                          ))}
+                          {includes.length > 8 && <span className="text-[10px] text-gray-400 self-center">+{includes.length - 8} more</span>}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
