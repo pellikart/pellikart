@@ -234,6 +234,7 @@ export interface AppState {
   // Actions
   setRole: (role: AppRole) => void;
   completeOnboarding: (data: OnboardingData) => void;
+  updateOnboardingData: (patch: Partial<OnboardingData>) => void;
   subscribe: (tier: SubscriptionTier) => void;
   selectVendor: (ritualId: string, categoryId: string, vendorId: string) => void;
   selectVendorTier: (ritualId: string, categoryId: string, tierHours: number | undefined) => void;

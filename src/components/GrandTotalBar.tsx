@@ -1,8 +1,16 @@
+import { useState } from 'react'
 import { useStore } from '@/lib/store'
 import { formatINR, getCategorySelectionTotal, guestCountFor } from '@/lib/helpers'
+import ProfileSheet from './ProfileSheet'
 
 export default function GrandTotalBar() {
   const { ritualBoards, vendors, onboardingData } = useStore()
+  const [showProfile, setShowProfile] = useState(false)
+
+  // Initials for the profile button (first letters of both partners).
+  const initials = onboardingData
+    ? `${onboardingData.partner1?.[0] ?? ''}${onboardingData.partner2?.[0] ?? ''}`.toUpperCase() || '👤'
+    : '👤'
 
   let grandTotal = 0
   let eventCount = 0
@@ -33,11 +41,21 @@ export default function GrandTotalBar() {
           </p>
           <p className="text-lg font-bold text-dark tracking-tight">{formatINR(grandTotal)}</p>
         </div>
-        <div className="text-right text-[11px] text-gray-400">
-          <p>{eventCount} events</p>
-          <p>{vendorCount} vendors</p>
+        <div className="flex items-center gap-3">
+          <div className="text-right text-[11px] text-gray-400">
+            <p>{eventCount} events</p>
+            <p>{vendorCount} vendors</p>
+          </div>
+          <button
+            onClick={() => setShowProfile(true)}
+            aria-label="Profile"
+            className="w-9 h-9 rounded-full bg-magenta-light text-magenta text-[12px] font-bold flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+          >
+            {initials}
+          </button>
         </div>
       </div>
+      {showProfile && <ProfileSheet onClose={() => setShowProfile(false)} />}
     </div>
   )
 }

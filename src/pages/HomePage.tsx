@@ -6,9 +6,6 @@ import UnlockBanner from '@/components/UnlockBanner'
 import TrialsBanner from '@/components/TrialsBanner'
 import RitualBoard from '@/components/RitualBoard'
 import PackagesSection from '@/components/PackagesSection'
-import SignOutButton from '@/components/SignOutButton'
-import RoleSwitch from '@/components/RoleSwitch'
-import AdminLink from '@/components/AdminLink'
 
 export default function HomePage() {
   const { ritualBoards, vendors, addRitualBoard, activeBoardId, setActiveBoardId } = useStore()
@@ -116,15 +113,6 @@ export default function HomePage() {
               <p className="text-[10px] text-gray-400">Create a board for your first event</p>
             </button>
           )}
-
-          {/* Account — mobile only; on desktop these live in the sidebar footer */}
-          <div className="md:hidden px-4 mt-6 mb-2 max-w-[480px] mx-auto space-y-3">
-            <AdminLink />
-            <div className="text-[12px] text-gray-400">
-              Are you a vendor? <RoleSwitch to="vendor" />
-            </div>
-            <SignOutButton />
-          </div>
         </div>
 
         {/* Multi-vendor packages — tall scroll-to section on mobile, 50% on desktop */}

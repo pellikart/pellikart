@@ -747,6 +747,19 @@ export const useStore = create<AppState & LiveModeState & {
     }
   },
 
+  // Patch the couple's onboarding answers (names, location, per-event guests, …)
+  // WITHOUT regenerating boards — used by the profile editor. Merges into the
+  // in-memory onboardingData (so totals/packages re-price immediately) and, in
+  // live mode, persists the merged record to the couples table.
+  updateOnboardingData: (patch) => {
+    const cur = get().onboardingData
+    if (!cur) return
+    const next = { ...cur, ...patch }
+    set({ onboardingData: next })
+    const { _liveMode, _userId } = get()
+    if (_liveMode && _userId) upsertCouple(_userId, next)
+  },
+
   subscribe: (tier) => {
     set({ subscription: tier })
     const { _liveMode, _userId } = get()
