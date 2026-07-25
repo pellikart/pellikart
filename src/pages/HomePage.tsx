@@ -96,11 +96,12 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Board + packages split the remaining viewport 50/50 — the board scrolls
-          in its half, the packages carousel fills the other half. */}
+      {/* Board + packages split the remaining viewport. On mobile the board gets
+          the lion's share (75/25) so the event card stays prominent; on desktop
+          they split 50/50. The board scrolls in its share, packages fills the rest. */}
       <div className="flex-1 min-h-0 flex flex-col">
-        {/* Top half — event board (scrolls internally if tall) */}
-        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar mt-3 md:mt-0">
+        {/* Event board (scrolls internally if tall) */}
+        <div className="flex-[3] md:flex-1 min-h-0 overflow-y-auto no-scrollbar mt-3 md:mt-0">
           {activeBoard ? (
             <RitualBoard key={activeBoard.id} board={activeBoard} />
           ) : (
@@ -126,7 +127,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Bottom half — multi-vendor packages */}
+        {/* Multi-vendor packages — 25% on mobile, 50% on desktop */}
         {activeBoard && (
           <div className="flex-1 min-h-0 flex flex-col border-t border-card-border bg-empty-bg/30">
             <PackagesSection board={activeBoard} />
