@@ -38,6 +38,7 @@ export default function LandingNav({ transparentOnTop = false }: Props) {
     { label: 'Home', href: '/' },
     { label: 'Why us', href: '/why' },
     { label: 'Showcase', href: '/showcase' },
+    { label: 'Articles', href: '/articles' },
     { label: 'How it works', href: '/try' },
     { label: 'App', href: '/app', external: true },
   ]

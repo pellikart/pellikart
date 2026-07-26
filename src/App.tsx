@@ -8,6 +8,7 @@ import ClaimPage from './pages/ClaimPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminVendorEditor from './pages/admin/AdminVendorEditor'
 import LandingPage from './pages/LandingPage'
+import ArticlesPage from './pages/ArticlesPage'
 import ShowcasePage from './pages/ShowcasePage'
 import TryAppPage from './pages/TryAppPage'
 import WhyUsPage from './pages/WhyUsPage'
@@ -59,6 +60,17 @@ export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
       <Routes>
         <Route path="/showcase" element={<ShowcasePage />} />
         <Route path="/showcase/:slug" element={<ShowcasePage />} />
+      </Routes>
+    )
+  }
+
+  // Marketing articles route — public, no auth. /articles is the index;
+  // /articles/:slug renders a single article.
+  if (pathname === '/articles' || pathname.startsWith('/articles/')) {
+    return (
+      <Routes>
+        <Route path="/articles" element={<ArticlesPage />} />
+        <Route path="/articles/:slug" element={<ArticlesPage />} />
       </Routes>
     )
   }
