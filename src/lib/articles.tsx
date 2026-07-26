@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import MarriageRegistrationTelangana from '@/pages/articles/MarriageRegistrationTelangana'
+import MuhurthamDates2026 from '@/pages/articles/MuhurthamDates2026'
 
 /**
  * Articles registry for the marketing site (/articles).
@@ -38,6 +39,18 @@ export interface Article {
 }
 
 export const ARTICLES: Article[] = [
+  {
+    slug: 'telugu-muhurtham-dates-2026-2027',
+    title: 'Telugu marriage muhurtham dates 2026–2027: which months are open',
+    excerpt:
+      'Which months have pelli muhurthams between August 2026 and March 2027, which are closed and why, and what your date does to the price of a hall in Hyderabad.',
+    cover: '/articles/muhurtham-dates-hero.jpg',
+    date: 'July 2026',
+    author: 'Team Pellikart',
+    readMins: 5,
+    layout: 'full',
+    Body: MuhurthamDates2026,
+  },
   {
     slug: 'marriage-registration-telangana',
     title: 'Marriage registration in Telangana: documents, fees and process',
