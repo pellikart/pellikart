@@ -99,7 +99,14 @@ export default function CategoryBoardPage() {
           // In live mode, vendor IDs are listing UUIDs. Match by checking
           // if the vendor's style/packageTier/category matches this board category.
           // The vendor map is keyed by listing ID, and the "code" field contains "Category NNN"
-          return v.code.toLowerCase().startsWith(category.label.toLowerCase())
+          if (!v.code.toLowerCase().startsWith(category.label.toLowerCase())) return false
+          // Per-event fan-out rows (Entertainers `::ent::`, Photography `::evt::`)
+          // each carry a single ritual tag. On an event board, only show the row
+          // for THIS event — otherwise all 5 fanned rows appear on every board.
+          // Non-fanned listings have no such id and stay event-agnostic here.
+          const isFanned = v.id.includes('::ent::') || v.id.includes('::evt::')
+          if (isFanned && !(v.rituals || []).includes(board.name)) return false
+          return true
         })
         .map(v => ({ id: v.id, vendorId: v.id, name: v.name, photo: v.photo, style: v.style, price: v.price, rating: v.rating, description: v.packageTier }))
     : getDesignsForCategory(category.label).map(d => {
