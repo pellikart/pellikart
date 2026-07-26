@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 import MarriageRegistrationTelangana from '@/pages/articles/MarriageRegistrationTelangana'
 import MuhurthamDates2026 from '@/pages/articles/MuhurthamDates2026'
+import TeluguWeddingRituals from '@/pages/articles/TeluguWeddingRituals'
+import KashiYatraChecklist from '@/pages/articles/KashiYatraChecklist'
+import NischitarthamChecklist from '@/pages/articles/NischitarthamChecklist'
 
 /**
  * Articles registry for the marketing site (/articles).
@@ -39,6 +42,42 @@ export interface Article {
 }
 
 export const ARTICLES: Article[] = [
+  {
+    slug: 'telugu-nischitartham-checklist',
+    title: 'Nischitartham checklist: what you need for a Telugu engagement',
+    excerpt:
+      'What goes in the nischaya tambulam, what the lagna patrika must contain, and why your invitation cards cannot be printed until it is written.',
+    cover: '/articles/nischitartham-hero.jpg',
+    date: 'July 2026',
+    author: 'Team Pellikart',
+    readMins: 5,
+    layout: 'full',
+    Body: NischitarthamChecklist,
+  },
+  {
+    slug: 'kashi-yatra-checklist',
+    title: 'Kashi Yatra checklist: everything you need for the ceremony',
+    excerpt:
+      'What the groom carries, what the bride’s family keeps ready, who stops him, and what to brief your photographer and decorator on.',
+    cover: '/articles/kashi-yatra-hero.jpg',
+    date: 'July 2026',
+    author: 'Team Pellikart',
+    readMins: 4,
+    layout: 'full',
+    Body: KashiYatraChecklist,
+  },
+  {
+    slug: 'telugu-wedding-rituals-in-order',
+    title: 'Telugu wedding rituals in order: the full sequence explained',
+    excerpt:
+      'Every Telugu wedding ritual in order with the Telugu names, from నిశ్చితార్థం to గృహప్రవేశం. What happens, who does what, and which moments to brief your photographer on.',
+    cover: '/articles/rituals-hero.jpg',
+    date: 'July 2026',
+    author: 'Team Pellikart',
+    readMins: 6,
+    layout: 'full',
+    Body: TeluguWeddingRituals,
+  },
   {
     slug: 'telugu-muhurtham-dates-2026-2027',
     title: 'Telugu marriage muhurtham dates 2026–2027: which months are open',
