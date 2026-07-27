@@ -4,6 +4,10 @@ import MuhurthamDates2026 from '@/pages/articles/MuhurthamDates2026'
 import TeluguWeddingRituals from '@/pages/articles/TeluguWeddingRituals'
 import KashiYatraChecklist from '@/pages/articles/KashiYatraChecklist'
 import NischitarthamChecklist from '@/pages/articles/NischitarthamChecklist'
+import WeddingGiftIdeas from '@/pages/articles/WeddingGiftIdeas'
+import SangeetSongs from '@/pages/articles/SangeetSongs'
+import TeluguWeddingChecklist from '@/pages/articles/TeluguWeddingChecklist'
+import HyderabadWeddingCost from '@/pages/articles/HyderabadWeddingCost'
 
 /**
  * Articles registry for the marketing site (/articles).
@@ -42,6 +46,54 @@ export interface Article {
 }
 
 export const ARTICLES: Article[] = [
+  {
+    slug: 'telugu-sangeet-songs-playlists',
+    title: 'Sangeet songs: 8 Telugu playlists for every part of the night',
+    excerpt:
+      'Eight themed Telugu sangeet playlists, from the grand entry to the last hour, with the bride’s side versus groom’s side face off and a set for the parents.',
+    cover: '/articles/sangeet-songs-hero.jpg',
+    date: 'July 2026',
+    author: 'Team Pellikart',
+    readMins: 5,
+    layout: 'full',
+    Body: SangeetSongs,
+  },
+  {
+    slug: 'wedding-gift-ideas-by-budget',
+    title: 'What to gift at a wedding: 48 ideas by budget',
+    excerpt:
+      'How much cash to give at a Telugu wedding, why it must end in 1, and 48 gift ideas priced in rupees across four budget bands, each with links.',
+    cover: '/articles/wedding-gifts-hero.jpg',
+    date: 'July 2026',
+    author: 'Team Pellikart',
+    readMins: 6,
+    layout: 'full',
+    Body: WeddingGiftIdeas,
+  },
+  {
+    slug: 'telugu-wedding-planning-checklist',
+    title: 'Telugu wedding planning checklist: month by month',
+    excerpt:
+      'A wedding checklist built for a Telugu pelli. Jathakam to appagintalu, with every task tagged to the bride’s side, the groom’s side or the couple.',
+    cover: '/articles/planning-checklist-hero.jpg',
+    date: 'July 2026',
+    author: 'Team Pellikart',
+    readMins: 6,
+    layout: 'full',
+    Body: TeluguWeddingChecklist,
+  },
+  {
+    slug: 'hyderabad-wedding-cost',
+    title: 'How much does a wedding cost in Hyderabad? Real vendor rates 2026',
+    excerpt:
+      'Actual Hyderabad wedding costs vendor by vendor — catering per plate, photographer day rates, makeup, decor and flowers, with a live estimator for your guest count.',
+    cover: '/articles/wedding-cost-hero.jpg',
+    date: 'July 2026',
+    author: 'Team Pellikart',
+    readMins: 6,
+    layout: 'full',
+    Body: HyderabadWeddingCost,
+  },
   {
     slug: 'telugu-nischitartham-checklist',
     title: 'Nischitartham checklist: what you need for a Telugu engagement',
