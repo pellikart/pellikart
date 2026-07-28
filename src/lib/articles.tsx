@@ -8,6 +8,7 @@ import WeddingGiftIdeas from '@/pages/articles/WeddingGiftIdeas'
 import SangeetSongs from '@/pages/articles/SangeetSongs'
 import TeluguWeddingChecklist from '@/pages/articles/TeluguWeddingChecklist'
 import HyderabadWeddingCost from '@/pages/articles/HyderabadWeddingCost'
+import WeddingEmergencyKit from '@/pages/articles/WeddingEmergencyKit'
 
 /**
  * Articles registry for the marketing site (/articles).
@@ -46,6 +47,18 @@ export interface Article {
 }
 
 export const ARTICLES: Article[] = [
+  {
+    slug: 'telugu-wedding-emergency-kit',
+    title: 'Telugu wedding emergency kit: 76 things to pack',
+    excerpt:
+      'The complete wedding emergency kit checklist — 76 items across wardrobe, beauty, first aid, electronics and food, sorted into four pouches so nothing gets hunted for.',
+    cover: '/articles/emergency-kit-hero.jpg',
+    date: 'July 2026',
+    author: 'Team Pellikart',
+    readMins: 5,
+    layout: 'full',
+    Body: WeddingEmergencyKit,
+  },
   {
     slug: 'telugu-sangeet-songs-playlists',
     title: 'Sangeet songs: 8 Telugu playlists for every part of the night',
