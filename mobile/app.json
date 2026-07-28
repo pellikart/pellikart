@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Pellikart",
+    "slug": "pellikart",
+    "scheme": "pellikart",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#ffffff",
+    "primaryColor": "#E91E78",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pellikart.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Pellikart uses your location to show wedding vendors and venues near you, and to measure how far a venue is from your home."
+      }
+    },
+    "android": {
+      "package": "com.pellikart.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FDE7F1",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "experiments": {
+      "tsconfigPaths": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-font",
+      "expo-image",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo.png",
+          "imageWidth": 120,
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Pellikart uses your location to show wedding vendors and venues near you."
+        }
+      ],
+      "expo-web-browser",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Pellikart needs access to your photos so you can add them to your listings."
+        }
+      ]
+    ]
+  }
+}
