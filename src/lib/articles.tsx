@@ -108,13 +108,13 @@ export const ARTICLES: Article[] = [
   },
   {
     slug: 'kashi-yatra-checklist',
-    title: 'Kashi Yatra checklist: everything you need for the ceremony',
+    title: 'Kashi Yatra checklist: everything you need before the priest asks',
     excerpt:
-      'What the groom carries, what the bride’s family keeps ready, who stops him, and what to brief your photographer and decorator on.',
+      'The complete Kashi Yatra checklist — all 24 items, what each one means, who is supposed to arrange it, and the mistakes families make every time.',
     cover: '/articles/kashi-yatra-hero.jpg',
     date: 'July 2026',
     author: 'Team Pellikart',
-    readMins: 4,
+    readMins: 5,
     layout: 'full',
     Body: KashiYatraChecklist,
   },
