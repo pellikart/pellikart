@@ -533,8 +533,8 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         subtitle: 'What kind of stall is this and where can couples use it?',
         fields: [
           { key: 'stallType', label: 'Stall type', type: 'single', allowCustom: true, options: ['Live Paintings / Portraits', 'Caricatures', 'Bangle Stall', 'Live Mehendi (guest)', 'Saree Draping', 'Tarot / Astrology', 'Pottery / Craft Station', 'Calligraphy / Name Personalization', 'Temporary Tattoo Artist', 'Photo Booth (Instant Prints)'] },
-          { key: 'artistsOnDuty', label: 'Artists on duty', type: 'single', options: ['1', '2', '3', '4+'] },
-          { key: 'duration', label: 'Stall duration', type: 'single', options: ['1 hour', '2 hours', '3 hours', '4 hours', 'Full event'] },
+          { key: 'artistsOnDuty', label: 'Artists on duty', type: 'number', numberMin: 1, numberMax: 20, numberStep: 1, numberUnit: 'artists' },
+          { key: 'duration', label: 'Stall duration', type: 'number', numberMin: 1, numberMax: 12, numberStep: 1, numberUnit: 'hours' },
         ],
       },
       {
