@@ -290,10 +290,27 @@ supabase secrets set SEND_SMS_HOOK_SECRET=v1,whsec_... MSG91_AUTHKEY=... \
 The MSG91 templates need a single OTP variable; the SMS template must be
 DLT-approved and the WhatsApp template approved by Meta.
 
-### Not yet built
+**PostGIS proximity matching is in** — distance is computed in the database so
+web and mobile get identical numbers (plan §4), instead of each client running
+its own haversine:
 
-- **PostGIS proximity matching** — the remaining plan "NEW" item (matching runs
-  client-side today via haversine in the shared `geo.ts`).
+- `049_postgis_matching.sql` enables PostGIS, adds a `geo` column to
+  `vendor_listings` (kept in sync from `venue_location` by a trigger), a GIST
+  index, and a **`listings_near(lat, lng, category?, radius, maxPrice?)`** RPC
+  returning listings ranked by DB-computed `distance_km`.
+- The couple's category board calls it (`src/lib/matching.ts`) when they have a
+  home location, sorting venues nearest-first and showing a "📍 X km away" badge
+  from the server value (rendered with the shared `formatDistance`). No-ops in
+  demo / web preview, leaving the default order.
+
+Deploy: `supabase db push` (049). Requires the PostGIS extension, which Supabase
+projects include. Only venue listings carry coordinates, so those are what the
+RPC ranks; other categories keep their existing non-spatial matching.
+
+### Launch prep (Phase 5) — remaining
+
+- Offline / poor-network handling, Sentry crash reporting, in-app account
+  deletion (Apple requirement), store assets + submission.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
   deletion (Apple), store assets and submission.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account

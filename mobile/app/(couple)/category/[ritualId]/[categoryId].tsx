@@ -10,16 +10,18 @@
 // and the venue plate-package picker. Those are layered features deferred to a
 // later pass; the core discover → shortlist → select → visit journey is here.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useStore } from '@shared/store'
 import { formatINR } from '@shared/helpers'
+import { formatDistance } from '@shared/geo'
 import type { Category, Vendor } from '@shared/types'
 import { Screen, Text } from '@/components/ui'
 import { VendorName } from '@/components/VendorName'
 import { VendorDetailSheet } from '@/components/VendorDetailSheet'
+import { fetchNearbyListings } from '@/lib/matching'
 import { colors, radius } from '@/theme/tokens'
 
 export default function CategoryBoard() {
@@ -28,25 +30,55 @@ export default function CategoryBoard() {
   const ritualBoards = useStore((s) => s.ritualBoards)
   const vendors = useStore((s) => s.vendors)
   const subscription = useStore((s) => s.subscription)
+  const onboardingData = useStore((s) => s.onboardingData)
   const addToShortlist = useStore((s) => s.addToShortlist)
   const removeFromShortlist = useStore((s) => s.removeFromShortlist)
 
   const unlocked = subscription !== 'free'
   const [detailVendorId, setDetailVendorId] = useState<string | null>(null)
+  // listing id → distance (km) from the couple, computed by PostGIS server-side.
+  const [distanceById, setDistanceById] = useState<Record<string, number>>({})
 
   const board = ritualBoards.find((b) => b.id === ritualId)
   const category = board?.categories.find((c) => c.id === categoryId)
 
+  const coupleLat = onboardingData?.locationLat
+  const coupleLng = onboardingData?.locationLng
+
+  // Pull DB-computed distances for this category when the couple has a location.
+  // No-ops in demo / web preview (Supabase unconfigured), leaving the feed in its
+  // default order.
+  useEffect(() => {
+    if (coupleLat == null || coupleLng == null || !category) return
+    let cancelled = false
+    fetchNearbyListings({ lat: coupleLat, lng: coupleLng, category: category.label }).then((rows) => {
+      if (cancelled) return
+      const map: Record<string, number> = {}
+      for (const r of rows) map[r.id] = r.distance_km
+      setDistanceById(map)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [coupleLat, coupleLng, category?.label])
+
   // Explore feed: every vendor in the map whose listing belongs to this
   // category. The store keys the vendor map by listing id and stamps
-  // `code` as "Category NNN", which is how the web page matches too.
+  // `code` as "Category NNN", which is how the web page matches too. When DB
+  // distances are available, nearest venues sort first.
   const exploreVendors = useMemo(() => {
     if (!category) return []
     const label = category.label.toLowerCase()
-    return Object.values(vendors).filter(
+    const list = Object.values(vendors).filter(
       (v) => (v.category?.toLowerCase() === label) || v.code.toLowerCase().startsWith(label)
     )
-  }, [vendors, category])
+    if (Object.keys(distanceById).length === 0) return list
+    return [...list].sort((a, b) => {
+      const da = distanceById[a.id] ?? Infinity
+      const db = distanceById[b.id] ?? Infinity
+      return da - db
+    })
+  }, [vendors, category, distanceById])
 
   if (!board || !category) {
     return (
@@ -96,6 +128,7 @@ export default function CategoryBoard() {
               vendor={vendor}
               category={category}
               unlocked={unlocked}
+              distanceKm={distanceById[vendor.id]}
               shortlisted={shortlistedIds.has(vendor.id)}
               selected={category.selectedVendorId === vendor.id}
               onTap={() => setDetailVendorId(vendor.id)}
@@ -126,6 +159,7 @@ function VendorCard({
   vendor,
   category,
   unlocked,
+  distanceKm,
   shortlisted,
   selected,
   onTap,
@@ -134,6 +168,7 @@ function VendorCard({
   vendor: Vendor
   category: Category
   unlocked: boolean
+  distanceKm?: number
   shortlisted: boolean
   selected: boolean
   onTap: () => void
@@ -179,11 +214,18 @@ function VendorCard({
             {perPlate ? '/plate' : ''}
           </Text>
         </View>
-        {vendor.rating > 0 && (
-          <Text variant="caption" color="rgba(255,255,255,0.85)">
-            ★ {vendor.rating.toFixed(1)}
-          </Text>
-        )}
+        <View style={styles.cardFooter}>
+          {vendor.rating > 0 && (
+            <Text variant="caption" color="rgba(255,255,255,0.85)">
+              ★ {vendor.rating.toFixed(1)}
+            </Text>
+          )}
+          {distanceKm != null && (
+            <Text variant="caption" color="rgba(255,255,255,0.85)">
+              📍 {formatDistance(distanceKm)}
+            </Text>
+          )}
+        </View>
       </View>
     </Pressable>
   )
@@ -204,4 +246,5 @@ const styles = StyleSheet.create({
   heart: { position: 'absolute', top: 10, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' },
   cardBody: { padding: 14, gap: 2 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 })
