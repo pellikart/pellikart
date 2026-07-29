@@ -77,6 +77,8 @@ export interface Vendor {
   sareeDrapingPricing?: import('./vendor-category-config').SareeDrapingPricing;
   /** Makeup add-on only: bridal/groom per-look + guest hair-styling pricing. */
   hairStylingPricing?: import('./vendor-category-config').HairStylingPricing;
+  /** Live Stalls-only: 'package' (flat `price`) or 'perItem' (items × guests). */
+  stallPricing?: import('./vendor-category-config').StallPricing;
   rituals?: string[];
   transportIncluded?: boolean;
   transportExtra?: number;
@@ -160,6 +162,8 @@ export interface Category {
   sareeSelection?: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number };
   /** Makeup add-on only: the couple's hair-styling selection — bridal looks, groom looks, guests. */
   hairSelection?: { bridalLooks?: number; groomLooks?: number; guests?: number };
+  /** Live Stalls per-item only: the couple's picked item ids + guest count. */
+  stallSelection?: { itemIds?: string[]; guests?: number };
   /** Catering/Venue menu picks. Keyed by vendor/listing id → package id (or
    *  'listing' for a package-less catering menu) → section name → picked dish
    *  keys (bank dish id number, or custom dish name string). */
@@ -250,6 +254,7 @@ export interface AppState {
   selectMakeupOptions: (ritualId: string, categoryId: string, selection: { eventLooks?: Record<string, number>; groom?: boolean; guests?: number; addons?: string[] }) => void;
   selectSareeOptions: (ritualId: string, categoryId: string, selection: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number }) => void;
   selectHairOptions: (ritualId: string, categoryId: string, selection: { bridalLooks?: number; groomLooks?: number; guests?: number }) => void;
+  selectStallOptions: (ritualId: string, categoryId: string, selection: { itemIds?: string[]; guests?: number }) => void;
   /** Save the couple's menu dish picks for a vendor's package (or 'listing' for
    *  a package-less catering menu), keyed per section. */
   selectMenuOptions: (ritualId: string, categoryId: string, vendorId: string, packageKey: string, sectionPicks: Record<string, (number | string)[]>) => void;

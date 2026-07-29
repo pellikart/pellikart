@@ -4,7 +4,7 @@ import ExpandableText from '@/components/ExpandableText'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, getStallFromPrice, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
 import { getListingConfig, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
@@ -211,7 +211,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const [lightbox, setLightbox] = useState<number | null>(null)
   // Menu-photo zoom: a single menu image URL to show full-screen, or null.
   const [menuPhotoZoom, setMenuPhotoZoom] = useState<string | null>(null)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, addVenueToBoard, selectPhotographyEventServices, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, addVenueToBoard, selectPhotographyEventServices, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectStallOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -348,6 +348,28 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   function addHair() {
     if (!ritualId || !categoryId) return
     selectHairOptions(ritualId, categoryId, hairSel)
+    selectVendor(ritualId, categoryId, vendor.id)
+  }
+
+  // ── Live Stalls per-item selection (picked items + guest count) ──
+  const savedStall = currentCategory?.stallSelection
+  const [stallSel, setStallSel] = useState<{ itemIds?: string[]; guests?: number }>(
+    () => savedStall ?? {},
+  )
+  function updateStall(patch: Partial<typeof stallSel>) {
+    const next = { ...stallSel, ...patch }
+    setStallSel(next)
+    if (ritualId && categoryId) selectStallOptions(ritualId, categoryId, next)
+  }
+  function toggleStallItem(id: string) {
+    const cur = stallSel.itemIds || []
+    updateStall({ itemIds: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] })
+  }
+  function addStall() {
+    if (!ritualId || !categoryId) return
+    // Resolve the effective guest count (prefilled from onboarding if untouched).
+    const finalSel = { itemIds: stallSel.itemIds || [], guests: stallSel.guests ?? eventGuests }
+    selectStallOptions(ritualId, categoryId, finalSel)
     selectVendor(ritualId, categoryId, vendor.id)
   }
 
@@ -1063,8 +1085,88 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )
             })()}
 
-            {/* Price (non rate-card / non-mehendi / non-makeup / non-saree / non-hair listings) */}
-            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.banjantriluPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (
+            {/* Live Stalls — per-item (× guests) interactive picker */}
+            {vendor.stallPricing?.mode === 'perItem' && (() => {
+              const p = vendor.stallPricing!
+              const items = p.items || []
+              const fromPrice = getStallFromPrice(p)
+              const guests = stallSel.guests ?? eventGuests
+              const picked = stallSel.itemIds || []
+              const perGuest = items.filter(it => picked.includes(it.id)).reduce((s, it) => s + it.pricePerGuest, 0)
+              const total = perGuest > 0 && guests > 0 ? perGuest * guests : null
+              return (
+                <div className="mb-4">
+                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)} <span className="text-[12px] font-normal text-gray-400">/ guest</span></p>
+                  <p className="text-[10px] text-gray-400 mb-2">Pick the items you want — your price updates live</p>
+                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-3">
+                    {/* Items */}
+                    <div className="space-y-1.5">
+                      {items.map(it => {
+                        const on = picked.includes(it.id)
+                        return (
+                          <button
+                            key={it.id} type="button" onClick={() => toggleStallItem(it.id)}
+                            className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all ${on ? 'border-magenta bg-white' : 'border-card-border bg-white/60'}`}
+                          >
+                            <span className="flex items-center gap-2 min-w-0">
+                              <span className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${on ? 'border-magenta bg-magenta' : 'border-gray-300 bg-white'}`}>
+                                {on && <span className="text-white text-[9px] leading-none">✓</span>}
+                              </span>
+                              <span className="text-[12px] font-medium text-dark truncate">{it.name}</span>
+                            </span>
+                            <span className="text-[12px] font-semibold text-dark shrink-0">{formatINR(it.pricePerGuest)} <span className="text-[9px] font-normal text-gray-400">/guest</span></span>
+                          </button>
+                        )
+                      })}
+                      {items.length === 0 && <p className="text-[11px] text-gray-400 italic">No items listed.</p>}
+                    </div>
+
+                    {/* Guests */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[12px] font-medium text-dark">Guests</p>
+                        <p className="text-[10px] text-gray-500">Multiplies the item prices</p>
+                      </div>
+                      <div className="inline-flex items-stretch rounded-lg border border-card-border overflow-hidden bg-white shrink-0">
+                        <button type="button" onClick={() => updateStall({ guests: Math.max(0, guests - 10) })} disabled={guests <= 0} className="px-2.5 text-dark text-[14px] font-medium disabled:opacity-30 active:bg-mustard-light/40">−</button>
+                        <StepperValueInput value={guests} onChange={v => updateStall({ guests: v })} />
+                        <button type="button" onClick={() => updateStall({ guests: guests + 10 })} className="px-2.5 text-dark text-[14px] font-medium active:bg-mustard-light/40">+</button>
+                      </div>
+                    </div>
+
+                    {/* Total */}
+                    {total != null && (
+                      <div className="pt-3 border-t border-mustard/20 space-y-1">
+                        <TransportRow vendor={vendor} />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                          <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Add to board */}
+                    {ritualId && categoryId && (
+                      <button
+                        type="button" onClick={addStall}
+                        className={`w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                          isAddedToBoard
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-magenta text-white active:scale-[0.98]'
+                        }`}
+                      >
+                        {isAddedToBoard
+                          ? '✓ Added to your board'
+                          : total != null ? `Add to my board · ${formatINR(total)}` : 'Add to my board'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Price (non rate-card / non-mehendi / non-makeup / non-saree / non-hair / non-per-item-stall listings) */}
+            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.banjantriluPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && vendor.stallPricing?.mode !== 'perItem' && (
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
             )}
             {vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
@@ -1081,7 +1183,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               <p className="text-[10px] text-gray-400">Starting price · varies by size below</p>
             )}
             {/* Transport & logistics — informational yes/no only (varies by distance, no amount) */}
-            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.banjantriluPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && (vendor.transportIncluded === true ? (
+            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.banjantriluPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && vendor.stallPricing?.mode !== 'perItem' && (vendor.transportIncluded === true ? (
               <>
                 <p className="text-[10px] text-green-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0">
                   Transport &amp; logistics included

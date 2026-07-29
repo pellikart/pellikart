@@ -1,5 +1,5 @@
 import type { Vendor, Category } from './types'
-import { PHOTOGRAPHY_EVENT_SERVICES, type PhotographyEventPackage, type PhotographyPricingModel, type EntertainerPricing, type BanjantriluPricing, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
+import { PHOTOGRAPHY_EVENT_SERVICES, type PhotographyEventPackage, type PhotographyPricingModel, type EntertainerPricing, type BanjantriluPricing, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing, type StallPricing } from './vendor-category-config'
 
 /**
  * Returns the base price for a vendor given the couple's selected hourly tier.
@@ -292,6 +292,39 @@ export function getHairSelectionTotal(
  * Mehendi, Makeup, Saree Draping, Hair Styling). Returns null when nothing is
  * configured, so the card/total falls back to the vendor's `price`.
  */
+/**
+ * The "from" price for a Live Stall listing priced per item — the cheapest
+ * per-guest item rate. Returns 0 for package-priced (flat) stalls, which use the
+ * listing's own `price` instead.
+ */
+export function getStallFromPrice(p?: StallPricing): number {
+  if (!p || p.mode !== 'perItem') return 0
+  const prices = (p.items || []).map(i => i.pricePerGuest).filter(v => v > 0)
+  return prices.length ? Math.min(...prices) : 0
+}
+
+/**
+ * The couple's selected total for a per-item Live Stall: the sum of the picked
+ * items' per-guest rates × the guest count. Null when nothing meaningful is
+ * picked (no items or no guests), so callers fall back to the "from" price.
+ */
+export function getStallSelectionTotal(
+  vendor: Vendor | undefined,
+  sel: { itemIds?: string[]; guests?: number } | undefined,
+): number | null {
+  const p = vendor?.stallPricing
+  if (!p || p.mode !== 'perItem' || !sel) return null
+  const guests = sel.guests || 0
+  const picked = sel.itemIds || []
+  if (guests <= 0 || picked.length === 0) return null
+  let perGuest = 0
+  for (const id of picked) {
+    const it = p.items?.find(i => i.id === id)
+    if (it && it.pricePerGuest > 0) perGuest += it.pricePerGuest
+  }
+  return perGuest > 0 ? perGuest * guests : null
+}
+
 export function getCategorySelectionTotal(vendor: Vendor | undefined, category: Category | undefined, guests?: number): number | null {
   if (!vendor || !category) return null
   // Most categories are exclusive, but a Makeup artist can also offer Saree
@@ -313,6 +346,7 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
     getMakeupSelectionTotal(vendor, category.makeupSelection),
     getSareeSelectionTotal(vendor, category.sareeSelection),
     getHairSelectionTotal(vendor, category.hairSelection),
+    getStallSelectionTotal(vendor, category.stallSelection),
   ].filter((v): v is number => v != null)
   return parts.length ? parts.reduce((a, b) => a + b, 0) : null
 }

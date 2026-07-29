@@ -253,6 +253,8 @@ export interface VendorListing {
   sareeDrapingPricing?: import('./vendor-category-config').SareeDrapingPricing
   /** Makeup add-on only: bridal/groom per-look + guest hair-styling pricing. */
   hairStylingPricing?: import('./vendor-category-config').HairStylingPricing
+  /** Live Stalls-only: 'package' (flat `price`) or 'perItem' (items × guests). */
+  stallPricing?: import('./vendor-category-config').StallPricing
   /** Whether transport & logistics is bundled into the listing price. */
   transportIncluded?: boolean
   /** Extra transport & logistics charge in ₹ (only meaningful when transportIncluded === false). */

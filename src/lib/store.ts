@@ -283,6 +283,10 @@ export function buildLiveVendorMap(
         const hp = l.hair_styling_pricing as import('./vendor-category-config').HairStylingPricing | null
         return hp && (hp.bridalPricePerLook || hp.groomPricePerLook || hp.guestPricePerPerson) ? hp : undefined
       })(),
+      stallPricing: (() => {
+        const sp = l.stall_pricing as import('./vendor-category-config').StallPricing | null
+        return sp && sp.mode ? sp : undefined
+      })(),
       // Banjantrilu is shown as ONE listing per vendor (not fanned per card), so its
       // board-matching events are the union of its priced cards' events.
       rituals: (() => {
@@ -949,6 +953,20 @@ export const useStore = create<AppState & LiveModeState & {
     }))
     if (_liveMode) {
       updateBoardCategory(categoryId, { hairSelection: selection })
+    }
+  },
+
+  selectStallOptions: (ritualId, categoryId, selection) => {
+    const { _liveMode } = get()
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, stallSelection: selection } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { stallSelection: selection })
     }
   },
 

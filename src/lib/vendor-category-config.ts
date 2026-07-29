@@ -845,6 +845,40 @@ export function emptyMehendiPricing(): MehendiPricing {
   return { bridalOffered: true, bridal: {}, conesIncluded: true }
 }
 
+// ─── LIVE STALLS PRICING ────────────────────
+
+/**
+ * Live Stalls price in one of two mutually-exclusive ways:
+ *  - 'package': a single flat price for the whole stall (the listing's `price`).
+ *  - 'perItem': a list of items, each priced PER GUEST. The couple ticks the
+ *    items they want and enters a guest count; total = Σ(picked item ₹/guest) ×
+ *    guests. Vendors can add custom items with their own per-guest cost.
+ */
+export interface StallItem {
+  id: string
+  name: string
+  /** ₹ per guest for this item. */
+  pricePerGuest: number
+}
+
+export interface StallPricing {
+  mode: 'package' | 'perItem'
+  /** perItem mode only: the named, per-guest-priced items. */
+  items?: StallItem[]
+}
+
+/** A fresh, empty stall pricing object (flat package price by default). */
+export function emptyStallPricing(): StallPricing {
+  return { mode: 'package', items: [] }
+}
+
+let stallItemSeq = 0
+/** A unique id for a stall item. Timestamped so freshly-added items never
+ *  collide with ids restored from the DB in the same session. */
+export function newStallItemId(): string {
+  return `stl-${Date.now().toString(36)}-${++stallItemSeq}`
+}
+
 // ─── MAKEUP PRICING ─────────────────────────
 
 /**

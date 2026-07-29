@@ -3,13 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
-import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, banjantriluCardValid, photographyPackageHasPrice, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing } from '@/lib/vendor-category-config'
+import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice, getStallFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, emptyStallPricing, banjantriluCardValid, photographyPackageHasPrice, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing, type StallPricing } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
 import EntertainerPricingEditor from '@/components/EntertainerPricingEditor'
 import BanjantriluPricingEditor from '@/components/BanjantriluPricingEditor'
+import StallPricingEditor from '@/components/StallPricingEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuEditor from '@/components/MenuEditor'
 import PlateSlotsEditor from '@/components/PlateSlotsEditor'
@@ -54,6 +55,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const [entertainerPricing, setEntertainerPricing] = useState<EntertainerPricing>(emptyEntertainerPricing())
   // Banjantrilu-only: per-event pricing cards (event + artists + hours + flat price).
   const [banjantriluPricing, setBanjantriluPricing] = useState<BanjantriluPricing>(emptyBanjantriluPricing())
+  // Live Stalls-only: flat package price vs per-item (× guests) pricing.
+  const [stallPricing, setStallPricing] = useState<StallPricing>(emptyStallPricing())
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
@@ -121,6 +124,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setEventPackages([])
     setEntertainerPricing(emptyEntertainerPricing())
     setBanjantriluPricing(emptyBanjantriluPricing())
+    setStallPricing(emptyStallPricing())
     setIncludes([])
     setCategoryFields({})
     setBundledListings([])
@@ -392,6 +396,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       : category === 'Hosts / Entertainers' ? entertainerFrom
       // Banjantrilu: the "from" figure is the cheapest priced event card.
       : category === 'Banjantrilu' ? banjantriluFrom
+      // Live Stalls per-item: the "from" figure is the cheapest per-guest item.
+      : category === 'Live Stalls' && stallPricing.mode === 'perItem' ? getStallFromPrice(stallPricing)
       : price
 
     // Upload paid-room photos in live mode and replace blob URLs with public URLs.
@@ -552,6 +558,11 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       eventPackages: category === 'Photography' && validEventPackages.length > 0 ? validEventPackages : undefined,
       entertainerPricing: category === 'Hosts / Entertainers' && entertainerReady ? cleanedEntertainerPricing : undefined,
       banjantriluPricing: category === 'Banjantrilu' && banjantriluReady ? cleanedBanjantriluPricing : undefined,
+      stallPricing: category === 'Live Stalls'
+        ? (stallPricing.mode === 'perItem'
+            ? { mode: 'perItem' as const, items: (stallPricing.items || []).filter(i => i.name.trim() && i.pricePerGuest > 0) }
+            : { mode: 'package' as const })
+        : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
       inHouseDecor: category === 'Venue' ? inHouseDecorForPayload : undefined,
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
@@ -860,20 +871,17 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                 ))}
               </div>
 
-              {/* Live Stalls fold pricing into the last spec screen. */}
+              {/* Live Stalls fold pricing into the last spec screen — flat package
+                  price OR per-item (× guests) pricing. */}
               {pricingInline && idx === config.steps.length - 1 && (
                 <div className="mt-6 pt-5 border-t border-card-border">
-                  <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
-                  <p className="text-[24px] font-bold text-mustard mb-2">{formatINR(price)}</p>
-                  <input
-                    type="range" min={pr.min} max={pr.max} step={pr.step}
-                    value={price} onChange={(e) => setPrice(Number(e.target.value))}
-                    className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
-                    style={{ background: `linear-gradient(to right, #D4A017 ${((price - pr.min) / (pr.max - pr.min)) * 100}%, #eee ${((price - pr.min) / (pr.max - pr.min)) * 100}%)` }}
+                  <StallPricingEditor
+                    value={stallPricing}
+                    onChange={setStallPricing}
+                    price={price}
+                    onPriceChange={setPrice}
+                    priceRange={pr}
                   />
-                  <div className="flex justify-between text-[9px] text-gray-400 mt-1">
-                    <span>{formatINR(pr.min)}</span><span>{formatINR(pr.max)}</span>
-                  </div>
                 </div>
               )}
 

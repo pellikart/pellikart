@@ -4,8 +4,8 @@ import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
-import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, banjantriluCardValid, photographyPackageHasPrice, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing } from '@/lib/vendor-category-config'
+import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getStallFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, emptyStallPricing, banjantriluCardValid, photographyPackageHasPrice, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing, type StallPricing } from '@/lib/vendor-category-config'
 import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice, InHouseDecor, PaidRoom } from '@/lib/vendor-types'
 import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
@@ -20,6 +20,7 @@ import MakeupPricingEditor from '@/components/MakeupPricingEditor'
 import MakeupAddonsEditor from '@/components/MakeupAddonsEditor'
 import SareeDrapingPricingEditor from '@/components/SareeDrapingPricingEditor'
 import HairStylingPricingEditor from '@/components/HairStylingPricingEditor'
+import StallPricingEditor from '@/components/StallPricingEditor'
 
 export default function VendorEditListing() {
   const { listingId } = useParams<{ listingId: string }>()
@@ -48,6 +49,7 @@ export default function VendorEditListing() {
   const [eventPackages, setEventPackages] = useState<PhotographyEventPackage[]>(emptyPhotographyEventPackages())
   const [entertainerPricing, setEntertainerPricing] = useState<EntertainerPricing>(emptyEntertainerPricing())
   const [banjantriluPricing, setBanjantriluPricing] = useState<BanjantriluPricing>(emptyBanjantriluPricing())
+  const [stallPricing, setStallPricing] = useState<StallPricing>(emptyStallPricing())
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
   const [makeupAddons, setMakeupAddons] = useState<Record<string, number>>({})
@@ -115,6 +117,7 @@ export default function VendorEditListing() {
       setEventPackages(listing.eventPackages || emptyPhotographyEventPackages())
       setEntertainerPricing(listing.entertainerPricing || emptyEntertainerPricing())
       setBanjantriluPricing(listing.banjantriluPricing || emptyBanjantriluPricing())
+      setStallPricing(listing.stallPricing || emptyStallPricing())
       setMehendiPricing(listing.mehendiPricing || emptyMehendiPricing())
       setMehendiAddon(listing.category === 'Makeup' && !!listing.mehendiPricing)
       setMakeupPricing(listing.makeupPricing || emptyMakeupPricing())
@@ -421,6 +424,7 @@ export default function VendorEditListing() {
       : category === 'Saree Draping' ? getSareeDrapingFromPrice(sareePricing)
       : category === 'Venue' ? venueFrom
       : category === 'Decor' ? decorFrom
+      : category === 'Live Stalls' && stallPricing.mode === 'perItem' ? getStallFromPrice(stallPricing)
       : price
     // Venue: keep the map-link coordinates fresh. Re-resolve only when the link
     // changed; otherwise reuse the coords already stored. Best-effort.
@@ -445,6 +449,11 @@ export default function VendorEditListing() {
       eventPackages: category === 'Photography' && validEventPackages.length > 0 ? validEventPackages : undefined,
       entertainerPricing: category === 'Hosts / Entertainers' && entertainerReady ? cleanedEntertainerPricing : undefined,
       banjantriluPricing: category === 'Banjantrilu' && banjantriluReady ? cleanedBanjantriluPricing : undefined,
+      stallPricing: category === 'Live Stalls'
+        ? (stallPricing.mode === 'perItem'
+            ? { mode: 'perItem' as const, items: (stallPricing.items || []).filter(i => i.name.trim() && i.pricePerGuest > 0) }
+            : { mode: 'package' as const })
+        : listing.stallPricing,
       mehendiPricing: category === 'Mehendi' ? mehendiPricing
         : category === 'Makeup' && makeupDetailed && mehendiAddon ? mehendiPricing
         : undefined,
@@ -947,6 +956,19 @@ export default function VendorEditListing() {
           <div>
             <label className="text-[11px] font-medium text-dark block mb-1.5">Sizes &amp; pricing</label>
             <SizesEditor value={sizes} onChange={setSizes} />
+          </div>
+        ) : category === 'Live Stalls' ? (
+          <div>
+            <StallPricingEditor
+              value={stallPricing}
+              onChange={setStallPricing}
+              price={price}
+              onPriceChange={setPrice}
+              priceRange={pr}
+            />
+            {stallPricing.mode === 'perItem' && getStallFromPrice(stallPricing) > 0 && (
+              <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(getStallFromPrice(stallPricing))}</span> / guest.</p>
+            )}
           </div>
         ) : (
           <div>
