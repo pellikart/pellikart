@@ -55,12 +55,17 @@ export default function CoupleHome() {
   return (
     <Screen scroll padded={false} contentStyle={styles.page}>
       <View style={styles.header}>
-        <Text variant="h2">{names || 'Your wedding'}</Text>
-        {!!onboardingData?.budget && (
-          <Text variant="small" color={colors.gray500}>
-            Total budget {formatINR(onboardingData.budget)}
-          </Text>
-        )}
+        <View style={styles.headerCopy}>
+          <Text variant="h2">{names || 'Your wedding'}</Text>
+          {!!onboardingData?.budget && (
+            <Text variant="small" color={colors.gray500}>
+              Total budget {formatINR(onboardingData.budget)}
+            </Text>
+          )}
+        </View>
+        <Pressable onPress={() => router.push('/(couple)/notifications')} hitSlop={8} style={styles.bell}>
+          <Text variant="h2">🔔</Text>
+        </Pressable>
       </View>
 
       {ritualBoards.length > 1 && (
@@ -217,6 +222,16 @@ function BoardView({
           </View>
         </View>
       )}
+
+      {/* Booking entry. Shown only when unlocked — a locked couple has no
+          in-app path to pay (the paywall lives on the web; iOS §3). */}
+      {unlocked && filledCategories.length > 0 && (
+        <Pressable style={styles.bookBtn} onPress={() => router.push(`/(couple)/booking/${board.id}`)}>
+          <Text variant="title" color={colors.white}>
+            Book slots →
+          </Text>
+        </Pressable>
+      )}
     </View>
   )
 }
@@ -287,7 +302,9 @@ const TILE_GAP = 10
 
 const styles = StyleSheet.create({
   page: { paddingBottom: 32 },
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  headerCopy: { flex: 1 },
+  bell: { paddingTop: 2 },
   tabs: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
   tab: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999 },
   tabActive: { backgroundColor: colors.magenta },
@@ -338,4 +355,5 @@ const styles = StyleSheet.create({
   pendingLabel: { marginBottom: 8 },
   pendingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pendingChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.white },
+  bookBtn: { marginTop: 20, backgroundColor: colors.magenta, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center' },
 })

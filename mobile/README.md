@@ -180,10 +180,47 @@ with their common fields + a starting price; Decor and the single-listing
 categories (Mehendi/Makeup/Saree Draping, authored in onboarding) show a
 "manage on the web" note.
 
-Still to build, per the plan:
+**Phase 4 (money & notifications) core is in**:
 
-- **Phase 4 — money & notifications**: Razorpay booking flow, paywall entitlement
-  sync, milestone tracking, push notifications
+- Booking flow — the couple booking screen (10% booking amount: 5% one vendor,
+  4% booking all together, matching the web's incentive), book / book-all /
+  cancel with the non-refundable warning, behind a `payBookingAmount()` seam
+  (`src/lib/payments.ts`). Booking is simulated today (as the web app is); the
+  seam is the single place real Razorpay drops in — a Supabase edge function
+  creates the order server-side, then native/hosted checkout, then verify +
+  Razorpay Route payout. No in-app purchase path for unlocks (iOS §3).
+- Two-way milestone tracking — the couple `MilestoneTracker` (progress +
+  timeline + mark-complete) reads/writes the same shared state the vendor
+  advances from the Bookings screen.
+- In-app notifications — couple + vendor lists off the shared `notifications`
+  table (vendor from the store; couple fetched live with a demo fallback).
+- Push — `expo-notifications` token registration into a new `push_tokens` table,
+  plus a `send-push` Supabase edge function that fans each `notifications`
+  insert out to the user's devices via Expo Push (wire it as a DB webhook on
+  `notifications` INSERT). Registration no-ops in the web preview and Expo Go;
+  it needs a dev build to actually receive pushes.
+- Entitlement sync — the subscription tier re-reads from Supabase on every
+  foreground, so a web unlock reflects in the app within a tab-switch.
+
+### Backend deploy (push)
+
+Two new files live in the shared `supabase/` dir (not app code):
+
+- `supabase/047_push_tokens.sql` — `supabase db push` (or run in the SQL editor)
+- `supabase/functions/send-push/` — `supabase functions deploy send-push`, then
+  `supabase secrets set SB_URL=… SB_SERVICE_ROLE_KEY=…`, then add a Database
+  Webhook: table `notifications`, event INSERT → Edge Function `send-push`.
+
+### Not yet built
+
+- **Real Razorpay gateway** — the order-creation edge function + native/hosted
+  checkout + signature verification + Route payout. Needs Razorpay keys and a
+  dev build (can't run in the web preview). The `payBookingAmount()` seam is
+  ready for it.
+- **Phone / WhatsApp OTP** (MSG91), **vendor KYC**, and **PostGIS proximity
+  matching** — the remaining plan "NEW" items.
+- **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
+  deletion (Apple), store assets and submission.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
   deletion (required by Apple), store assets and submission
 

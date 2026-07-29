@@ -58,6 +58,7 @@ const SECTIONS = [
   { label: 'Leads', desc: 'Couples who picked your listings', href: '/(vendor)/leads' },
   { label: 'Visit Requests', desc: 'Approve or propose a new time', href: '/(vendor)/trials' },
   { label: 'Reviews', desc: 'All reviews and ratings', href: '/(vendor)/reviews' },
+  { label: 'Notifications', desc: 'Leads, bookings, visit requests', href: '/(vendor)/notifications' },
 ] as const
 
 export default function VendorProfileScreen() {
