@@ -85,6 +85,43 @@ export async function signInWithGoogle(role: AppRole | null): Promise<SignInResu
   return { ok: true }
 }
 
+// ─── Phone / WhatsApp OTP ───────────────────
+// Supabase manages the OTP; a Send-SMS auth hook (supabase/functions/send-sms-otp)
+// delivers it via MSG91 (WhatsApp first, SMS fallback). `role` is stamped only
+// when registering, exactly like Google — a returning phone keeps its saved role.
+
+/** Normalise a typed phone to E.164. Defaults a bare 10-digit number to +91 (India). */
+export function toE164(input: string): string | null {
+  const trimmed = input.trim()
+  if (trimmed.startsWith('+')) {
+    const digits = '+' + trimmed.slice(1).replace(/\D/g, '')
+    return digits.length >= 11 ? digits : null
+  }
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length === 10) return `+91${digits}`
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`
+  return null
+}
+
+export async function sendPhoneOtp(phoneE164: string, role: AppRole | null): Promise<SignInResult> {
+  if (!supabase) return { ok: false, error: 'Authentication is not configured.' }
+  await setPendingRole(role)
+  const { error } = await supabase.auth.signInWithOtp({ phone: phoneE164 })
+  if (error) {
+    await clearPendingRole()
+    return { ok: false, error: error.message }
+  }
+  return { ok: true }
+}
+
+export async function verifyPhoneOtp(phoneE164: string, token: string): Promise<SignInResult> {
+  if (!supabase) return { ok: false, error: 'Authentication is not configured.' }
+  const { error } = await supabase.auth.verifyOtp({ phone: phoneE164, token, type: 'sms' })
+  if (error) return { ok: false, error: error.message }
+  // On success onAuthStateChange fires and useSessionRole resolves the role.
+  return { ok: true }
+}
+
 export async function signOut() {
   await clearPendingRole()
   if (supabase) await supabase.auth.signOut()

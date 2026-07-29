@@ -265,10 +265,35 @@ supabase secrets set PLATFORM_COMMISSION_PCT=20 RELEASE_MILESTONE_TITLE="Event d
 Then add a Database Webhook: table `milestones`, event UPDATE → Edge Function
 `release-vendor-transfer`.
 
+**Phone / WhatsApp OTP is in** (plan's headline login):
+
+- The sign-in screen has a **Continue with phone** flow (phone → 6-digit code),
+  alongside Google. It uses Supabase phone OTP (`signInWithOtp` / `verifyOtp`);
+  `toE164` defaults a bare 10-digit number to +91.
+- Delivery is via MSG91 through a Supabase **Send-SMS auth hook**
+  (`supabase/functions/send-sms-otp`) — WhatsApp first (cheaper, better delivery
+  in India), SMS fallback. The hook verifies the Standard Webhooks signature so
+  only Supabase can trigger sends. Role resolution is unchanged: a new phone user
+  lands on the couple/vendor chooser exactly like a new Google user.
+
+Web auth is untouched — the hook is additive and OTP management stays in Supabase.
+
+**Enable OTP:**
+
+```
+supabase functions deploy send-sms-otp --no-verify-jwt
+# Auth → Providers → enable Phone; Auth → Hooks → Send SMS hook → this function
+supabase secrets set SEND_SMS_HOOK_SECRET=v1,whsec_... MSG91_AUTHKEY=... \
+  MSG91_WHATSAPP_TEMPLATE=... MSG91_WHATSAPP_NUMBER=... MSG91_SMS_TEMPLATE_ID=...
+```
+
+The MSG91 templates need a single OTP variable; the SMS template must be
+DLT-approved and the WhatsApp template approved by Meta.
+
 ### Not yet built
 
-- **Phone / WhatsApp OTP** (MSG91) and **PostGIS proximity matching** — the
-  remaining plan "NEW" items. (Vendor KYC now ships with Route above.)
+- **PostGIS proximity matching** — the remaining plan "NEW" item (matching runs
+  client-side today via haversine in the shared `geo.ts`).
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
   deletion (Apple), store assets and submission.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account

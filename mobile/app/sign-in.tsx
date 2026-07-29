@@ -16,13 +16,14 @@ import { Image } from 'expo-image'
 import { Redirect, router } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
 import { Button, Screen, Text } from '@/components/ui'
-import { signInWithGoogle } from '@/lib/auth'
+import { Field } from '@/components/inputs'
+import { signInWithGoogle, sendPhoneOtp, verifyPhoneOtp, toE164 } from '@/lib/auth'
 import { enterCoupleDemo, enterVendorDemo } from '@/lib/demo'
 import { colors } from '@/theme/tokens'
 import { useAuth, type AppRole } from '@shared/auth-context'
 import { supabase } from '@/lib/supabase.native'
 
-type Step = 'choice' | 'role' | 'login'
+type Step = 'choice' | 'role' | 'login' | 'phone' | 'otp'
 
 export default function SignIn() {
   const { user, loading } = useAuth()
@@ -30,6 +31,9 @@ export default function SignIn() {
   const [selectedRole, setSelectedRole] = useState<AppRole | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [phone, setPhone] = useState('')
+  const [e164, setE164] = useState('')
+  const [otp, setOtp] = useState('')
 
   // A session restored from AsyncStorage on cold start lands here first; bounce
   // it back to the gate so it can resolve a role.
@@ -55,6 +59,32 @@ export default function SignIn() {
     setBusy(false)
     if (result.ok) router.replace('/')
     // An empty message means the user dismissed the browser sheet themselves.
+    else if (result.error) setError(result.error)
+  }
+
+  async function handleSendOtp() {
+    const normalized = toE164(phone)
+    if (!normalized) {
+      setError('Enter a valid phone number.')
+      return
+    }
+    setError(null)
+    setBusy(true)
+    const result = await sendPhoneOtp(normalized, selectedRole)
+    setBusy(false)
+    if (result.ok) {
+      setE164(normalized)
+      setOtp('')
+      setStep('otp')
+    } else if (result.error) setError(result.error)
+  }
+
+  async function handleVerifyOtp() {
+    setError(null)
+    setBusy(true)
+    const result = await verifyPhoneOtp(e164, otp.trim())
+    setBusy(false)
+    if (result.ok) router.replace('/')
     else if (result.error) setError(result.error)
   }
 
@@ -147,6 +177,81 @@ export default function SignIn() {
     )
   }
 
+  if (step === 'phone') {
+    return (
+      <Screen center scroll background={colors.white}>
+        <Image source={require('../assets/logo.png')} style={styles.logoSm} contentFit="cover" />
+        <Text variant="h2" align="center">
+          Enter your phone
+        </Text>
+        <Text variant="body" color={colors.gray500} align="center" style={styles.subtitle}>
+          We&apos;ll send a one-time code by WhatsApp or SMS.
+        </Text>
+        <View style={styles.actions}>
+          <Field
+            label="Phone number"
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="+91 98765 43210"
+            keyboardType="phone-pad"
+          />
+          <Button label="Send code" variant="primary" loading={busy} onPress={handleSendOtp} />
+          <Button
+            label="← Back"
+            variant="ghost"
+            onPress={() => {
+              setStep('login')
+              setError(null)
+            }}
+          />
+        </View>
+        {!!error && (
+          <Text variant="small" color={colors.danger} align="center" style={styles.error}>
+            {error}
+          </Text>
+        )}
+      </Screen>
+    )
+  }
+
+  if (step === 'otp') {
+    return (
+      <Screen center scroll background={colors.white}>
+        <Image source={require('../assets/logo.png')} style={styles.logoSm} contentFit="cover" />
+        <Text variant="h2" align="center">
+          Enter the code
+        </Text>
+        <Text variant="body" color={colors.gray500} align="center" style={styles.subtitle}>
+          Sent to {e164}
+        </Text>
+        <View style={styles.actions}>
+          <Field
+            label="6-digit code"
+            value={otp}
+            onChangeText={setOtp}
+            placeholder="••••••"
+            keyboardType="number-pad"
+          />
+          <Button label="Verify & continue" variant="primary" loading={busy} disabled={otp.trim().length < 4} onPress={handleVerifyOtp} />
+          <Button label="Resend code" variant="ghost" onPress={handleSendOtp} />
+          <Button
+            label="← Change number"
+            variant="ghost"
+            onPress={() => {
+              setStep('phone')
+              setError(null)
+            }}
+          />
+        </View>
+        {!!error && (
+          <Text variant="small" color={colors.danger} align="center" style={styles.error}>
+            {error}
+          </Text>
+        )}
+      </Screen>
+    )
+  }
+
   const registering = selectedRole !== null
   return (
     <Screen center scroll background={colors.white}>
@@ -161,6 +266,15 @@ export default function SignIn() {
       </Text>
 
       <View style={styles.actions}>
+        <Button
+          label="Continue with phone"
+          variant="primary"
+          onPress={() => {
+            setError(null)
+            setPhone('')
+            setStep('phone')
+          }}
+        />
         <Button
           label="Continue with Google"
           variant="secondary"
