@@ -165,11 +165,14 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const hasListingTypeStep = allowedCategories.length > 1
   const hasLocationStep = category === 'Venue'
   const hasPhotosStep = category !== 'Decor'
-  const hasStylePriceStep = category !== 'Venue' && category !== 'Decor'
+  // Live Stalls fold pricing into the last spec screen (rendered inline below)
+  // instead of a standalone slide.
+  const pricingInline = category === 'Live Stalls'
+  const hasStylePriceStep = category !== 'Venue' && category !== 'Decor' && !pricingInline
   const hasPaidRoomsStep = category === 'Venue'
   const hasMenuStep = category === 'Catering'
   const hasDesignsStep = category === 'Decor'
-  const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu'
+  const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && category !== 'Live Stalls'
   // Photography, Hosts/Entertainers & Banjantrilu don't ask for listing-level events
   // — each event package / rate / card carries its own event — so rituals is skipped.
   // Live Stalls keep the events question but fold it into the first spec screen
@@ -856,6 +859,23 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                   />
                 ))}
               </div>
+
+              {/* Live Stalls fold pricing into the last spec screen. */}
+              {pricingInline && idx === config.steps.length - 1 && (
+                <div className="mt-6 pt-5 border-t border-card-border">
+                  <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
+                  <p className="text-[24px] font-bold text-mustard mb-2">{formatINR(price)}</p>
+                  <input
+                    type="range" min={pr.min} max={pr.max} step={pr.step}
+                    value={price} onChange={(e) => setPrice(Number(e.target.value))}
+                    className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
+                    style={{ background: `linear-gradient(to right, #D4A017 ${((price - pr.min) / (pr.max - pr.min)) * 100}%, #eee ${((price - pr.min) / (pr.max - pr.min)) * 100}%)` }}
+                  />
+                  <div className="flex justify-between text-[9px] text-gray-400 mt-1">
+                    <span>{formatINR(pr.min)}</span><span>{formatINR(pr.max)}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2 mt-6">
                 {stepNum - 1 < 1 ? (

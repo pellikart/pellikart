@@ -992,8 +992,8 @@ export default function VendorEditListing() {
           ))
         )}
 
-        {/* Includes */}
-        {!isSingleListingCategory(category) && (
+        {/* Includes — Live Stalls don't use an inclusions list */}
+        {!isSingleListingCategory(category) && category !== 'Live Stalls' && (
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1.5">What's included ({includes.length})</label>
           <div className="flex flex-wrap gap-2">
