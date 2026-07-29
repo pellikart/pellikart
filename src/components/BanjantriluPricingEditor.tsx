@@ -63,10 +63,10 @@ export default function BanjantriluPricingEditor({
             )}
           </div>
 
-          {/* Event — default chips + custom text */}
+          {/* Event — chips only. Defaults plus this card's own (custom) event, if any. */}
           <label className="text-[12px] font-semibold text-dark block mb-1.5">Event</label>
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {BANJANTRILU_DEFAULT_EVENTS.map(ev => {
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {Array.from(new Set([...BANJANTRILU_DEFAULT_EVENTS, card.event].filter(Boolean))).map(ev => {
               const on = card.event === ev
               return (
                 <button
@@ -80,13 +80,6 @@ export default function BanjantriluPricingEditor({
               )
             })}
           </div>
-          <input
-            type="text"
-            value={card.event}
-            onChange={(e) => setCard(card.id, { event: e.target.value })}
-            placeholder="Event name"
-            className="w-full px-3 py-2 rounded-lg border border-card-border text-[12px] outline-none focus:border-mustard mb-3"
-          />
 
           {/* Artists + hours steppers */}
           <div className="space-y-2.5 mb-3">

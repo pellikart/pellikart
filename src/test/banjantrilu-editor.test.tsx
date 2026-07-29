@@ -11,26 +11,27 @@ function Host() {
 }
 
 describe('BanjantriluPricingEditor', () => {
-  it('renders a card per default event with artists/hours/price controls', () => {
+  it('renders a card per default event with a selected event chip + artists/hours/price', () => {
     render(<Host />)
     expect(screen.getByText('Event 1')).toBeTruthy()
     expect(screen.getByText('Event 2')).toBeTruthy()
-    // Both default events pre-fill the per-card event text inputs.
-    const events = screen.getAllByPlaceholderText('Event name') as HTMLInputElement[]
-    expect(events.map(e => e.value)).toEqual(['Pelli (Wedding)', 'Pelli Koduku/Pellikuthuru Function'])
+    // Each card's own event shows as the selected (✓) chip — no echo text box.
+    expect(screen.queryByPlaceholderText('Event name')).toBeNull()
+    expect(screen.getByRole('button', { name: /✓\s*Pelli \(Wedding\)/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /✓\s*Pelli Koduku\/Pellikuthuru Function/ })).toBeTruthy()
     expect(screen.getAllByText('Number of artists')).toHaveLength(2)
     expect(screen.getAllByText('Number of hours')).toHaveLength(2)
     expect(screen.getAllByText('Price')).toHaveLength(2)
   })
 
-  it('adds another event card via the custom input', () => {
+  it('adds another event card via the custom input, shown as a selected chip', () => {
     render(<Host />)
     const input = screen.getByPlaceholderText('Add another event…') as HTMLInputElement
     fireEvent.change(input, { target: { value: 'Baraat' } })
     fireEvent.click(screen.getByText('+ Add'))
     expect(screen.getByText('Event 3')).toBeTruthy()
-    const events = screen.getAllByPlaceholderText('Event name') as HTMLInputElement[]
-    expect(events.map(e => e.value)).toContain('Baraat')
+    // The custom event appears as its card's selected chip.
+    expect(screen.getByRole('button', { name: /✓\s*Baraat/ })).toBeTruthy()
   })
 
   it('removes a card and steps artists up', () => {
