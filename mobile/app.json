@@ -60,7 +60,8 @@
           "photosPermission": "Pellikart needs access to your photos so you can add them to your listings."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "@sentry/react-native"
     ]
   }
 }

@@ -321,8 +321,17 @@ RPC ranks; other categories keep their existing non-spatial matching.
   linked accounts aren't FK-cascaded — purge/deactivate those out of band (noted
   in the function).
 
-**Remaining:** Sentry crash reporting · offline / poor-network handling · store
-assets + submission (icons, splash, privacy policy / ToS URLs, demo logins).
+**Sentry crash reporting is in:**
+
+- `@sentry/react-native` initialised in `src/lib/sentry.ts` and the root layout
+  is wrapped with `Sentry.wrap` (error boundary + navigation breadcrumbs).
+- Gated on `EXPO_PUBLIC_SENTRY_DSN` and disabled in `__DEV__`, so demo / web
+  preview / dev send nothing. Set the DSN to turn it on.
+- Readable stack traces (source maps) need the Sentry Expo plugin's org/project
+  + an auth token at EAS build time — the plugin is already in `app.json`.
+
+**Remaining:** offline / poor-network handling · store assets + submission
+(icons, splash, privacy policy / ToS URLs, demo logins).
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
   deletion (Apple), store assets and submission.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
