@@ -129,57 +129,17 @@ export function expandEntertainerListings(
   return out
 }
 
-/**
- * On the couple side, each Banjantrilu per-event pricing card becomes its own
- * ritual-matched listing (mirroring the Entertainer fan-out). This expands a raw
- * listings array so every priced card is a separate pseudo listing row — tagged to
- * that one event, priced at that card's flat price, carrying the card's artists/hours.
- *
- * Idempotent: already-expanded rows (id contains '::bmt::') pass through unchanged.
- */
-const BMT_ID_SEP = '::bmt::'
-export function expandBanjantriluListings(
-  listings: Record<string, unknown>[],
-): Record<string, unknown>[] {
-  const out: Record<string, unknown>[] = []
-  for (const l of listings) {
-    const id = l.id as string
-    // Not a Banjantrilu, or already an expanded card row → leave untouched.
-    if ((l.category as string) !== 'Banjantrilu' || (id || '').includes(BMT_ID_SEP)) {
-      out.push(l)
-      continue
-    }
-    const pricing = l.banjantrilu_pricing as BanjantriluPricing | null
-    const cards = (pricing?.cards || []).filter(c => c.event && c.price > 0)
-    // No priced cards → pass through (nothing to fan out).
-    if (cards.length === 0) { out.push(l); continue }
-
-    // One pseudo row per priced card; the base row is replaced by these.
-    for (const card of cards) {
-      out.push({
-        ...l,
-        id: `${id}${BMT_ID_SEP}${card.id}`,
-        rituals: [card.event],
-        price: card.price,
-        // Trim to this single card so the couple detail shows just this event.
-        banjantrilu_pricing: { ...pricing, cards: [card] },
-      })
-    }
-  }
-  return out
-}
-
 /** Build enriched vendor map from live Supabase data */
 export function buildLiveVendorMap(
   liveVendors: Record<string, unknown>[],
   listings: Record<string, unknown>[],
   availability: Record<string, unknown>[]
 ): { vendorMap: Record<string, Vendor>; lvMap: Record<string, string> } {
-  // Fan each Photography event package / Entertainer event rate / Banjantrilu card
-  // into its own listing.
+  // Fan each Photography event package / Entertainer event rate into its own listing.
+  // (Banjantrilu is intentionally NOT fanned — it stays one listing per vendor, with
+  // all its per-event cards shown inside the detail sheet.)
   listings = expandEventPackageListings(listings)
   listings = expandEntertainerListings(listings)
-  listings = expandBanjantriluListings(listings)
   const vendorMap: Record<string, Vendor> = {}
   const lvMap: Record<string, string> = {}
   const categoryCounts: Record<string, number> = {}
@@ -323,7 +283,16 @@ export function buildLiveVendorMap(
         const hp = l.hair_styling_pricing as import('./vendor-category-config').HairStylingPricing | null
         return hp && (hp.bridalPricePerLook || hp.groomPricePerLook || hp.guestPricePerPerson) ? hp : undefined
       })(),
-      rituals: (l.rituals as string[]) || undefined,
+      // Banjantrilu is shown as ONE listing per vendor (not fanned per card), so its
+      // board-matching events are the union of its priced cards' events.
+      rituals: (() => {
+        if (cat === 'Banjantrilu') {
+          const bp = l.banjantrilu_pricing as BanjantriluPricing | null
+          const evts = (bp?.cards || []).filter(c => c.event && c.price > 0).map(c => c.event)
+          return evts.length ? [...new Set(evts)] : undefined
+        }
+        return (l.rituals as string[]) || undefined
+      })(),
       transportIncluded: (l.transport_included as boolean | null) ?? undefined,
       transportExtra: (l.transport_extra as number | null) ?? undefined,
     }
@@ -562,7 +531,6 @@ export const useStore = create<AppState & LiveModeState & {
         // each as its own listing (buildLiveVendorMap expands too — both are idempotent).
         listings = expandEventPackageListings(listings)
         listings = expandEntertainerListings(listings)
-        listings = expandBanjantriluListings(listings)
         const { vendorMap, lvMap } = buildLiveVendorMap(liveVendors, listings, availability)
 
         // Pre-populate boards with live vendors (same logic as demo)

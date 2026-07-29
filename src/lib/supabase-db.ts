@@ -1148,7 +1148,7 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
   //    resolve which package a couple picked.
   const { data: listings } = await supabase
     .from('vendor_listings')
-    .select('id, name, category, plate_packages, event_packages, entertainer_pricing, banjantrilu_pricing')
+    .select('id, name, category, plate_packages, event_packages, entertainer_pricing')
     .eq('vendor_id', vendorId)
   if (!listings || listings.length === 0) return []
   const listingById = new Map(listings.map(l => [l.id as string, l]))
@@ -1161,7 +1161,6 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
     `selected_vendor_id.in.(${listingIds.join(',')})`,
     ...listingIds.map(id => `selected_vendor_id.like.${id}::evt::*`),
     ...listingIds.map(id => `selected_vendor_id.like.${id}::ent::*`),
-    ...listingIds.map(id => `selected_vendor_id.like.${id}::bmt::*`),
   ].join(',')
   const { data: cats } = await supabase
     .from('board_categories')
@@ -1183,11 +1182,9 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
     const rawSel = c.selected_vendor_id as string
     const evtMatch = rawSel.match(/^(.*)::evt::(.*)$/)
     const entMatch = rawSel.match(/^(.*)::ent::(.*)$/)
-    const bmtMatch = rawSel.match(/^(.*)::bmt::(.*)$/)
-    const baseId = evtMatch?.[1] ?? entMatch?.[1] ?? bmtMatch?.[1] ?? rawSel
+    const baseId = evtMatch?.[1] ?? entMatch?.[1] ?? rawSel
     const evtPkgId = evtMatch?.[2]
     const entRateId = entMatch?.[2]
-    const bmtCardId = bmtMatch?.[2]
     const l = listingById.get(baseId)
     const board = boardById.get(c.ritual_board_id as string)
     const pkgs = (l?.plate_packages as import('./vendor-types').PlatePackage[] | null) || []
@@ -1198,9 +1195,6 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
     // For an entertainer pick, name it by the event and carry its flat price.
     const entPricing = l?.entertainer_pricing as import('./vendor-category-config').EntertainerPricing | null
     const entRate = entRateId ? entPricing?.eventRates?.find(r => r.id === entRateId) : undefined
-    // For a Banjantrilu pick, name it by the event and carry its flat card price.
-    const bmtPricing = l?.banjantrilu_pricing as import('./vendor-category-config').BanjantriluPricing | null
-    const bmtCard = bmtCardId ? bmtPricing?.cards?.find(c => c.id === bmtCardId) : undefined
     return {
       id: c.id as string,
       listingId: baseId,
@@ -1209,8 +1203,8 @@ export async function fetchVendorLeads(vendorId: string): Promise<import('./vend
       boardName: (board?.name as string) || 'Wedding',
       eventDate: (board?.date_start as string) || undefined,
       categoryLabel: c.label as string,
-      packageName: pkg?.name || (evtPkg ? evtPkg.events.join(' · ') : (entRate?.event ?? bmtCard?.event)),
-      packagePrice: pkg?.pricePerPlate ?? entRate?.price ?? bmtCard?.price,
+      packageName: pkg?.name || (evtPkg ? evtPkg.events.join(' · ') : entRate?.event),
+      packagePrice: pkg?.pricePerPlate ?? entRate?.price,
       tierHours: (c.selected_tier_hours as number | null) ?? undefined,
     }
   })

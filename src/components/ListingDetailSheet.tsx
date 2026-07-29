@@ -692,67 +692,48 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )
             })()}
 
-            {/* Banjantrilu — per-event card (event + artists + hours + flat price) */}
+            {/* Banjantrilu — ONE listing per vendor showing all its per-event packages
+                (event + artists + hours + flat price). Not fanned per card. */}
             {vendor.banjantriluPricing && (vendor.banjantriluPricing.cards?.length ?? 0) > 0 && (() => {
               const p = vendor.banjantriluPricing!
               const cards = p.cards.filter(c => c.price > 0)
               if (cards.length === 0) return null
               const fromPrice = getBanjantriluFromPrice(p)
+              const single = cards.length === 1
 
-              const cardMeta = (c: typeof cards[number]) => (
-                <span className="text-[10px] text-gray-500">{c.artists} {c.artists === 1 ? 'artist' : 'artists'} · {c.hours} {c.hours === 1 ? 'hr' : 'hrs'}</span>
-              )
-
-              // Vendor preview (multiple cards) → read-only list of every event + details + price.
-              if (cards.length > 1) {
-                return (
-                  <div className="mb-4">
-                    <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
-                    <p className="text-[10px] text-gray-400 mb-3">{cards.length} events · flat price each</p>
-                    <div className="rounded-xl border border-card-border divide-y divide-card-border">
-                      {cards.map(c => (
-                        <div key={c.id} className="flex items-center justify-between px-3 py-2.5">
-                          <span className="min-w-0">
-                            <span className="text-[12px] text-dark block truncate">{c.event}</span>
-                            {cardMeta(c)}
-                          </span>
-                          <span className="text-[12px] font-semibold text-dark shrink-0 ml-2">{formatINR(c.price)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              }
-
-              // Couple-facing single fanned card → flat price + details + add to board.
-              const card = cards[0]
               return (
                 <div className="mb-4">
-                  <p className="text-[20px] font-bold text-magenta">{formatINR(card.price)}</p>
-                  <p className="text-[10px] text-gray-400 mb-3">Flat price for {card.event}</p>
-                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-1.5">
-                    <div className="flex items-center justify-between text-[12px]">
-                      <span className="text-gray-600">Artists</span>
-                      <span className="font-semibold text-dark">{card.artists}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[12px]">
-                      <span className="text-gray-600">Duration</span>
-                      <span className="font-semibold text-dark">{card.hours} {card.hours === 1 ? 'hr' : 'hrs'}</span>
-                    </div>
-                    {ritualId && categoryId && (
-                      <button
-                        type="button"
-                        onClick={() => selectVendor(ritualId, categoryId, vendor.id)}
-                        className={`mt-3 w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
-                          isAddedToBoard
-                            ? 'bg-green-100 text-green-700 border border-green-300'
-                            : 'bg-magenta text-white active:scale-[0.98]'
-                        }`}
-                      >
-                        {isAddedToBoard ? '✓ Added to your board' : `Add to my board · ${formatINR(card.price)}`}
-                      </button>
-                    )}
+                  <p className="text-[20px] font-bold text-magenta">{single ? formatINR(cards[0].price) : `From ${formatINR(fromPrice)}`}</p>
+                  <p className="text-[10px] text-gray-400 mb-3">
+                    {single ? `Flat price for ${cards[0].event}` : `${cards.length} events · flat price each`}
+                  </p>
+
+                  {/* Every package the vendor offers */}
+                  <div className="rounded-xl border border-card-border divide-y divide-card-border mb-3">
+                    {cards.map(c => (
+                      <div key={c.id} className="flex items-center justify-between px-3 py-2.5 gap-2">
+                        <span className="min-w-0">
+                          <span className="text-[12px] text-dark block truncate">{c.event}</span>
+                          <span className="text-[10px] text-gray-500">{c.artists} {c.artists === 1 ? 'artist' : 'artists'} · {c.hours} {c.hours === 1 ? 'hr' : 'hrs'}</span>
+                        </span>
+                        <span className="text-[12px] font-semibold text-dark shrink-0">{formatINR(c.price)}</span>
+                      </div>
+                    ))}
                   </div>
+
+                  {ritualId && categoryId && (
+                    <button
+                      type="button"
+                      onClick={() => selectVendor(ritualId, categoryId, vendor.id)}
+                      className={`w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                        isAddedToBoard
+                          ? 'bg-green-100 text-green-700 border border-green-300'
+                          : 'bg-magenta text-white active:scale-[0.98]'
+                      }`}
+                    >
+                      {isAddedToBoard ? '✓ Added to your board' : `Add to my board · ${single ? formatINR(cards[0].price) : `from ${formatINR(fromPrice)}`}`}
+                    </button>
+                  )}
                 </div>
               )
             })()}

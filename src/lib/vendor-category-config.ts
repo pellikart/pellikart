@@ -745,12 +745,13 @@ export function emptyEntertainerPricing(): EntertainerPricing {
  * Banjantrilu vendors price with one or more "pricing cards" — each card covers a
  * single event and holds the number of artists, the number of hours, and a flat
  * price (₹) for that event. Vendors can add as many cards as they perform events.
- * On the couple side each card is fanned into its own ritual-matched listing
- * (store.expandBanjantriluListings), mirroring the Photography/Entertainer fan-out.
+ * On the couple side the vendor is shown as ONE listing (unlike the Photography /
+ * Entertainer per-event fan-out) with all its cards listed inside the detail sheet;
+ * the listing is board-matched to the union of its priced cards' events.
  */
 
 /** Default events a Banjantrilu vendor prices against (canonical RITUALS values so
- *  the fanned couple-facing listings match the per-ritual boards). */
+ *  the listing is board-matched to the right per-ritual boards). */
 export const BANJANTRILU_DEFAULT_EVENTS = ['Pelli (Wedding)', 'Pelli Koduku/Pellikuthuru Function'] as const
 
 /** One event → artists + hours + flat-price card for a Banjantrilu listing. */
