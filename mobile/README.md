@@ -211,12 +211,35 @@ Two new files live in the shared `supabase/` dir (not app code):
   `supabase secrets set SB_URL=… SB_SERVICE_ROLE_KEY=…`, then add a Database
   Webhook: table `notifications`, event INSERT → Edge Function `send-push`.
 
+**Real Razorpay gateway is in** (behind the `payBookingAmount()` seam):
+
+- `create-razorpay-order` — makes the order server-side (secret never in the app).
+- `razorpay-checkout` — a hosted checkout.js page opened via `expo-web-browser`;
+  it redirects back to the app's `razorpay-callback` deep link with the result.
+  Using the hosted widget means **no native Razorpay module**, so it runs in a
+  dev build without ejecting.
+- `verify-razorpay-payment` — verifies the payment signature (HMAC-SHA256) before
+  the booking is recorded.
+
+The flow activates only on a native build with `EXPO_PUBLIC_RAZORPAY_KEY_ID` set;
+demo / web / unconfigured falls back to the simulated success, so the booking UI
+is always exercisable.
+
+**Deploy Razorpay:**
+
+```
+supabase functions deploy create-razorpay-order
+supabase functions deploy verify-razorpay-payment
+supabase functions deploy razorpay-checkout --no-verify-jwt   # loaded by the browser, no JWT
+supabase secrets set RAZORPAY_KEY_ID=rzp_live_xxx RAZORPAY_KEY_SECRET=xxx
+```
+
+Then set `EXPO_PUBLIC_RAZORPAY_KEY_ID` in `mobile/.env` and build. Razorpay Route
+(automatic vendor payout / split settlement) is the remaining server-side add-on.
+
 ### Not yet built
 
-- **Real Razorpay gateway** — the order-creation edge function + native/hosted
-  checkout + signature verification + Route payout. Needs Razorpay keys and a
-  dev build (can't run in the web preview). The `payBookingAmount()` seam is
-  ready for it.
+- **Razorpay Route** payout split (server-side settlement to vendors).
 - **Phone / WhatsApp OTP** (MSG91), **vendor KYC**, and **PostGIS proximity
   matching** — the remaining plan "NEW" items.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
