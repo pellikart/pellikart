@@ -100,11 +100,11 @@ export default function CategoryBoardPage() {
           // if the vendor's style/packageTier/category matches this board category.
           // The vendor map is keyed by listing ID, and the "code" field contains "Category NNN"
           if (!v.code.toLowerCase().startsWith(category.label.toLowerCase())) return false
-          // Per-event fan-out rows (Entertainers `::ent::`, Photography `::evt::`)
-          // each carry a single ritual tag. On an event board, only show the row
-          // for THIS event — otherwise all 5 fanned rows appear on every board.
-          // Non-fanned listings have no such id and stay event-agnostic here.
-          const isFanned = v.id.includes('::ent::') || v.id.includes('::evt::')
+          // Per-event fan-out rows (Entertainers `::ent::`, Photography `::evt::`,
+          // Banjantrilu `::bmt::`) each carry a single ritual tag. On an event board,
+          // only show the row for THIS event — otherwise all fanned rows appear on
+          // every board. Non-fanned listings have no such id and stay event-agnostic.
+          const isFanned = v.id.includes('::ent::') || v.id.includes('::evt::') || v.id.includes('::bmt::')
           if (isFanned && !(v.rituals || []).includes(board.name)) return false
           return true
         })

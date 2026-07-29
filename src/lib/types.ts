@@ -67,6 +67,8 @@ export interface Vendor {
   eventPackages?: import('./vendor-category-config').PhotographyEventPackage[];
   /** Hosts/Entertainers-only: flat price per event + shared duration/hour/languages. */
   entertainerPricing?: import('./vendor-category-config').EntertainerPricing;
+  /** Banjantrilu-only: per-event pricing cards (event + artists + hours + flat price). */
+  banjantriluPricing?: import('./vendor-category-config').BanjantriluPricing;
   /** Mehendi-only: bridal coverage×design matrix + groom/guest pricing. */
   mehendiPricing?: import('./vendor-category-config').MehendiPricing;
   /** Makeup-only: bridal per-event per-look pricing + groom/guest. */

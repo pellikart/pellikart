@@ -1,5 +1,5 @@
 import type { Vendor, Category } from './types'
-import { PHOTOGRAPHY_EVENT_SERVICES, type PhotographyEventPackage, type PhotographyPricingModel, type EntertainerPricing, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
+import { PHOTOGRAPHY_EVENT_SERVICES, type PhotographyEventPackage, type PhotographyPricingModel, type EntertainerPricing, type BanjantriluPricing, type MehendiPricing, type MakeupPricing, type SareeDrapingPricing, type HairStylingPricing } from './vendor-category-config'
 
 /**
  * Returns the base price for a vendor given the couple's selected hourly tier.
@@ -124,6 +124,16 @@ export function getEntertainerFromPrice(p?: EntertainerPricing): number {
 export function getEntertainerEventRate(p: EntertainerPricing | undefined, event: string): number {
   if (!p?.eventRates?.length) return 0
   return p.eventRates.find(r => r.event === event && r.price > 0)?.price ?? 0
+}
+
+/**
+ * The "from" price for a Banjantrilu listing — the cheapest priced event card.
+ * Returns 0 when nothing is priced.
+ */
+export function getBanjantriluFromPrice(p?: BanjantriluPricing): number {
+  if (!p?.cards?.length) return 0
+  const prices = p.cards.map(c => c.price).filter(v => v > 0)
+  return prices.length ? Math.min(...prices) : 0
 }
 
 /**

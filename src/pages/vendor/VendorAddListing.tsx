@@ -3,12 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
-import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, emptyEntertainerPricing, photographyPackageHasPrice, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing } from '@/lib/vendor-category-config'
+import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, banjantriluCardValid, photographyPackageHasPrice, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
 import EntertainerPricingEditor from '@/components/EntertainerPricingEditor'
+import BanjantriluPricingEditor from '@/components/BanjantriluPricingEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuEditor from '@/components/MenuEditor'
 import PlateSlotsEditor from '@/components/PlateSlotsEditor'
@@ -51,6 +52,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const [eventPackages, setEventPackages] = useState<PhotographyEventPackage[]>(emptyPhotographyEventPackages())
   // Hosts/Entertainers-only: flat price per event + shared duration/hour/languages.
   const [entertainerPricing, setEntertainerPricing] = useState<EntertainerPricing>(emptyEntertainerPricing())
+  // Banjantrilu-only: per-event pricing cards (event + artists + hours + flat price).
+  const [banjantriluPricing, setBanjantriluPricing] = useState<BanjantriluPricing>(emptyBanjantriluPricing())
   const [includes, setIncludes] = useState<string[]>([])
   const [rituals, setRituals] = useState<string[]>([])
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
@@ -117,6 +120,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setPrice(nextConfig.priceRange.min + Math.floor((nextConfig.priceRange.max - nextConfig.priceRange.min) / 3))
     setEventPackages([])
     setEntertainerPricing(emptyEntertainerPricing())
+    setBanjantriluPricing(emptyBanjantriluPricing())
     setIncludes([])
     setCategoryFields({})
     setBundledListings([])
@@ -165,10 +169,10 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const hasPaidRoomsStep = category === 'Venue'
   const hasMenuStep = category === 'Catering'
   const hasDesignsStep = category === 'Decor'
-  const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering' && category !== 'Hosts / Entertainers'
-  // Photography & Hosts/Entertainers don't ask for listing-level events — each
-  // event package / event rate carries its own event — so the rituals step is skipped.
-  const hasRitualsStep = category !== 'Photography' && category !== 'Hosts / Entertainers'
+  const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu'
+  // Photography, Hosts/Entertainers & Banjantrilu don't ask for listing-level events
+  // — each event package / rate / card carries its own event — so rituals is skipped.
+  const hasRitualsStep = category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu'
 
   // Each category gets a contiguous run of steps. Decor skips Photos & Name, so its
   // step indices start at 1 with Rituals. Venue leads with a Location step.
@@ -237,6 +241,15 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     eventRates: entertainerPricing.eventRates.filter(r => r.event.trim() && r.price > 0),
   }
   const entertainerReady = cleanedEntertainerPricing.eventRates.length > 0
+
+  // Banjantrilu pricing — per-event cards (event + artists + hours + flat price).
+  const banjantriluFrom = getBanjantriluFromPrice(banjantriluPricing)
+  // Only cards with an event AND a price are kept on save.
+  const cleanedBanjantriluPricing: BanjantriluPricing = {
+    ...banjantriluPricing,
+    cards: banjantriluPricing.cards.filter(banjantriluCardValid),
+  }
+  const banjantriluReady = cleanedBanjantriluPricing.cards.length > 0
   // Number of dishes (dish-bank + custom) configured in a plate package's menu.
   const menuItemCount = (menu?: MenuSection[]) =>
     (menu || []).reduce((s, sec) => s + sec.dishIds.length + (sec.customDishes?.length || 0), 0)
@@ -371,6 +384,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       : category === 'Photography' ? photoEventFrom
       // Hosts/Entertainers: the "from" figure is the cheapest priced event rate.
       : category === 'Hosts / Entertainers' ? entertainerFrom
+      // Banjantrilu: the "from" figure is the cheapest priced event card.
+      : category === 'Banjantrilu' ? banjantriluFrom
       : price
 
     // Upload paid-room photos in live mode and replace blob URLs with public URLs.
@@ -530,6 +545,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       photographyPricingModels: category === 'Photography' ? photographyPricingModels : undefined,
       eventPackages: category === 'Photography' && validEventPackages.length > 0 ? validEventPackages : undefined,
       entertainerPricing: category === 'Hosts / Entertainers' && entertainerReady ? cleanedEntertainerPricing : undefined,
+      banjantriluPricing: category === 'Banjantrilu' && banjantriluReady ? cleanedBanjantriluPricing : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
       inHouseDecor: category === 'Venue' ? inHouseDecorForPayload : undefined,
       menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
@@ -1386,8 +1402,34 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
           </div>
         )}
 
-        {/* Pricing step — single-price slider (non-Venue, non-Photography, non-Entertainer) */}
-        {step === stylePriceStep && category !== 'Photography' && category !== 'Hosts / Entertainers' && (
+        {/* Pricing step — Banjantrilu: per-event cards (event + artists + hours + flat price) */}
+        {step === stylePriceStep && category === 'Banjantrilu' && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">Create your pricing cards</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Add a card per event — pick the event, set the number of artists, hours, and a flat price. Add as many events as you perform at.</p>
+
+            <BanjantriluPricingEditor value={banjantriluPricing} onChange={setBanjantriluPricing} />
+            {banjantriluFrom > 0 && (
+              <p className="text-[11px] text-gray-600 mt-4">Board card shows <span className="font-bold text-mustard">from {formatINR(banjantriluFrom)}</span>.</p>
+            )}
+
+            <div className="flex gap-2 mt-6">
+              {stylePriceStep > 1 ? (
+                <button onClick={() => setStep(stylePriceStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              ) : (
+                <button onClick={() => navigate(`${base}/listings`)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
+              )}
+              <button
+                onClick={() => setStep(stylePriceStep + 1)}
+                disabled={!banjantriluReady}
+                className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-40"
+              >Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* Pricing step — single-price slider (non-Venue, non-Photography, non-Entertainer, non-Banjantrilu) */}
+        {step === stylePriceStep && category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">Pricing</h1>
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Set your price.</p>
@@ -1577,6 +1619,18 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                           <p className="text-[16px] font-bold text-mustard">{formatINR(entertainerFrom)} <span className="text-[10px] font-normal text-gray-400">/ event (from)</span></p>
                         )}
                         {!entertainerReady && (
+                          <p className="text-[12px] text-gray-400 italic">Set at least one price</p>
+                        )}
+                      </div>
+                    )
+                  }
+                  if (category === 'Banjantrilu') {
+                    return (
+                      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                        {banjantriluFrom > 0 && (
+                          <p className="text-[16px] font-bold text-mustard">{formatINR(banjantriluFrom)} <span className="text-[10px] font-normal text-gray-400">/ event (from)</span></p>
+                        )}
+                        {!banjantriluReady && (
                           <p className="text-[12px] text-gray-400 italic">Set at least one price</p>
                         )}
                       </div>

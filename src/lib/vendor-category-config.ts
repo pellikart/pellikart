@@ -480,28 +480,9 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
     styles: ['Traditional Telugu', 'South Indian Classical', 'Carnatic Fusion', 'Procession Special', 'Temple Style'],
     inclusions: ['Nadaswaram', 'Dhol', 'Tavil', 'Sannai', 'Mela Talam', 'Traditional Attire', 'Travel within City', 'Mangalasnanam Set', 'Baraat Set', 'Muhurtham Set', 'Stage Setup'],
     priceRange: { min: 5000, max: 80000, step: 2500 },
-    steps: [
-      {
-        title: 'Ensemble details',
-        subtitle: 'What does this package cover?',
-        fields: [
-          { key: 'instruments', label: 'Instruments', type: 'multi', options: ['Nadaswaram', 'Dhol', 'Tavil', 'Sannai', 'Mela Talam', 'Tabla', 'Mridangam', 'Shehnai'] },
-          { key: 'ensembleSize', label: 'Group size', type: 'single', options: ['Solo', '2-3 artists', '4-6 artists', '7-10 artists', '10+ artists'] },
-          { key: 'ceremoniesCovered', label: 'Ceremonies covered', type: 'multi', options: ['Baraat / Procession', 'Muhurtham', 'Mangalasnanam', 'Pelli Koduku/Kuthuru', 'Reception entry', 'Talambralu'] },
-          { key: 'performanceDuration', label: 'Performance duration', type: 'single', options: ['1 hour', '2 hours', '3 hours', '4 hours', 'Full ceremony'] },
-        ],
-      },
-      {
-        title: 'Logistics & extras',
-        subtitle: 'What else comes with this?',
-        fields: [
-          { key: 'travelIncluded', label: 'Travel', type: 'single', options: ['Within city included', 'Up to 50km', 'Up to 100km', 'Extra charge'] },
-          { key: 'attire', label: 'Attire', type: 'single', options: ['Traditional included', 'Modern attire', 'Couple provides'] },
-          { key: 'soundAmplification', label: 'Sound amplification', type: 'single', options: ['Included', 'Add-on', "Use venue's"] },
-          { key: 'rehearsal', label: 'Pre-event rehearsal', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
-        ],
-      },
-    ],
+    // No spec steps — pricing is authored as per-event cards (event + artists +
+    // hours + flat price) in the custom Banjantrilu pricing step.
+    steps: [],
   },
   Reels: {
     styles: ['Cinematic', 'Trend-based', 'Story-driven', 'Couple POV', 'Vintage Film', 'Highlight Cuts'],
@@ -756,6 +737,63 @@ export function emptyEntertainerPricing(): EntertainerPricing {
     })),
     languages: [],
   }
+}
+
+// ─── BANJANTRILU (TRADITIONAL BANDS) PRICING ─
+
+/**
+ * Banjantrilu vendors price with one or more "pricing cards" — each card covers a
+ * single event and holds the number of artists, the number of hours, and a flat
+ * price (₹) for that event. Vendors can add as many cards as they perform events.
+ * On the couple side each card is fanned into its own ritual-matched listing
+ * (store.expandBanjantriluListings), mirroring the Photography/Entertainer fan-out.
+ */
+
+/** Default events a Banjantrilu vendor prices against (canonical RITUALS values so
+ *  the fanned couple-facing listings match the per-ritual boards). */
+export const BANJANTRILU_DEFAULT_EVENTS = ['Pelli (Wedding)', 'Pelli Koduku/Pellikuthuru Function'] as const
+
+/** One event → artists + hours + flat-price card for a Banjantrilu listing. */
+export interface BanjantriluCard {
+  /** Stable id (React key + fan-out selection key + card remove). */
+  id: string
+  /** Event this card applies to (a RITUALS value or a custom string). */
+  event: string
+  /** Number of artists in the ensemble for this event. */
+  artists: number
+  /** Number of hours the ensemble performs for this event. */
+  hours: number
+  /** Flat price (₹) for performing at this event. 0 = not offered / incomplete. */
+  price: number
+}
+
+/** A Banjantrilu listing's pricing — a list of per-event cards. */
+export interface BanjantriluPricing {
+  cards: BanjantriluCard[]
+}
+
+let banjantriluCardSeq = 0
+/** A stable-ish unique id for a Banjantrilu card. */
+export function newBanjantriluCardId(): string {
+  return `bmt-${++banjantriluCardSeq}`
+}
+
+/** A fresh Banjantrilu pricing object seeded with the default events at price 0. */
+export function emptyBanjantriluPricing(): BanjantriluPricing {
+  return {
+    cards: BANJANTRILU_DEFAULT_EVENTS.map(event => ({
+      id: newBanjantriluCardId(),
+      event,
+      artists: 2,
+      hours: 2,
+      price: 0,
+    })),
+  }
+}
+
+/** True if a card is complete enough to keep on save (an event + a real price). */
+export function banjantriluCardValid(c: BanjantriluCard): boolean {
+  return !!c.event?.trim() && c.price > 0
 }
 
 // ─── MEHENDI PRICING ────────────────────────
