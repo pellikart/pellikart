@@ -307,10 +307,22 @@ Deploy: `supabase db push` (049). Requires the PostGIS extension, which Supabase
 projects include. Only venue listings carry coordinates, so those are what the
 RPC ranks; other categories keep their existing non-spatial matching.
 
-### Launch prep (Phase 5) — remaining
+### Launch prep (Phase 5)
 
-- Offline / poor-network handling, Sentry crash reporting, in-app account
-  deletion (Apple requirement), store assets + submission.
+**In-app account deletion is in** (Apple requires it, in-app, to approve the app):
+
+- "Delete account" sits next to Sign out on the couple/vendor home + vendor
+  profile, behind a clear confirmation.
+- `deleteAccount()` (`src/lib/account.ts`) calls the **`delete-account`** edge
+  function, which admin-deletes the auth user; the schema cascades the rest
+  (profiles → couples/vendors → listings/bookings/payouts/tokens…). Then local
+  state is cleared and the user lands back on sign-in.
+- Deploy: `supabase functions deploy delete-account`. Storage photos and Razorpay
+  linked accounts aren't FK-cascaded — purge/deactivate those out of band (noted
+  in the function).
+
+**Remaining:** Sentry crash reporting · offline / poor-network handling · store
+assets + submission (icons, splash, privacy policy / ToS URLs, demo logins).
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
   deletion (Apple), store assets and submission.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
