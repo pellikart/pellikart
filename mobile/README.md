@@ -237,11 +237,38 @@ supabase secrets set RAZORPAY_KEY_ID=rzp_live_xxx RAZORPAY_KEY_SECRET=xxx
 Then set `EXPO_PUBLIC_RAZORPAY_KEY_ID` in `mobile/.env` and build. Razorpay Route
 (automatic vendor payout / split settlement) is the remaining server-side add-on.
 
+**Razorpay Route payouts are in** — vendors are paid automatically instead of by
+manual transfer (plan §2.2):
+
+- Each vendor onboards once (**Payouts** screen → bank + KYC) which creates a
+  Razorpay **linked account** (`create-linked-account` edge fn), stored in
+  `vendor_payout_accounts`.
+- On booking, `create-razorpay-order` attaches a **held Route transfer** routing
+  the vendor's share — `booking amount × (1 − PLATFORM_COMMISSION_PCT)`, default
+  20% commission — to their linked account. `verify-razorpay-payment` records
+  each transfer in `vendor_payouts` as `held`.
+- When the release milestone completes (default **"Event day"**),
+  `release-vendor-transfer` flips the transfer off-hold and marks it `released`.
+  Wire it as a Database Webhook on the `milestones` table (UPDATE).
+
+**Deploy Route:**
+
+```
+supabase db push                                   # 048_vendor_payouts.sql
+supabase functions deploy create-linked-account
+supabase functions deploy release-vendor-transfer
+# (create-razorpay-order / verify-razorpay-payment redeploy — now Route-aware)
+supabase secrets set PLATFORM_COMMISSION_PCT=20 RELEASE_MILESTONE_TITLE="Event day" \
+  SB_URL=<project-url> SB_SERVICE_ROLE_KEY=<service-role-key>
+```
+
+Then add a Database Webhook: table `milestones`, event UPDATE → Edge Function
+`release-vendor-transfer`.
+
 ### Not yet built
 
-- **Razorpay Route** payout split (server-side settlement to vendors).
-- **Phone / WhatsApp OTP** (MSG91), **vendor KYC**, and **PostGIS proximity
-  matching** — the remaining plan "NEW" items.
+- **Phone / WhatsApp OTP** (MSG91) and **PostGIS proximity matching** — the
+  remaining plan "NEW" items. (Vendor KYC now ships with Route above.)
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
   deletion (Apple), store assets and submission.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account

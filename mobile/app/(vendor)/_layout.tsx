@@ -68,6 +68,7 @@ export default function VendorLayout() {
       <Tabs.Screen name="listing-new" options={{ href: null }} />
       <Tabs.Screen name="listing-edit" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="payouts" options={{ href: null }} />
     </Tabs>
   )
 }

@@ -29,6 +29,9 @@ export default function BookingScreen() {
   const bookAllVendors = useStore((s) => s.bookAllVendors)
   const cancelBooking = useStore((s) => s.cancelBooking)
   const trialSessions = useStore((s) => s.trialSessions)
+  // listing id → vendors.id, so Route transfers target the vendor's linked
+  // account. Empty in demo (no gateway), which is fine — payment is simulated.
+  const listingVendorMap = useStore((s) => s._listingVendorMap)
 
   const unlocked = subscription !== 'free'
   const [busy, setBusy] = useState(false)
@@ -65,10 +68,15 @@ export default function BookingScreen() {
   const savings = separateTotal - bookAllAmount
   const allBooked = unbooked.length === 0
 
-  async function pay(amount: number, description: string, commit: () => void) {
+  async function pay(
+    amount: number,
+    description: string,
+    commit: () => void,
+    splits?: { vendorId: string; amount: number }[]
+  ) {
     if (busy) return
     setBusy(true)
-    const res = await payBookingAmount({ amount, description })
+    const res = await payBookingAmount({ amount, description, splits })
     setBusy(false)
     if (res.ok) commit()
   }
@@ -139,7 +147,14 @@ export default function BookingScreen() {
                   <Button
                     label={`Book · ${formatINR(amount)}`}
                     variant="primary"
-                    onPress={() => pay(amount, `${vendor.name || vendor.code} · ${board.name}`, () => bookVendor(vendor.id, amount))}
+                    onPress={() =>
+                      pay(
+                        amount,
+                        `${vendor.name || vendor.code} · ${board.name}`,
+                        () => bookVendor(vendor.id, amount),
+                        [{ vendorId: listingVendorMap[vendor.id], amount }]
+                      )
+                    }
                     style={styles.bookBtn}
                   />
                 ) : (
@@ -206,7 +221,18 @@ export default function BookingScreen() {
             label={`${booked.length > 0 ? `Book remaining ${unbooked.length}` : 'Book all slots'} — ${formatINR(bookAllAmount)}`}
             variant="primary"
             loading={busy}
-            onPress={() => pay(bookAllAmount, `${board.name} · all vendors`, () => bookAllVendors(ritualId!))}
+            onPress={() =>
+              pay(
+                bookAllAmount,
+                `${board.name} · all vendors`,
+                () => bookAllVendors(ritualId!),
+                // Each vendor's booking amount (4% of their price) → their account.
+                unbooked.map((x) => ({
+                  vendorId: listingVendorMap[x.vendor.id],
+                  amount: Math.round(x.effectivePrice * 0.04),
+                }))
+              )
+            }
           />
         </View>
       )}

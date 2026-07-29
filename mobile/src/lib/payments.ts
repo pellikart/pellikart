@@ -23,6 +23,10 @@ import { supabase } from '@/lib/supabase.native'
 export interface BookingPaymentRequest {
   amount: number
   description: string
+  /** Route split: each vendor (by vendors.id) and the booking amount charged for
+   *  them. The edge function transfers (amount − commission) to their linked
+   *  account, held until a milestone. Omit / empty → settles wholly to platform. */
+  splits?: { vendorId: string; amount: number }[]
 }
 
 export type BookingPaymentResult =
@@ -49,7 +53,7 @@ async function runRazorpay(req: BookingPaymentRequest): Promise<BookingPaymentRe
   try {
     // 1. Create the order server-side.
     const { data: order, error: orderErr } = await supabase!.functions.invoke('create-razorpay-order', {
-      body: { amount: req.amount },
+      body: { amount: req.amount, splits: req.splits?.filter((s) => s.vendorId) },
     })
     if (orderErr || !order?.orderId) {
       return { ok: false, error: 'Could not start the payment. Please try again.' }
