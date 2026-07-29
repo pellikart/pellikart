@@ -222,6 +222,8 @@ export default function RitualBoard({ board }: Props) {
             <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
             <p className="text-[13px] font-semibold text-dark mb-3">Add a category</p>
             <div className="flex flex-col gap-1.5">
+              {/* One combined list — categories already on the board (empty) and
+                  every other vendor category, shown together without segregation. */}
               {emptyCategories.map((cat) => (
                 <button
                   key={cat.id}
@@ -244,6 +246,27 @@ export default function RitualBoard({ board }: Props) {
                   </div>
                 </button>
               ))}
+
+              {Object.keys(ONBOARDING_CONFIG)
+                .filter(label => !new Set(board.categories.map(c => c.label)).has(label))
+                .map((label) => (
+                  <button
+                    key={label}
+                    onClick={() => {
+                      addBoardCategory(board.id, label)
+                      setShowCategoryPicker(false)
+                    }}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-empty-bg active:bg-gray-200 transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-magenta-light flex items-center justify-center shrink-0">
+                      <span className="text-magenta text-xs font-semibold">{label.charAt(0)}</span>
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-medium text-dark">{label}</p>
+                      <p className="text-[10px] text-gray-400">Tap to add</p>
+                    </div>
+                  </button>
+                ))}
 
               {removedCategories.length > 0 && (
                 <>
@@ -271,35 +294,6 @@ export default function RitualBoard({ board }: Props) {
                 </>
               )}
 
-              {(() => {
-                // Show every vendor category that isn't already on this board (active or removed)
-                const existingLabels = new Set(board.categories.map(c => c.label))
-                const moreCategories = Object.keys(ONBOARDING_CONFIG).filter(label => !existingLabels.has(label))
-                if (moreCategories.length === 0) return null
-                return (
-                  <>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-3 mb-1">Browse more categories</p>
-                    {moreCategories.map((label) => (
-                      <button
-                        key={label}
-                        onClick={() => {
-                          addBoardCategory(board.id, label)
-                          setShowCategoryPicker(false)
-                        }}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-dashed border-magenta/30 bg-magenta-light/10 active:bg-magenta-light/30 transition-colors text-left"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-magenta-light flex items-center justify-center shrink-0">
-                          <span className="text-magenta text-xs font-semibold">+</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-medium text-dark">{label}</p>
-                          <p className="text-[10px] text-gray-400">Not on your board yet — tap to add</p>
-                        </div>
-                      </button>
-                    ))}
-                  </>
-                )
-              })()}
             </div>
           </div>
         </div>
