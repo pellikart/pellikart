@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from '@shared/auth-context'
 import { registerForPush } from '@/lib/push'
 import { useEntitlementSync } from '@/lib/useEntitlementSync'
 import { initSentry, Sentry } from '@/lib/sentry'
+import { OfflineBanner } from '@/components/OfflineBanner'
 import { colors } from '@/theme/tokens'
 
 // Start crash reporting before anything renders (no-op without a DSN).
@@ -32,6 +33,7 @@ function RootLayout() {
               contentStyle: { backgroundColor: colors.screenBg },
             }}
           />
+          <OfflineBanner />
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

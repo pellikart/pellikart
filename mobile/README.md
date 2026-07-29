@@ -330,8 +330,17 @@ RPC ranks; other categories keep their existing non-spatial matching.
 - Readable stack traces (source maps) need the Sentry Expo plugin's org/project
   + an auth token at EAS build time — the plugin is already in `app.json`.
 
-**Remaining:** offline / poor-network handling · store assets + submission
-(icons, splash, privacy policy / ToS URLs, demo logins).
+**Offline / poor-network handling is in:**
+
+- `useNetwork()` (NetInfo) drives an app-wide `OfflineBanner` shown while the
+  device is disconnected, so users know why things aren't updating.
+- The native Supabase client wraps `fetch` with a 20s timeout, so a flaky
+  connection fails fast (catchable) instead of hanging a screen forever.
+- Live fetches (couple notifications, vendor payouts) always clear their loading
+  state on error, so a network failure lands on an empty state, never a spinner.
+
+**Remaining:** store assets + submission (icons, splash, privacy policy / ToS
+URLs, demo logins).
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
   deletion (Apple), store assets and submission.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account

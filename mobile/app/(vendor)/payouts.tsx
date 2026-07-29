@@ -70,14 +70,19 @@ export default function VendorPayouts() {
     }
     let cancelled = false
     ;(async () => {
-      const [acc, pays] = await Promise.all([
-        supabase!.from('vendor_payout_accounts').select('status, bank_last4, beneficiary_name').eq('vendor_id', vendorDbId).maybeSingle(),
-        supabase!.from('vendor_payouts').select('id, amount, status, created_at').eq('vendor_id', vendorDbId).order('created_at', { ascending: false }).limit(20),
-      ])
-      if (cancelled) return
-      setAccount((acc.data as PayoutAccount) ?? null)
-      setPayouts((pays.data as Payout[]) ?? [])
-      setLoaded(true)
+      try {
+        const [acc, pays] = await Promise.all([
+          supabase!.from('vendor_payout_accounts').select('status, bank_last4, beneficiary_name').eq('vendor_id', vendorDbId).maybeSingle(),
+          supabase!.from('vendor_payouts').select('id, amount, status, created_at').eq('vendor_id', vendorDbId).order('created_at', { ascending: false }).limit(20),
+        ])
+        if (cancelled) return
+        setAccount((acc.data as PayoutAccount) ?? null)
+        setPayouts((pays.data as Payout[]) ?? [])
+      } catch {
+        // Offline / poor network — fall through to the empty form, never hang.
+      } finally {
+        if (!cancelled) setLoaded(true)
+      }
     })()
     return () => {
       cancelled = true

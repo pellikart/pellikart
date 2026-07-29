@@ -33,20 +33,25 @@ export default function CoupleNotifications() {
       setLoaded(true)
       return
     }
-    fetchNotifications(user.id).then((rows) => {
-      if (cancelled) return
-      setItems(
-        (rows as Record<string, unknown>[]).map((r) => ({
-          id: r.id as string,
-          type: r.type as string,
-          title: r.title as string,
-          body: r.body as string,
-          at: r.created_at as string,
-          read: !!r.is_read,
-        }))
-      )
-      setLoaded(true)
-    })
+    fetchNotifications(user.id)
+      .then((rows) => {
+        if (cancelled) return
+        setItems(
+          (rows as Record<string, unknown>[]).map((r) => ({
+            id: r.id as string,
+            type: r.type as string,
+            title: r.title as string,
+            body: r.body as string,
+            at: r.created_at as string,
+            read: !!r.is_read,
+          }))
+        )
+      })
+      // On a network failure, still leave the spinner (empty state), never hang.
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoaded(true)
+      })
     return () => {
       cancelled = true
     }

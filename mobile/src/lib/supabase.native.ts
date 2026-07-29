@@ -21,9 +21,21 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 
+// Poor-network handling: cap every request so a flaky connection fails fast
+// (with a catchable error) instead of hanging a screen on a spinner forever. We
+// only impose our own deadline when the caller didn't pass a signal of its own.
+const REQUEST_TIMEOUT_MS = 20_000
+function timeoutFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (init?.signal) return fetch(input, init)
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer))
+}
+
 export const supabase: SupabaseClient | null =
   supabaseUrl && supabaseAnonKey
     ? createClient(supabaseUrl, supabaseAnonKey, {
+        global: { fetch: timeoutFetch },
         auth: {
           storage: AsyncStorage,
           autoRefreshToken: true,
