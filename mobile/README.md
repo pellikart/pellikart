@@ -339,8 +339,21 @@ RPC ranks; other categories keep their existing non-spatial matching.
 - Live fetches (couple notifications, vendor payouts) always clear their loading
   state on error, so a network failure lands on an empty state, never a spinner.
 
-**Remaining:** store assets + submission (icons, splash, privacy policy / ToS
-URLs, demo logins).
+**Store submission scaffolding is in** — see `store/`:
+
+- `eas.json` — dev / preview / production build + submit profiles (fill the
+  Apple/Google ids before `eas submit`).
+- `app.json` — bundle ids, permission strings, splash/icon, and
+  `ITSAppUsesNonExemptEncryption: false` (skips export-compliance).
+- `store/SUBMISSION.md` — build/submit commands, store-listing copy, the Apple
+  review notes (demo logins, in-app deletion, no iOS purchase link, encryption)
+  and Google closed-testing/data-safety notes, plus a pre-submit smoke test.
+- `store/legal/privacy-policy.md` + `terms-of-service.md` — host at public URLs
+  (both stores require them).
+
+**Phase 5 complete.** What's left is operational, not code: your Apple/Google/
+Expo accounts, hosting the legal URLs, capturing screenshots, deploying the
+backend (README), and creating reviewer demo logins.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account
   deletion (Apple), store assets and submission.
 - **Phase 5 — polish & launch**: offline handling, Sentry, in-app account

@@ -13,7 +13,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.pellikart.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Pellikart uses your location to show wedding vendors and venues near you, and to measure how far a venue is from your home."
+        "NSLocationWhenInUseUsageDescription": "Pellikart uses your location to show wedding vendors and venues near you, and to measure how far a venue is from your home.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
