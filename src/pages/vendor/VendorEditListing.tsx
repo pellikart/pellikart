@@ -1136,6 +1136,7 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
   onChange: (val: string | string[]) => void
   onToggleMulti: (val: string) => void
 }) {
+  const [customDraft, setCustomDraft] = useState('')
   if (field.type === 'slider') {
     const numVal = typeof value === 'string' ? parseInt(value) || field.sliderMin! : field.sliderMin!
     return (
@@ -1199,11 +1200,21 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
 
   if (field.type === 'single') {
     const selected = typeof value === 'string' ? value : ''
+    // A custom value (not in the preset options) shows as its own selected chip.
+    const opts = field.allowCustom && selected && !field.options!.includes(selected)
+      ? [...field.options!, selected]
+      : field.options!
+    const addCustom = () => {
+      const v = customDraft.trim()
+      if (!v) return
+      onChange(v)
+      setCustomDraft('')
+    }
     return (
       <div>
         <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
         <div className="flex flex-wrap gap-1.5">
-          {field.options!.map((opt) => (
+          {opts.map((opt) => (
             <button
               key={opt} onClick={() => onChange(opt)}
               className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${selected === opt ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
@@ -1212,12 +1223,40 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
             </button>
           ))}
         </div>
+        {field.allowCustom && (
+          <div className="flex gap-1.5 mt-2">
+            <input
+              type="text"
+              value={customDraft}
+              onChange={(e) => setCustomDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
+              placeholder="Add your own…"
+              className="flex-1 px-3 py-1.5 rounded-full border border-card-border text-[10px] outline-none focus:border-mustard"
+            />
+            <button
+              type="button" onClick={addCustom} disabled={!customDraft.trim()}
+              className="py-1.5 px-3 rounded-full text-[10px] font-semibold bg-mustard text-white disabled:opacity-40"
+            >Add</button>
+          </div>
+        )}
       </div>
     )
   }
 
   if (field.type === 'multi') {
     const selected = Array.isArray(value) ? value : []
+    const exclusive = field.exclusiveOptions || []
+    const clickMulti = (opt: string) => {
+      const isSelected = selected.includes(opt)
+      if (exclusive.includes(opt)) {
+        // Exclusive option — selecting it clears everything else.
+        onChange(isSelected ? [] : [opt])
+        return
+      }
+      // A normal option — drop any exclusive selection, then toggle.
+      const base = selected.filter(v => !exclusive.includes(v))
+      onChange(isSelected ? base.filter(v => v !== opt) : [...base, opt])
+    }
     return (
       <div>
         <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
@@ -1226,7 +1265,7 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
             const isSelected = selected.includes(opt)
             return (
               <button
-                key={opt} onClick={() => onToggleMulti(opt)}
+                key={opt} onClick={() => clickMulti(opt)}
                 className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${isSelected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
               >
                 {isSelected && <span className="mr-0.5">✓ </span>}{opt}

@@ -172,7 +172,10 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu'
   // Photography, Hosts/Entertainers & Banjantrilu don't ask for listing-level events
   // — each event package / rate / card carries its own event — so rituals is skipped.
-  const hasRitualsStep = category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu'
+  // Live Stalls keep the events question but fold it into the first spec screen
+  // (rendered inline below) instead of a standalone slide.
+  const ritualsInline = category === 'Live Stalls'
+  const hasRitualsStep = category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && !ritualsInline
 
   // Each category gets a contiguous run of steps. Decor skips Photos & Name, so its
   // step indices start at 1 with Rituals. Venue leads with a Location step.
@@ -821,6 +824,27 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
               <h1 className="text-[20px] font-bold text-dark">{stepConfig.title}</h1>
               <p className="text-[11px] text-gray-400 mt-1 mb-5">{stepConfig.subtitle}</p>
 
+              {/* Live Stalls fold the events question into the first spec screen. */}
+              {ritualsInline && idx === 0 && (
+                <div className="mb-5">
+                  <label className="text-[12px] font-medium text-dark block mb-1.5">Which events is this for?</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {RITUALS.map((r) => {
+                      const selected = rituals.includes(r)
+                      return (
+                        <button
+                          key={r} onClick={() => toggleRitual(r)}
+                          className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${selected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
+                        >
+                          {selected && <span className="mr-0.5">✓ </span>}{r}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {rituals.length > 0 && <p className="text-[9px] text-gray-400 mt-1">{rituals.length} selected</p>}
+                </div>
+              )}
+
               <div className="space-y-5">
                 {stepConfig.fields.filter(f => isFieldVisible(f, categoryFields)).map(field => (
                   <FieldRenderer
@@ -834,7 +858,11 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
               </div>
 
               <div className="flex gap-2 mt-6">
-                <button onClick={() => setStep(stepNum - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+                {stepNum - 1 < 1 ? (
+                  <button onClick={() => navigate(`${base}/listings`)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
+                ) : (
+                  <button onClick={() => setStep(stepNum - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+                )}
                 <button onClick={() => setStep(stepNum + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
               </div>
             </div>
@@ -1834,6 +1862,7 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
   onChange: (val: string | string[]) => void
   onToggleMulti: (val: string) => void
 }) {
+  const [customDraft, setCustomDraft] = useState('')
   if (field.type === 'slider') {
     const numVal = typeof value === 'string' ? parseInt(value) || field.sliderMin! : field.sliderMin!
     return (
@@ -1897,11 +1926,21 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
 
   if (field.type === 'single') {
     const selected = typeof value === 'string' ? value : ''
+    // A custom value (not in the preset options) shows as its own selected chip.
+    const opts = field.allowCustom && selected && !field.options!.includes(selected)
+      ? [...field.options!, selected]
+      : field.options!
+    const addCustom = () => {
+      const v = customDraft.trim()
+      if (!v) return
+      onChange(v)
+      setCustomDraft('')
+    }
     return (
       <div>
         <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
         <div className="flex flex-wrap gap-1.5">
-          {field.options!.map((opt) => (
+          {opts.map((opt) => (
             <button
               key={opt} onClick={() => onChange(opt)}
               className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${selected === opt ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
@@ -1910,12 +1949,40 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
             </button>
           ))}
         </div>
+        {field.allowCustom && (
+          <div className="flex gap-1.5 mt-2">
+            <input
+              type="text"
+              value={customDraft}
+              onChange={(e) => setCustomDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
+              placeholder="Add your own…"
+              className="flex-1 px-3 py-1.5 rounded-full border border-card-border text-[10px] outline-none focus:border-mustard"
+            />
+            <button
+              type="button" onClick={addCustom} disabled={!customDraft.trim()}
+              className="py-1.5 px-3 rounded-full text-[10px] font-semibold bg-mustard text-white disabled:opacity-40"
+            >Add</button>
+          </div>
+        )}
       </div>
     )
   }
 
   if (field.type === 'multi') {
     const selected = Array.isArray(value) ? value : []
+    const exclusive = field.exclusiveOptions || []
+    const clickMulti = (opt: string) => {
+      const isSelected = selected.includes(opt)
+      if (exclusive.includes(opt)) {
+        // Exclusive option — selecting it clears everything else.
+        onChange(isSelected ? [] : [opt])
+        return
+      }
+      // A normal option — drop any exclusive selection, then toggle.
+      const base = selected.filter(v => !exclusive.includes(v))
+      onChange(isSelected ? base.filter(v => v !== opt) : [...base, opt])
+    }
     return (
       <div>
         <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
@@ -1924,7 +1991,7 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
             const isSelected = selected.includes(opt)
             return (
               <button
-                key={opt} onClick={() => onToggleMulti(opt)}
+                key={opt} onClick={() => clickMulti(opt)}
                 className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${isSelected ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
               >
                 {isSelected && <span className="mr-0.5">✓ </span>}{opt}

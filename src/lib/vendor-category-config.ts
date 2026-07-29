@@ -26,6 +26,11 @@ export interface SelectField {
   numberUnit?: string
   /** Conditional visibility based on another field's value */
   visibleWhen?: { key: string; notEquals?: string | string[]; equals?: string | string[] }
+  /** For single fields — let the vendor type a custom value not in `options` */
+  allowCustom?: boolean
+  /** For multi fields — options that clear (and are cleared by) every other
+   *  option when picked, i.e. selecting one makes the field single-select. */
+  exclusiveOptions?: string[]
 }
 
 export interface CategoryOnboardingConfig {
@@ -519,26 +524,28 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
     styles: ['Live Paintings / Portraits', 'Caricatures', 'Bangle Stall', 'Live Mehendi (guest)', 'Saree Draping', 'Tarot / Astrology', 'Pottery / Craft Station', 'Calligraphy / Name Personalization', 'Temporary Tattoo Artist', 'Photo Booth (Instant Prints)'],
     inclusions: ['Materials Included', 'Setup Table & Chairs', 'Backdrop / Signage', 'Take-Home Gift for Guests', 'Branded Attire', 'Live Demo', 'Custom Theme Setup', 'Background Music', 'Power Strip / Lighting', 'Travel Within City'],
     priceRange: { min: 3000, max: 100000, step: 1000 },
+    // Live Stalls fold the "which events is this for?" question into the first
+    // spec screen (rendered inline by the listing wizard) — no standalone
+    // rituals slide — so everything fits on exactly two screens.
     steps: [
       {
         title: 'Stall details',
-        subtitle: 'What kind of stall is this?',
+        subtitle: 'What kind of stall is this and where can couples use it?',
         fields: [
-          { key: 'stallType', label: 'Stall type', type: 'single', options: ['Live Paintings / Portraits', 'Caricatures', 'Bangle Stall', 'Live Mehendi (guest)', 'Saree Draping', 'Tarot / Astrology', 'Pottery / Craft Station', 'Calligraphy / Name Personalization', 'Temporary Tattoo Artist', 'Photo Booth (Instant Prints)'] },
+          { key: 'stallType', label: 'Stall type', type: 'single', allowCustom: true, options: ['Live Paintings / Portraits', 'Caricatures', 'Bangle Stall', 'Live Mehendi (guest)', 'Saree Draping', 'Tarot / Astrology', 'Pottery / Craft Station', 'Calligraphy / Name Personalization', 'Temporary Tattoo Artist', 'Photo Booth (Instant Prints)'] },
           { key: 'artistsOnDuty', label: 'Artists on duty', type: 'single', options: ['1', '2', '3', '4+'] },
           { key: 'duration', label: 'Stall duration', type: 'single', options: ['1 hour', '2 hours', '3 hours', '4 hours', 'Full event'] },
-          { key: 'guestsPerHour', label: 'Guests served per hour', type: 'single', options: ['Under 10', '10-20', '20-40', '40+'] },
         ],
       },
       {
-        title: 'Setup & extras',
-        subtitle: 'What logistics are involved?',
+        title: 'Setup & capacity',
+        subtitle: 'Logistics and how many guests you can serve.',
         fields: [
-          { key: 'setupNeeded', label: 'What setup is needed?', type: 'multi', options: ['Table + chairs', 'Power outlet', 'Backdrop wall', 'Lighting', 'Branded signage', 'Background music', 'Dedicated area'] },
+          { key: 'totalGuests', label: 'Total guests served', type: 'number', numberMin: 0, numberMax: 2000, numberStep: 10, numberUnit: 'guests' },
+          // "Setup brought by artist" is exclusive — picking it means the artist
+          // needs nothing from the couple, so it clears every other option.
+          { key: 'setupNeeded', label: 'What setup is needed?', type: 'multi', exclusiveOptions: ['Setup brought by artist'], options: ['Setup brought by artist', 'Table + chairs', 'Power outlet', 'Backdrop wall', 'Lighting', 'Branded signage', 'Background music', 'Dedicated area'] },
           { key: 'materialsIncluded', label: 'Materials', type: 'single', options: ['All included', 'Partial', 'Couple provides'] },
-          { key: 'takeHomeGift', label: 'Take-home gift for guests', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
-          { key: 'attire', label: 'Attire', type: 'single', options: ['Traditional', 'Casual', 'Branded uniform', 'Theme-appropriate'] },
-          { key: 'travel', label: 'Travel', type: 'single', options: ['Within city included', 'Up to 50km', 'Up to 100km', 'Extra charge'] },
         ],
       },
     ],
