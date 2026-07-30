@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth-context'
 import { fetchAdminVendors, createAdminVendor, deleteAdminVendor } from '@/lib/supabase-db'
 import { CATEGORIES } from '@/pages/vendor/VendorOnboarding'
+import { categorySlug } from '@/pages/CategoryCatalogPage'
 
 interface AdminVendorRow {
   id: string
@@ -34,6 +35,18 @@ export default function AdminDashboard() {
   // List search + category filter (many vendors onboarded — narrow the list down).
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+
+  // Share vendor catalog: pick a category → public full-details link for clients.
+  const [catalogCat, setCatalogCat] = useState('')
+  const [catalogCopied, setCatalogCopied] = useState(false)
+  const catalogUrl = catalogCat ? `${window.location.origin}/catalog/${categorySlug(catalogCat)}` : ''
+  function copyCatalogLink() {
+    if (!catalogUrl) return
+    navigator.clipboard?.writeText(catalogUrl).then(() => {
+      setCatalogCopied(true)
+      setTimeout(() => setCatalogCopied(false), 2000)
+    })
+  }
 
   async function load() {
     const rows = await fetchAdminVendors()
@@ -110,6 +123,40 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-2xl mx-auto px-5 py-6">
+        {/* Share a full-details vendor catalog for a category (for offline events) */}
+        <div className="mb-6 rounded-2xl border border-card-border bg-white p-4">
+          <p className="text-[13px] font-bold text-dark">Share vendor catalog</p>
+          <p className="text-[11px] text-gray-500 mt-0.5 mb-3">
+            Pick a category to get a public link listing every live vendor in it — with names, contact
+            &amp; pricing visible — to share with a client.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <select
+              value={catalogCat}
+              onChange={e => { setCatalogCat(e.target.value); setCatalogCopied(false) }}
+              className="flex-1 py-2.5 px-3 rounded-xl border border-card-border text-[13px] focus:border-magenta outline-none bg-white"
+            >
+              <option value="">Select a category…</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <button
+                onClick={() => catalogUrl && window.open(catalogUrl, '_blank')}
+                disabled={!catalogUrl}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-card-border text-[13px] font-medium text-dark disabled:opacity-40"
+              >Open</button>
+              <button
+                onClick={copyCatalogLink}
+                disabled={!catalogUrl}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-magenta text-white text-[13px] font-semibold disabled:opacity-40 active:scale-[0.99]"
+              >{catalogCopied ? '✓ Copied' : 'Copy link'}</button>
+            </div>
+          </div>
+          {catalogUrl && (
+            <p className="text-[10px] text-gray-400 mt-2 break-all">{catalogUrl}</p>
+          )}
+        </div>
+
         <div className="flex items-center justify-between mb-4">
           <p className="text-[13px] text-gray-500">
             {loading

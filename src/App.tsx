@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from '@/lib/auth-context'
 import { fetchVendor, isAdminUser, fetchProfileRole } from '@/lib/supabase-db'
 import ClaimPage from './pages/ClaimPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import CategoryCatalogPage from './pages/CategoryCatalogPage'
 import AdminVendorEditor from './pages/admin/AdminVendorEditor'
 import LandingPage from './pages/LandingPage'
 import ArticlesPage from './pages/ArticlesPage'
@@ -48,6 +49,18 @@ export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
       <div className="app-container">
         <Routes>
           <Route path="/share/:boardId" element={<SharedBoardPage />} />
+        </Routes>
+      </div>
+    )
+  }
+
+  // Public vendor catalog — an admin-shared list of every live vendor in a
+  // category, full details visible. Public link (no auth) so clients can open it.
+  if (pathname.startsWith('/catalog/')) {
+    return (
+      <div className="app-container">
+        <Routes>
+          <Route path="/catalog/:category" element={<CategoryCatalogPage />} />
         </Routes>
       </div>
     )
