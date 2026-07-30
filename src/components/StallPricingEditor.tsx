@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { formatINR } from '@/lib/helpers'
 import { newStallItemId, type StallItem, type StallPricing } from '@/lib/vendor-category-config'
 
 /**
@@ -75,17 +74,18 @@ export default function StallPricingEditor({
 
       {mode === 'package' ? (
         <div>
-          <label className="text-[11px] font-medium text-dark block mb-1">Price</label>
-          <p className="text-[24px] font-bold text-mustard mb-2">{formatINR(price)}</p>
-          <input
-            type="range" min={priceRange.min} max={priceRange.max} step={priceRange.step}
-            value={price} onChange={(e) => onPriceChange(Number(e.target.value))}
-            className="w-full h-2 rounded-full appearance-none cursor-pointer accent-mustard"
-            style={{ background: `linear-gradient(to right, #D4A017 ${((price - priceRange.min) / (priceRange.max - priceRange.min)) * 100}%, #eee ${((price - priceRange.min) / (priceRange.max - priceRange.min)) * 100}%)` }}
-          />
-          <div className="flex justify-between text-[9px] text-gray-400 mt-1">
-            <span>{formatINR(priceRange.min)}</span><span>{formatINR(priceRange.max)}</span>
+          <label className="text-[11px] font-medium text-dark block mb-1.5">Price</label>
+          <div className="relative w-[180px]">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-gray-400">₹</span>
+            <input
+              type="number" min={0} step={priceRange.step}
+              value={price || ''}
+              onChange={(e) => onPriceChange(Math.max(0, parseInt(e.target.value) || 0))}
+              placeholder="0"
+              className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-card-border text-[15px] font-semibold text-dark outline-none focus:border-mustard [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
           </div>
+          <p className="text-[9px] text-gray-400 mt-1.5">Flat price for the whole stall.</p>
         </div>
       ) : (
         <div>
