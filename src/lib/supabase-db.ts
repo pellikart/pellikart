@@ -1081,6 +1081,59 @@ export async function fetchAllAvailability() {
   return data || []
 }
 
+// ─── CATALOG SHARES (admin) ─────────────────
+
+export interface CatalogShareRow {
+  id: string
+  token: string
+  category: string
+  created_at: string
+  expires_at: string | null
+  revoked: boolean
+}
+
+/** Create a revocable catalog-share link for a category. `expiresAt` is an ISO
+ *  string or null (no expiry). Returns the created row (with its token). */
+export async function createCatalogShare(category: string, expiresAt: string | null): Promise<CatalogShareRow | null> {
+  if (!supabase) return null
+  const token = (crypto.randomUUID?.() || `${Date.now()}${Math.round(Math.random() * 1e9)}`).replace(/-/g, '').slice(0, 20)
+  const { data, error } = await supabase
+    .from('catalog_shares')
+    .insert({ token, category, expires_at: expiresAt })
+    .select()
+    .maybeSingle()
+  if (error) console.error('[db] createCatalogShare failed:', error.message)
+  return (data as CatalogShareRow) || null
+}
+
+/** All catalog shares (admin view), newest first. */
+export async function listCatalogShares(): Promise<CatalogShareRow[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('catalog_shares')
+    .select('*')
+    .order('created_at', { ascending: false })
+  return (data as CatalogShareRow[]) || []
+}
+
+/** Revoke a catalog share (link stops working immediately). */
+export async function revokeCatalogShare(id: string): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.from('catalog_shares').update({ revoked: true }).eq('id', id)
+  return !error
+}
+
+/** Resolve a share token → its category, or null if invalid/revoked/expired.
+ *  Public (anon) — goes through the security-definer RPC so tokens can't be
+ *  enumerated. */
+export async function resolveCatalogShare(token: string): Promise<string | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase.rpc('resolve_catalog_share', { p_token: token })
+  if (error) { console.error('[db] resolveCatalogShare failed:', error.message); return null }
+  const rows = (data as { category: string }[]) || []
+  return rows.length ? rows[0].category : null
+}
+
 // ─── TRIALS ─────────────────────────────────
 
 export interface TrialRow {

@@ -1,34 +1,34 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { fetchAllListings, fetchAllLiveVendors, fetchAllAvailability } from '@/lib/supabase-db'
+import { fetchAllListings, fetchAllLiveVendors, fetchAllAvailability, resolveCatalogShare } from '@/lib/supabase-db'
 import { buildLiveVendorMap, useStore } from '@/lib/store'
 import { formatINR, bgStyle, listingDisplayName } from '@/lib/helpers'
 import type { Vendor } from '@/lib/types'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
-import { CATEGORIES } from '@/pages/vendor/VendorOnboarding'
-
-/** Slug used in the public catalog URL, e.g. "Live Stalls" → "live-stalls". */
-export function categorySlug(category: string): string {
-  return category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-}
 
 /**
  * Public, admin-shared catalog of every live vendor in a category, with FULL
  * details visible (names, contact, pricing) — for sharing with clients running
- * offline events. Lives at /catalog/:category, bypassing auth like /share.
+ * offline events. Reached via a revocable token link /catalog/:token (resolved
+ * server-side); bypasses auth like /share. Content is live (current vendors);
+ * the admin controls access by revoking / expiring the token.
  */
 export default function CategoryCatalogPage() {
-  const { category: slug } = useParams<{ category: string }>()
-  const category = useMemo(() => CATEGORIES.find(c => categorySlug(c) === slug) || '', [slug])
+  const { token } = useParams<{ token: string }>()
+  const [status, setStatus] = useState<'loading' | 'invalid' | 'ok'>('loading')
+  const [category, setCategory] = useState('')
   const [vendors, setVendors] = useState<Vendor[]>([])
-  const [loading, setLoading] = useState(true)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (!category) { setLoading(false); return }
+    if (!token) { setStatus('invalid'); return }
     let cancelled = false
     ;(async () => {
+      const cat = await resolveCatalogShare(token)
+      if (cancelled) return
+      if (!cat) { setStatus('invalid'); return }
+      setCategory(cat)
       const [liveVendors, listings, availability] = await Promise.all([
         fetchAllLiveVendors(),
         fetchAllListings(),
@@ -41,16 +41,15 @@ export default function CategoryCatalogPage() {
         availability as Record<string, unknown>[],
       )
       // Make the vendor map available to ListingDetailSheet's internal lookups.
-      // Not live mode — no DB writes happen (add-to-board is gated on ritual/category ids).
+      // Not live mode — no DB writes (add-to-board is gated on ritual/category ids).
       useStore.setState({ vendors: vendorMap, _listingVendorMap: lvMap, _liveMode: false })
-      const list = Object.values(vendorMap)
-        .filter(v => v.category === category)
-        .sort((a, b) => a.price - b.price)
-      setVendors(list)
-      setLoading(false)
+      setVendors(
+        Object.values(vendorMap).filter(v => v.category === cat).sort((a, b) => a.price - b.price),
+      )
+      setStatus('ok')
     })()
     return () => { cancelled = true }
-  }, [category])
+  }, [token])
 
   const detailVendor = detailId ? vendors.find(v => v.id === detailId) : null
 
@@ -61,12 +60,12 @@ export default function CategoryCatalogPage() {
     })
   }
 
-  if (!category) {
+  if (status === 'invalid') {
     return (
       <div className="min-h-dvh flex items-center justify-center p-6 text-center">
         <div>
-          <p className="text-[15px] font-semibold text-dark">Catalog not found</p>
-          <p className="text-[12px] text-gray-500 mt-1">This category link isn't valid.</p>
+          <p className="text-[15px] font-semibold text-dark">This link isn't available</p>
+          <p className="text-[12px] text-gray-500 mt-1 max-w-[260px]">It may have been revoked or expired. Please ask for a fresh link.</p>
         </div>
       </div>
     )
@@ -78,22 +77,22 @@ export default function CategoryCatalogPage() {
       <div className="sticky top-0 z-20 bg-white border-b border-card-border px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
         <div className="max-w-[820px] mx-auto flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[16px] font-bold text-dark truncate">{category}</p>
+            <p className="text-[16px] font-bold text-dark truncate">{category || 'Vendor catalog'}</p>
             <p className="text-[11px] text-gray-500">
-              {loading ? 'Loading…' : `${vendors.length} ${vendors.length === 1 ? 'vendor' : 'vendors'} · full details`}
+              {status === 'loading' ? 'Loading…' : `${vendors.length} ${vendors.length === 1 ? 'vendor' : 'vendors'} · full details`}
             </p>
           </div>
           <button
             onClick={copyLink}
             className="shrink-0 py-2 px-3 rounded-xl bg-mustard text-white text-[12px] font-semibold active:scale-[0.98] transition-transform"
           >
-            {copied ? '✓ Link copied' : 'Copy share link'}
+            {copied ? '✓ Link copied' : 'Copy link'}
           </button>
         </div>
       </div>
 
       <div className="max-w-[820px] mx-auto p-4">
-        {loading ? (
+        {status === 'loading' ? (
           <p className="text-center text-gray-400 text-xs py-12">Loading vendors…</p>
         ) : vendors.length === 0 ? (
           <p className="text-center text-gray-400 text-xs py-12">No live {category} vendors yet.</p>

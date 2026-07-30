@@ -60,7 +60,7 @@ export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
     return (
       <div className="app-container">
         <Routes>
-          <Route path="/catalog/:category" element={<CategoryCatalogPage />} />
+          <Route path="/catalog/:token" element={<CategoryCatalogPage />} />
         </Routes>
       </div>
     )
