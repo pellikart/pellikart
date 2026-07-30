@@ -493,7 +493,6 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {/* Rating + Likes + Availability */}
             <div className="flex items-center gap-2 flex-wrap mb-3">
               <span className="bg-dark/10 text-dark text-[11px] font-medium px-2 py-1 rounded-full">★ {vendor.rating}</span>
-              {!hidesVendorMeta(vendor) && vendor.style && <span className="bg-empty-bg text-gray-500 text-[10px] px-2 py-1 rounded-full">{vendor.style}</span>}
               {likeNames.length > 0 && (
                 <span className="bg-magenta-light text-magenta text-[10px] px-2 py-1 rounded-full">♥ {vendor.likes.length}</span>
               )}
@@ -1418,12 +1417,6 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             <div className="grid grid-cols-2 gap-3 mb-4">
               {!hidesVendorMeta(vendor) && (
                 <div>
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">Style</p>
-                  <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.style}</p>
-                </div>
-              )}
-              {!hidesVendorMeta(vendor) && (
-                <div>
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">Area</p>
                   <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.area || 'Hyderabad'}</p>
                 </div>
@@ -1446,10 +1439,12 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                   <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.teamSize}</p>
                 </div>
               )}
-              <div>
-                <p className="text-[9px] text-gray-400 uppercase tracking-wider">Package</p>
-                <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.packageTier || '—'}</p>
-              </div>
+              {vendor.packageTier && (
+                <div>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">Package</p>
+                  <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.packageTier}</p>
+                </div>
+              )}
             </div>
 
             {/* Description */}

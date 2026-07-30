@@ -36,7 +36,7 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
         <div className="sticky top-0 bg-white border-b border-card-border px-4 py-3 flex items-center justify-between z-10">
           <div>
             <p className="text-[14px] font-bold text-dark">{unlocked ? vendor.name : vendor.code}</p>
-            {!hideMeta && <p className="text-[10px] text-gray-400">{vendor.style} · {vendor.area}</p>}
+            {!hideMeta && vendor.area && <p className="text-[10px] text-gray-400">{vendor.area}</p>}
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-empty-bg flex items-center justify-center">
             <span className="text-gray-500 text-sm">✕</span>
@@ -77,7 +77,7 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
                 vendor.description ||
                 (hideMeta
                   ? `${unlocked ? vendor.name : 'This vendor'} has successfully delivered ${totalBookings}+ events. Known for attention to detail and personalized service.`
-                  : `${unlocked ? vendor.name : 'This vendor'} specializes in ${vendor.style.toLowerCase()} wedding services in ${vendor.area}. With ${experience} years of experience and a team of ${teamSize}, they've successfully delivered ${totalBookings}+ events. Known for attention to detail and personalized service.`)
+                  : `${unlocked ? vendor.name : 'This vendor'} provides wedding services in ${vendor.area}. With ${experience} years of experience and a team of ${teamSize}, they've successfully delivered ${totalBookings}+ events. Known for attention to detail and personalized service.`)
               }
             />
           </div>

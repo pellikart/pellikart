@@ -74,7 +74,7 @@ export default function BookingPage() {
                       <span className="bg-green-100 text-green-600 text-[9px] font-medium px-1.5 py-0.5 rounded-full shrink-0">Trial ✓</span>
                     )}
                   </div>
-                  <p className="text-[10px] text-gray-500">{vendor.packageTier}</p>
+                  {vendor.packageTier && <p className="text-[10px] text-gray-500">{vendor.packageTier}</p>}
                   <p className="text-xs font-semibold text-dark">{formatINR(effectivePrice)}</p>
                   {vendor.booked && <p className="text-[10px] text-green-600">{formatINR(vendor.amountPaid)} paid</p>}
                 </div>

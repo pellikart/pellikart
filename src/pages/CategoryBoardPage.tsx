@@ -880,7 +880,7 @@ function VisualGridCard({
         </div>
         <div>
           <p className="text-white/80 text-[9px]">
-            {listingDisplayName(v, unlocked)}{!hidesVendorMeta(v) && v.style ? ` · ${v.style}` : ''}
+            {listingDisplayName(v, unlocked)}
             {v.category && <> · {v.category}</>}
           </p>
           {platePkg ? (
@@ -1014,14 +1014,6 @@ function CompareTable({
               )
             })}
           </tr>
-          {!hidesVendorMeta(vendors[0]) && (
-            <tr className="border-b border-card-border/50">
-              <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Style</td>
-              {vendors.map((v) => (
-                <td key={v.id} className="py-2 px-2 text-center text-dark">{v.style || '—'}</td>
-              ))}
-            </tr>
-          )}
           {!hidesVendorMeta(vendors[0]) && (
             <tr className="border-b border-card-border/50">
               <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Area</td>
