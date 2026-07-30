@@ -795,6 +795,60 @@ export function banjantriluCardValid(c: BanjantriluCard): boolean {
  *  (incl. custom poojas like "Satyanarayana Swami Vratham"). */
 export const PANDIT_DEFAULT_EVENTS = ['Pelli (Wedding)', 'Engagement'] as const
 
+/** Preset rituals a Purohit can multi-select per event (plus custom additions).
+ *  Keyed by the card's event; events not listed here have no presets (custom
+ *  events fall back to free-text ritual entry only). */
+export const PANDIT_EVENT_RITUALS: Record<string, string[]> = {
+  'Pelli (Wedding)': [
+    'Ganapati Puja',
+    'Sankalpam',
+    'Raksha Bandhanam / Kankanadharanam',
+    'Vara Puja',
+    'Kashi Yatra',
+    'Kanya Agamanam',
+    'Madhuparkam',
+    'Kanyadanam',
+    'Jeelakarra–Bellam',
+    'Mangala Sutra Dharana',
+    'Talambralu',
+    'Panigrahanam',
+    'Saptapadi',
+    'Nagavalli',
+    'Arundhati Darshanam',
+    'Veda Ashirvadam',
+  ],
+  'Engagement': [
+    'Ganapati Puja',
+    'Sankalpam',
+    'Presentation of New Clothes',
+    'Reading of Lagna Patrika',
+    'Nischaya Tamboolam Exchange',
+    'Ring Exchange (if followed)',
+    'Akshata Blessings',
+  ],
+  'Satyanarayana Swami Vratham': [
+    'Ganapati Puja',
+    'Punyahavachanam',
+    'Sankalpam',
+    'Kalasha Sthapanam',
+    'Navagraha Puja',
+    'Panchapalaka Puja',
+    'Ashta Dikpalaka Puja',
+    'Sri Sathyanarayana Swami Puja',
+    'Ashtottara Shatanamarchana',
+    'Sathyanarayana Vratha Katha',
+    'Harathi',
+    'Veda Ashirvadam',
+    'Prasadam & Tamboolam Distribution',
+  ],
+}
+
+/** Events shown as pickable chips when authoring a Pandit card (defaults +
+ *  every event that has a preset ritual list). Vendors can still type custom. */
+export const PANDIT_SUGGESTED_EVENTS = Array.from(
+  new Set([...PANDIT_DEFAULT_EVENTS, ...Object.keys(PANDIT_EVENT_RITUALS)]),
+)
+
 /** One event → the purohit's offering + flat price for a Pandit listing. */
 export interface PanditCard {
   /** Stable id (React key + card remove). */

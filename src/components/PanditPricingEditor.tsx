@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
-  PANDIT_DEFAULT_EVENTS,
+  PANDIT_SUGGESTED_EVENTS,
+  PANDIT_EVENT_RITUALS,
   newPanditCardId,
   type PanditPricing,
   type PanditCard,
@@ -70,7 +71,7 @@ export default function PanditPricingEditor({
           {/* Event — chips (defaults + this card's own custom event). */}
           <label className="text-[12px] font-semibold text-dark block mb-1.5">Event</label>
           <div className="flex flex-wrap gap-1.5 mb-3">
-            {Array.from(new Set([...PANDIT_DEFAULT_EVENTS, card.event].filter(Boolean))).map(ev => {
+            {Array.from(new Set([...PANDIT_SUGGESTED_EVENTS, card.event].filter(Boolean))).map(ev => {
               const on = card.event === ev
               return (
                 <button
@@ -85,8 +86,9 @@ export default function PanditPricingEditor({
             })}
           </div>
 
-          {/* Rituals included — free-text tag list */}
+          {/* Rituals included — preset multi-select for the event + custom add */}
           <RitualsIncludedEditor
+            event={card.event}
             value={card.ritualsIncluded}
             onChange={(next) => setCard(card.id, { ritualsIncluded: next })}
           />
@@ -168,10 +170,15 @@ export default function PanditPricingEditor({
   )
 }
 
-/** Free-text tag list for the rituals/poojas included in an event. */
-function RitualsIncludedEditor({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+/** Rituals included in an event — multi-select from the event's preset list,
+ *  plus any custom rituals the vendor adds. */
+function RitualsIncludedEditor({ event, value, onChange }: { event: string; value: string[]; onChange: (next: string[]) => void }) {
   const [draft, setDraft] = useState('')
   const items = value || []
+  const presets = PANDIT_EVENT_RITUALS[event] || []
+  // Custom rituals = selected items that aren't in this event's presets.
+  const customItems = items.filter(r => !presets.includes(r))
+  const toggle = (r: string) => onChange(items.includes(r) ? items.filter(x => x !== r) : [...items, r])
   const add = () => {
     const v = draft.trim()
     if (!v || items.includes(v)) { setDraft(''); return }
@@ -181,9 +188,26 @@ function RitualsIncludedEditor({ value, onChange }: { value: string[]; onChange:
   return (
     <div>
       <label className="text-[12px] font-medium text-dark block mb-1.5">Rituals included</label>
-      {items.length > 0 && (
+
+      {/* Preset rituals for this event — tap to include */}
+      {presets.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">
-          {items.map((r) => (
+          {presets.map((r) => {
+            const on = items.includes(r)
+            return (
+              <button
+                key={r} type="button" onClick={() => toggle(r)}
+                className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${on ? 'bg-mustard text-white' : 'bg-white border border-card-border text-gray-600 active:bg-mustard-light'}`}
+              >{on && <span className="mr-0.5">✓ </span>}{r}</button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Custom rituals added by the vendor */}
+      {customItems.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {customItems.map((r) => (
             <span key={r} className="inline-flex items-center gap-1 py-1 px-2.5 rounded-full text-[10px] font-medium bg-mustard-light text-dark">
               {r}
               <button type="button" onClick={() => onChange(items.filter(x => x !== r))} className="text-gray-500 active:text-red-500" aria-label={`Remove ${r}`}>✕</button>
@@ -191,13 +215,15 @@ function RitualsIncludedEditor({ value, onChange }: { value: string[]; onChange:
           ))}
         </div>
       )}
+
+      {/* Add a custom ritual not in the presets */}
       <div className="flex gap-2">
         <input
           type="text"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
-          placeholder="Add a ritual (e.g. Ganapati Pooja)…"
+          placeholder={presets.length > 0 ? 'Add a custom ritual…' : 'Add a ritual (e.g. Ganapati Puja)…'}
           className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
         />
         <button type="button" onClick={add} disabled={!draft.trim()}
