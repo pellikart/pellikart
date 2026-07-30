@@ -522,7 +522,7 @@ export default function CategoryBoardPage() {
                       <DesignFeedCard
                         key={d.id}
                         design={d}
-                        title={unlocked ? d.name : (pv?.publicCode || makePublicCode(category.label, pv?.id || d.vendorId))}
+                        title={pv ? listingDisplayName(pv, unlocked) : (unlocked ? d.name : makePublicCode(category.label, d.vendorId))}
                         unlocked={unlocked}
                         vendorName={pv?.name || d.name}
                         specs={specs}
