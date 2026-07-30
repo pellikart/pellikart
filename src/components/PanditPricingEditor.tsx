@@ -37,7 +37,7 @@ export default function PanditPricingEditor({
   function addCard(event: string) {
     patchCards([...cards, {
       id: newPanditCardId(), event, ritualsIncluded: [],
-      durationHours: 2, durationVaries: false, people: 0, purohits: 1,
+      durationHours: 2, durationVaries: false, purohits: 1,
       transportIncluded: false, price: 0,
     }])
   }
@@ -113,11 +113,8 @@ export default function PanditPricingEditor({
             </div>
           </div>
 
-          {/* No. of people + No. of purohits steppers */}
-          <div className="mt-2.5 space-y-2.5">
-            <StepperRow label="No. of people" value={card.people} min={0} step={10}
-              hint={card.people === 0 ? 'Any / not specified' : undefined}
-              onChange={(n) => setCard(card.id, { people: n })} />
+          {/* No. of purohits stepper */}
+          <div className="mt-2.5">
             <StepperRow label="No. of purohits" value={card.purohits} min={1} step={1}
               onChange={(n) => setCard(card.id, { purohits: n })} />
           </div>

@@ -4,7 +4,7 @@ import { emptyPanditPricing, panditCardValid, PANDIT_DEFAULT_EVENTS, type Pandit
 
 const card = (over: Partial<PanditCard>): PanditCard => ({
   id: 'x', event: 'Pelli (Wedding)', ritualsIncluded: [], durationHours: 3,
-  durationVaries: false, people: 0, purohits: 1, transportIncluded: false, price: 0, ...over,
+  durationVaries: false, purohits: 1, transportIncluded: false, price: 0, ...over,
 })
 
 const pricing: PanditPricing = {

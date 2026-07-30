@@ -242,7 +242,7 @@ export interface VendorListing {
   entertainerPricing?: import('./vendor-category-config').EntertainerPricing
   /** Banjantrilu-only: per-event pricing cards (event + artists + hours + flat price). */
   banjantriluPricing?: import('./vendor-category-config').BanjantriluPricing
-  /** Pandit-only: per-event pricing cards (event + rituals + duration + people + purohits + transport + flat price). */
+  /** Pandit-only: per-event pricing cards (event + rituals + duration + purohits + transport + flat price). */
   panditPricing?: import('./vendor-category-config').PanditPricing
   /** Mehendi-only: bridal coverage×design matrix + groom/guest pricing.
    *  Authored in onboarding; `price` holds the cheapest bridal "from" price. */

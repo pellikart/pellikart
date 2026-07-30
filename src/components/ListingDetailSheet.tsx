@@ -788,7 +788,6 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                         <p className="text-[10px] text-gray-400 mt-0.5">
                           {c.durationVaries ? 'Duration varies by caste' : `${c.durationHours} ${c.durationHours === 1 ? 'hr' : 'hrs'}`}
                           {c.purohits ? ` · ${c.purohits} ${c.purohits === 1 ? 'purohit' : 'purohits'}` : ''}
-                          {c.people ? ` · ${c.people} people` : ''}
                           {` · ${c.transportIncluded ? 'Transport included' : 'Transport extra'}`}
                         </p>
                       </div>

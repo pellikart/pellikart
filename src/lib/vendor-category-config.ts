@@ -793,7 +793,7 @@ export function banjantriluCardValid(c: BanjantriluCard): boolean {
 /** Default events a Purohit prices against (canonical RITUALS values so the
  *  listing board-matches the right per-ritual boards). Vendors add more events
  *  (incl. custom poojas like "Satyanarayana Swami Vratham"). */
-export const PANDIT_DEFAULT_EVENTS = ['Pelli (Wedding)', 'Engagement'] as const
+export const PANDIT_DEFAULT_EVENTS = ['Pelli (Wedding)', 'Engagement', 'Satyanarayana Swami Vratham'] as const
 
 /** Preset rituals a Purohit can multi-select per event (plus custom additions).
  *  Keyed by the card's event; events not listed here have no presets (custom
@@ -861,8 +861,6 @@ export interface PanditCard {
   durationHours: number
   /** When true, duration "Varies by caste" and durationHours is not shown. */
   durationVaries: boolean
-  /** Number of people the event is for (0 = not specified). */
-  people: number
   /** Number of purohits performing this event. */
   purohits: number
   /** Whether transport is included for this event. */
@@ -891,7 +889,6 @@ export function emptyPanditPricing(): PanditPricing {
       ritualsIncluded: [],
       durationHours: 2,
       durationVaries: false,
-      people: 0,
       purohits: 1,
       transportIncluded: false,
       price: 0,
