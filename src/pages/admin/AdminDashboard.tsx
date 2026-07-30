@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth-context'
-import { fetchAdminVendors, createAdminVendor, deleteAdminVendor, createCatalogShare, listCatalogShares, revokeCatalogShare, type CatalogShareRow } from '@/lib/supabase-db'
+import { fetchAdminVendors, createAdminVendor, deleteAdminVendor, createCatalogShare, listCatalogShares, type CatalogShareRow } from '@/lib/supabase-db'
 import { CATEGORIES } from '@/pages/vendor/VendorOnboarding'
 
 interface AdminVendorRow {
@@ -35,25 +35,18 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
 
-  // Share vendor catalog: generate revocable token links for a category.
+  // Share vendor catalog: generate token links for a category (auto-expire 5 days).
   const [catalogCat, setCatalogCat] = useState('')
-  const [catalogExpiryDays, setCatalogExpiryDays] = useState('7') // '0' = no expiry
   const [shares, setShares] = useState<CatalogShareRow[]>([])
   const [generating, setGenerating] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const shareUrl = (token: string) => `${window.location.origin}/catalog/${token}`
-  function shareStatus(s: CatalogShareRow): { label: string; cls: string } {
-    if (s.revoked) return { label: 'Revoked', cls: 'bg-gray-100 text-gray-500' }
-    if (s.expires_at && new Date(s.expires_at).getTime() <= Date.now()) return { label: 'Expired', cls: 'bg-gray-100 text-gray-500' }
-    return { label: 'Active', cls: 'bg-green-100 text-green-700' }
-  }
+  const shareExpired = (s: CatalogShareRow) => new Date(s.expires_at).getTime() <= Date.now()
   async function generateShare() {
     if (!catalogCat) return
     setGenerating(true)
-    const days = parseInt(catalogExpiryDays)
-    const expiresAt = days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null
-    const row = await createCatalogShare(catalogCat, expiresAt)
+    const row = await createCatalogShare(catalogCat)
     setGenerating(false)
     if (row) {
       setShares(prev => [row, ...prev])
@@ -64,12 +57,6 @@ export default function AdminDashboard() {
     } else {
       window.alert("Couldn't create the share link. Please try again.")
     }
-  }
-  async function handleRevoke(id: string) {
-    if (!window.confirm('Revoke this link? Anyone using it will lose access immediately.')) return
-    const ok = await revokeCatalogShare(id)
-    if (ok) setShares(prev => prev.map(s => s.id === id ? { ...s, revoked: true } : s))
-    else window.alert("Couldn't revoke. Please try again.")
   }
   function copyShare(s: CatalogShareRow) {
     navigator.clipboard?.writeText(shareUrl(s.token)).then(() => {
@@ -158,8 +145,7 @@ export default function AdminDashboard() {
           <p className="text-[13px] font-bold text-dark">Share vendor catalog</p>
           <p className="text-[11px] text-gray-500 mt-0.5 mb-3">
             Generate a link listing every live vendor in a category — names, contact &amp; pricing
-            visible — to share with a client. Links are revocable and expire, so they can't leak
-            long-term.
+            visible — to share with a client. Every link auto-expires in 5 days.
           </p>
           <div className="flex flex-col sm:flex-row gap-2.5">
             <select
@@ -169,16 +155,6 @@ export default function AdminDashboard() {
             >
               <option value="">Select a category…</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select
-              value={catalogExpiryDays}
-              onChange={e => setCatalogExpiryDays(e.target.value)}
-              className="sm:w-40 py-2.5 px-3 rounded-xl border border-card-border text-[13px] focus:border-magenta outline-none bg-white"
-            >
-              <option value="7">Expires in 7 days</option>
-              <option value="2">Expires in 48 hours</option>
-              <option value="30">Expires in 30 days</option>
-              <option value="0">No expiry</option>
             </select>
             <button
               onClick={generateShare}
@@ -191,28 +167,20 @@ export default function AdminDashboard() {
           {shares.length > 0 && (
             <div className="mt-4 space-y-2">
               {shares.map(s => {
-                const st = shareStatus(s)
-                const active = st.label === 'Active'
+                const expired = shareExpired(s)
                 return (
                   <div key={s.id} className="flex items-center gap-2 rounded-xl border border-card-border px-3 py-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[12px] font-medium text-dark truncate">{s.category}</span>
-                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${expired ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'}`}>{expired ? 'Expired' : 'Active'}</span>
                       </div>
-                      <p className="text-[10px] text-gray-400">
-                        {s.expires_at ? `Expires ${new Date(s.expires_at).toLocaleDateString()}` : 'No expiry'}
-                      </p>
+                      <p className="text-[10px] text-gray-400">Expires {new Date(s.expires_at).toLocaleDateString()}</p>
                     </div>
-                    {active && (
-                      <>
-                        <button onClick={() => copyShare(s)} className="text-[11px] font-medium text-magenta px-2 py-1 rounded-lg active:bg-magenta-light/40">
-                          {copiedId === s.id ? '✓ Copied' : 'Copy'}
-                        </button>
-                        <button onClick={() => handleRevoke(s.id)} className="text-[11px] font-medium text-gray-400 hover:text-red-500 px-2 py-1">
-                          Revoke
-                        </button>
-                      </>
+                    {!expired && (
+                      <button onClick={() => copyShare(s)} className="text-[11px] font-medium text-magenta px-2 py-1 rounded-lg active:bg-magenta-light/40">
+                        {copiedId === s.id ? '✓ Copied' : 'Copy'}
+                      </button>
                     )}
                   </div>
                 )

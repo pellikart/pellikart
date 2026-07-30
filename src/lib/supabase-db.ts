@@ -1088,15 +1088,18 @@ export interface CatalogShareRow {
   token: string
   category: string
   created_at: string
-  expires_at: string | null
-  revoked: boolean
+  expires_at: string
 }
 
-/** Create a revocable catalog-share link for a category. `expiresAt` is an ISO
- *  string or null (no expiry). Returns the created row (with its token). */
-export async function createCatalogShare(category: string, expiresAt: string | null): Promise<CatalogShareRow | null> {
+/** How long a shared catalog link stays valid. */
+const CATALOG_SHARE_DAYS = 5
+
+/** Create a catalog-share link for a category that auto-expires in 5 days.
+ *  Returns the created row (with its token). */
+export async function createCatalogShare(category: string): Promise<CatalogShareRow | null> {
   if (!supabase) return null
   const token = (crypto.randomUUID?.() || `${Date.now()}${Math.round(Math.random() * 1e9)}`).replace(/-/g, '').slice(0, 20)
+  const expiresAt = new Date(Date.now() + CATALOG_SHARE_DAYS * 86400000).toISOString()
   const { data, error } = await supabase
     .from('catalog_shares')
     .insert({ token, category, expires_at: expiresAt })
@@ -1116,14 +1119,7 @@ export async function listCatalogShares(): Promise<CatalogShareRow[]> {
   return (data as CatalogShareRow[]) || []
 }
 
-/** Revoke a catalog share (link stops working immediately). */
-export async function revokeCatalogShare(id: string): Promise<boolean> {
-  if (!supabase) return false
-  const { error } = await supabase.from('catalog_shares').update({ revoked: true }).eq('id', id)
-  return !error
-}
-
-/** Resolve a share token → its category, or null if invalid/revoked/expired.
+/** Resolve a share token → its category, or null if invalid/expired.
  *  Public (anon) — goes through the security-definer RPC so tokens can't be
  *  enumerated. */
 export async function resolveCatalogShare(token: string): Promise<string | null> {
