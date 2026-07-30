@@ -14,7 +14,7 @@
 //
 // Deploy:
 //   supabase functions deploy create-linked-account
-//   (uses RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET + SB_URL / SB_SERVICE_ROLE_KEY)
+//   (uses RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET + SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)
 //
 // Body: { email, phone, legalBusinessName, businessType, contactName, pan,
 //         bankAccountNumber, ifsc, beneficiaryName, category?, subcategory? }
@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
     const auth = 'Basic ' + btoa(`${keyId}:${keySecret}`)
 
     // Resolve the calling vendor from their JWT.
-    const admin = createClient(Deno.env.get('SB_URL')!, Deno.env.get('SB_SERVICE_ROLE_KEY')!)
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
     const jwt = req.headers.get('Authorization')?.replace('Bearer ', '') ?? ''
     const { data: userData } = await admin.auth.getUser(jwt)
     const userId = userData?.user?.id

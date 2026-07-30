@@ -17,7 +17,7 @@
 // Deploy:
 //   supabase functions deploy release-vendor-transfer
 //   supabase secrets set RAZORPAY_KEY_ID=… RAZORPAY_KEY_SECRET=… \
-//     SB_URL=… SB_SERVICE_ROLE_KEY=… RELEASE_MILESTONE_TITLE="Event day"
+//     SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… RELEASE_MILESTONE_TITLE="Event day"
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -27,8 +27,8 @@ Deno.serve(async (req: Request) => {
   try {
     const keyId = Deno.env.get('RAZORPAY_KEY_ID')
     const keySecret = Deno.env.get('RAZORPAY_KEY_SECRET')
-    const url = Deno.env.get('SB_URL')
-    const serviceKey = Deno.env.get('SB_SERVICE_ROLE_KEY')
+    const url = Deno.env.get('SUPABASE_URL')
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     if (!keyId || !keySecret || !url || !serviceKey) {
       return json({ error: 'Not configured' }, 500)
     }

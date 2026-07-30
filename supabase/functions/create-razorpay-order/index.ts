@@ -11,7 +11,7 @@
 // Deploy:
 //   supabase functions deploy create-razorpay-order
 //   supabase secrets set RAZORPAY_KEY_ID=… RAZORPAY_KEY_SECRET=… \
-//     PLATFORM_COMMISSION_PCT=20 SB_URL=… SB_SERVICE_ROLE_KEY=…
+//     PLATFORM_COMMISSION_PCT=20 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=…
 //
 // Body:    { amount, receipt?, splits?: [{ vendorId, amount }] }  (amounts in ₹)
 // Returns: { orderId, keyId, amount, currency }
@@ -70,8 +70,8 @@ Deno.serve(async (req: Request) => {
 
 async function buildTransfers(splits: Split[] | undefined) {
   if (!Array.isArray(splits) || splits.length === 0) return []
-  const url = Deno.env.get('SB_URL')
-  const serviceKey = Deno.env.get('SB_SERVICE_ROLE_KEY')
+  const url = Deno.env.get('SUPABASE_URL')
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!url || !serviceKey) return [] // can't look up accounts → settle all to platform
 
   const commissionPct = Number(Deno.env.get('PLATFORM_COMMISSION_PCT') ?? '20')

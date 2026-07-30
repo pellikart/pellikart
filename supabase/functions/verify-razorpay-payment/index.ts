@@ -10,7 +10,7 @@
 //
 // Deploy:
 //   supabase functions deploy verify-razorpay-payment
-//   (uses RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET + SB_URL / SB_SERVICE_ROLE_KEY)
+//   (uses RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET + SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)
 //
 // Body:    { orderId, paymentId, signature }
 // Returns: { verified: boolean }
@@ -52,8 +52,8 @@ Deno.serve(async (req: Request) => {
 })
 
 async function recordPayouts(keyId: string, keySecret: string, orderId: string, paymentId: string) {
-  const url = Deno.env.get('SB_URL')
-  const serviceKey = Deno.env.get('SB_SERVICE_ROLE_KEY')
+  const url = Deno.env.get('SUPABASE_URL')
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!url || !serviceKey) return
 
   const auth = 'Basic ' + btoa(`${keyId}:${keySecret}`)

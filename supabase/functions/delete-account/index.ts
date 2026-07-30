@@ -18,7 +18,7 @@
 //
 // Deploy:
 //   supabase functions deploy delete-account
-//   (uses SB_URL / SB_SERVICE_ROLE_KEY)
+//   (uses SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -31,7 +31,7 @@ const CORS = {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   try {
-    const admin = createClient(Deno.env.get('SB_URL')!, Deno.env.get('SB_SERVICE_ROLE_KEY')!)
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
     // Identify the caller from their JWT — a user can only delete themselves.
     const jwt = req.headers.get('Authorization')?.replace('Bearer ', '') ?? ''
