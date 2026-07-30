@@ -31,6 +31,9 @@ export interface SelectField {
   /** For multi fields — options that clear (and are cleared by) every other
    *  option when picked, i.e. selecting one makes the field single-select. */
   exclusiveOptions?: string[]
+  /** For number fields — offer an "Unlimited" toggle (stored as the string
+   *  'Unlimited') for when the value isn't capped. */
+  allowUnlimited?: boolean
 }
 
 export interface CategoryOnboardingConfig {
@@ -541,7 +544,7 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
         title: 'Setup & capacity',
         subtitle: 'Logistics and how many guests you can serve.',
         fields: [
-          { key: 'totalGuests', label: 'Total guests served', type: 'number', numberMin: 0, numberMax: 2000, numberStep: 10, numberUnit: 'guests' },
+          { key: 'totalGuests', label: 'Total guests served', type: 'number', numberMin: 0, numberMax: 2000, numberStep: 10, numberUnit: 'guests', allowUnlimited: true },
           // "Setup brought by artist" is exclusive — picking it means the artist
           // needs nothing from the couple, so it clears every other option.
           { key: 'setupNeeded', label: 'What setup is needed?', type: 'multi', exclusiveOptions: ['Setup brought by artist'], options: ['Setup brought by artist', 'Table + chairs', 'Power outlet', 'Backdrop wall', 'Lighting', 'Branded signage', 'Background music', 'Dedicated area'] },

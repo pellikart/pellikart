@@ -1304,32 +1304,45 @@ function FieldRenderer({ field, value, onChange, onToggleMulti }: {
     const min = field.numberMin ?? 0
     const max = field.numberMax ?? 999
     const step = field.numberStep ?? 1
+    const isUnlimited = field.allowUnlimited === true && value === 'Unlimited'
     const numVal = typeof value === 'string' ? (parseInt(value) || min) : min
     const dec = () => onChange(String(Math.max(min, numVal - step)))
     const inc = () => onChange(String(Math.min(max, numVal + step)))
     return (
       <div>
         <label className="text-[12px] font-medium text-dark block mb-1.5">{field.label}</label>
-        <div className="inline-flex items-stretch rounded-xl border border-card-border overflow-hidden">
-          <button
-            type="button" onClick={dec} disabled={numVal <= min}
-            className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
-          >−</button>
-          <input
-            type="number"
-            min={min} max={max} step={step}
-            value={numVal}
-            onChange={(e) => {
-              const n = parseInt(e.target.value) || min
-              onChange(String(Math.min(max, Math.max(min, n))))
-            }}
-            className="w-14 text-center text-[13px] font-medium text-dark outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-          <button
-            type="button" onClick={inc} disabled={numVal >= max}
-            className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
-          >+</button>
-          {field.numberUnit && <span className="px-3 flex items-center text-[11px] text-gray-500 border-l border-card-border bg-empty-bg">{field.numberUnit}</span>}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className={`inline-flex items-stretch rounded-xl border border-card-border overflow-hidden ${isUnlimited ? 'opacity-40' : ''}`}>
+            <button
+              type="button" onClick={dec} disabled={isUnlimited || numVal <= min}
+              className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+            >−</button>
+            <input
+              type="number"
+              min={min} max={max} step={step}
+              value={numVal}
+              disabled={isUnlimited}
+              onChange={(e) => {
+                const n = parseInt(e.target.value) || min
+                onChange(String(Math.min(max, Math.max(min, n))))
+              }}
+              className="w-14 text-center text-[13px] font-medium text-dark outline-none disabled:bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <button
+              type="button" onClick={inc} disabled={isUnlimited || numVal >= max}
+              className="px-3 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+            >+</button>
+            {field.numberUnit && <span className="px-3 flex items-center text-[11px] text-gray-500 border-l border-card-border bg-empty-bg">{field.numberUnit}</span>}
+          </div>
+          {field.allowUnlimited && (
+            <button
+              type="button"
+              onClick={() => onChange(isUnlimited ? String(min) : 'Unlimited')}
+              className={`py-2 px-4 rounded-xl text-[11px] font-medium transition-all ${isUnlimited ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600 active:bg-mustard-light'}`}
+            >
+              {isUnlimited && <span className="mr-0.5">✓ </span>}Unlimited
+            </button>
+          )}
         </div>
       </div>
     )
