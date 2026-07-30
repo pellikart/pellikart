@@ -376,6 +376,21 @@ export function getVenueBoardPrice(vendor: Vendor, category?: Category): number 
   return vendor.price
 }
 
+/**
+ * The name to show a couple for a listing. Live Stalls are identified by their
+ * stall type (the listing's real name, e.g. "Bangle Stall") rather than the
+ * vendor's business name — and since the stall type isn't vendor-identifying it
+ * shows in both locked and unlocked states. Every other category keeps the
+ * anonymous public code until unlock, then the business name.
+ */
+export function listingDisplayName(vendor: Vendor | undefined, unlocked: boolean): string {
+  if (!vendor) return ''
+  // Only Live Stalls carry a stallType field — use it as the listing's name.
+  const st = vendor.categoryFields?.stallType
+  if (typeof st === 'string' && st.trim()) return st.trim()
+  return unlocked ? (vendor.name || vendor.code) : (vendor.publicCode || vendor.code)
+}
+
 export function bgStyle(photo: string): { background: string } {
   if (!photo) return { background: '#f3f4f6' }
   const val = photo.startsWith('url(') ? photo : `url("${photo}")`

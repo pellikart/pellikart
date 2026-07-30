@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal, getVenueBoardPrice, makePublicCode, guestCountFor } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal, getVenueBoardPrice, makePublicCode, guestCountFor, listingDisplayName } from '@/lib/helpers'
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
@@ -392,7 +392,7 @@ export default function CategoryBoardPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-7 h-7 rounded-md shrink-0" style={bgStyle(v.photo)} />
-                        <span className="text-[10px] text-dark truncate">{unlocked ? v.name : v.code}</span>
+                        <span className="text-[10px] text-dark truncate">{listingDisplayName(v, unlocked)}</span>
                       </div>
                       {status === 'none' && (
                         exhausted ? (
@@ -552,7 +552,7 @@ export default function CategoryBoardPage() {
                         <div className="relative z-10 h-full flex flex-col justify-between p-2">
                           <span className="bg-dark/40 text-white text-[9px] px-1.5 py-0.5 rounded-full self-end">★ {vendor.rating}</span>
                           <div>
-                            <p className="text-white/80 text-[9px]">{unlocked ? vendor.name : vendor.code}</p>
+                            <p className="text-white/80 text-[9px]">{listingDisplayName(vendor, unlocked)}</p>
                             <p className="text-white font-bold text-xs">{(vendor.eventPackages?.length || vendor.stallPricing?.mode === 'perItem') ? <span className="font-normal text-[10px]">from </span> : ''}{formatINR(vendor.price)}{vendor.stallPricing?.mode === 'perItem' ? <span className="font-normal text-[10px]">/guest</span> : vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
                             <button onClick={(e) => { e.stopPropagation(); handleAddToBoard(v.id) }} className="mt-1.5 w-full bg-white text-magenta text-[10px] font-semibold py-1.5 rounded-lg active:scale-[0.97] transition-transform">+ Add</button>
                           </div>
@@ -880,7 +880,7 @@ function VisualGridCard({
         </div>
         <div>
           <p className="text-white/80 text-[9px]">
-            {unlocked ? v.name : v.code} · {v.style}
+            {listingDisplayName(v, unlocked)} · {v.style}
             {v.category && <> · {v.category}</>}
           </p>
           {platePkg ? (
@@ -991,7 +991,7 @@ function CompareTable({
             <th className="text-left py-2 px-2 w-[110px] text-gray-500 font-medium sticky left-0 bg-white z-10">Parameter</th>
             {vendors.map((v) => (
               <th key={v.id} className="py-2 px-2 text-center min-w-[100px]">
-                <span className="font-medium text-dark">{unlocked ? v.name : v.code}</span>
+                <span className="font-medium text-dark">{listingDisplayName(v, unlocked)}</span>
                 {v.id === selectedId && <span className="block text-magenta bg-magenta-light text-[9px] rounded-full px-1.5 mt-0.5 mx-auto w-fit">Added</span>}
                 {v.likes.length > 0 && <span className="block text-magenta text-[9px] mt-0.5">♥ {v.likes.length} likes</span>}
               </th>
@@ -1203,7 +1203,7 @@ function CustomizeTab({
                   {i === 0 && <div className="w-full h-full bg-mustard/20 flex items-center justify-center"><span className="text-mustard text-[8px] font-bold">BEST</span></div>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-dark truncate">{unlocked ? vendor.name : vendor.code}</p>
+                  <p className="text-[11px] font-medium text-dark truncate">{listingDisplayName(vendor, unlocked)}</p>
                   <p className="text-[9px] text-gray-400 mt-0.5">{bid.note}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[11px] font-bold text-magenta">{formatINR(bid.price)}</span>

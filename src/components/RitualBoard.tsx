@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { RitualBoard as RitualBoardType } from '@/lib/types'
-import { formatINR, formatDateRange, bgStyle, getCategorySelectionTotal, guestCountFor } from '@/lib/helpers'
+import { formatINR, formatDateRange, bgStyle, getCategorySelectionTotal, guestCountFor, listingDisplayName } from '@/lib/helpers'
 import { getUnavailableVendors } from '@/lib/availability'
 import { ONBOARDING_CONFIG } from '@/lib/vendor-category-config'
 import { isPackageIntact, intactPackageForListing } from '@/lib/packages'
@@ -75,7 +75,7 @@ export default function RitualBoard({ board }: Props) {
     for (const cat of filledCategories) {
       const v = vendors[cat.selectedVendorId!]
       if (!v) continue
-      const name = unlocked ? v.name : v.code
+      const name = listingDisplayName(v, unlocked)
       const sel = getCategorySelectionTotal(v, cat, guests)
       lines.push(`✅ ${cat.label}: ${name} — ${formatINR(sel != null ? sel : v.price)}`)
     }

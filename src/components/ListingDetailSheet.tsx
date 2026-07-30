@@ -4,7 +4,7 @@ import ExpandableText from '@/components/ExpandableText'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, getStallFromPrice, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, getStallFromPrice, listingDisplayName, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
 import { getListingConfig, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
@@ -482,7 +482,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               <span className="text-white text-sm">✕</span>
             </button>
             <div className="absolute bottom-3 left-4 right-4">
-              <p className="text-white font-bold text-lg">{unlocked ? vendor.name : (vendor.publicCode || vendor.code)}</p>
+              <p className="text-white font-bold text-lg">{listingDisplayName(vendor, unlocked)}</p>
               {parentVendor && (
                 <p className="text-white/70 text-[10px] mt-0.5">by {unlocked ? parentVendor.name : (parentVendor.publicCode || parentVendor.code)}</p>
               )}

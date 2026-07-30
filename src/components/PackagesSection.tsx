@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useStore } from '@/lib/store'
 import type { RitualBoard, Vendor } from '@/lib/types'
 import { generatePackages, type PackageDeal } from '@/lib/packages'
-import { formatINR, bgStyle, guestCountFor } from '@/lib/helpers'
+import { formatINR, bgStyle, guestCountFor, listingDisplayName } from '@/lib/helpers'
 import ListingDetailSheet from './ListingDetailSheet'
 
 interface Props {
@@ -35,7 +35,7 @@ export default function PackagesSection({ board }: Props) {
   const vendorName = (id: string) => {
     const v = vendors[id]
     if (!v) return ''
-    return unlocked ? v.name : (v.publicCode || v.code)
+    return listingDisplayName(v, unlocked)
   }
 
   const offPct = (d: PackageDeal) => Math.round(d.discountPct * 100)
