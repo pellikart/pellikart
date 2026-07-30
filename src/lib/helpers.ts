@@ -147,6 +147,26 @@ export function getPanditFromPrice(p?: PanditPricing): number {
 }
 
 /**
+ * The couple's selected total for a Pandit listing — the sum of the picked event
+ * cards' prices (e.g. Wedding + Satyanarayana Swami Vratham). Null when nothing
+ * is picked, so callers fall back to the "from" price.
+ */
+export function getPanditSelectionTotal(
+  vendor: Vendor | undefined,
+  sel: { cardIds?: string[] } | undefined,
+): number | null {
+  const p = vendor?.panditPricing
+  if (!p?.cards?.length || !sel?.cardIds?.length) return null
+  let total = 0
+  let any = false
+  for (const id of sel.cardIds) {
+    const c = p.cards.find(x => x.id === id)
+    if (c && c.price > 0) { total += c.price; any = true }
+  }
+  return any ? total : null
+}
+
+/**
  * The "from" price for a Mehendi listing — the cheapest filled bridal price,
  * falling back to the guest per-head price, then groom price. Used as the
  * listing's board figure.
@@ -357,6 +377,7 @@ export function getCategorySelectionTotal(vendor: Vendor | undefined, category: 
     getSareeSelectionTotal(vendor, category.sareeSelection),
     getHairSelectionTotal(vendor, category.hairSelection),
     getStallSelectionTotal(vendor, category.stallSelection),
+    getPanditSelectionTotal(vendor, category.panditSelection),
   ].filter((v): v is number => v != null)
   return parts.length ? parts.reduce((a, b) => a + b, 0) : null
 }

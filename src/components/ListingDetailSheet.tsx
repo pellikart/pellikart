@@ -4,7 +4,7 @@ import ExpandableText from '@/components/ExpandableText'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getPanditFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, getStallFromPrice, listingDisplayName, hidesVendorMeta, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getPanditFromPrice, getPanditSelectionTotal, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, getStallFromPrice, listingDisplayName, hidesVendorMeta, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
 import { getListingConfig, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
@@ -211,7 +211,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
   const [lightbox, setLightbox] = useState<number | null>(null)
   // Menu-photo zoom: a single menu image URL to show full-screen, or null.
   const [menuPhotoZoom, setMenuPhotoZoom] = useState<string | null>(null)
-  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, addVenueToBoard, selectPhotographyEventServices, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectStallOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
+  const { _liveMode, _listingVendorMap, vendors: allVendors, selectVendorTier, addVenueToBoard, selectPhotographyEventServices, selectMehendiOptions, selectMakeupOptions, selectSareeOptions, selectHairOptions, selectStallOptions, selectPanditOptions, selectMenuOptions, selectVendor, ritualBoards } = useStore()
   // The board category this sheet was opened from (reactive — re-reads on each render).
   const currentCategory = (ritualId && categoryId)
     ? ritualBoards.find(b => b.id === ritualId)?.categories.find(c => c.id === categoryId)
@@ -370,6 +370,27 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
     // Resolve the effective guest count (prefilled from onboarding if untouched).
     const finalSel = { itemIds: stallSel.itemIds || [], guests: stallSel.guests ?? eventGuests }
     selectStallOptions(ritualId, categoryId, finalSel)
+    selectVendor(ritualId, categoryId, vendor.id)
+  }
+
+  // ── Pandit selection (which event cards the couple wants: Wedding + Satyanarayana, etc.) ──
+  const savedPandit = currentCategory?.panditSelection
+  const boardEventName = ritualBoards.find(b => b.id === ritualId)?.name
+  const [panditSel, setPanditSel] = useState<{ cardIds?: string[] }>(() => {
+    if (savedPandit?.cardIds?.length) return savedPandit
+    // Default: pre-select the priced card that matches this board's event, if any.
+    const match = (vendor.panditPricing?.cards || []).find(c => c.price > 0 && c.event === boardEventName)
+    return match ? { cardIds: [match.id] } : {}
+  })
+  function togglePanditCard(id: string) {
+    const cur = panditSel.cardIds || []
+    const next = { cardIds: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] }
+    setPanditSel(next)
+    if (ritualId && categoryId) selectPanditOptions(ritualId, categoryId, next)
+  }
+  function addPandit() {
+    if (!ritualId || !categoryId) return
+    selectPanditOptions(ritualId, categoryId, panditSel)
     selectVendor(ritualId, categoryId, vendor.id)
   }
 
@@ -759,54 +780,77 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )
             })()}
 
-            {/* Pandit / Purohit — ONE listing per vendor showing all its per-event
-                cards (event + rituals + duration + people + purohits + transport
-                + flat price). Not fanned per card. */}
+            {/* Pandit / Purohit — ONE listing per vendor. The couple ticks the
+                events they want (Wedding + Satyanarayana, etc.) and the total
+                sums. Not fanned per card. */}
             {vendor.panditPricing && (vendor.panditPricing.cards?.length ?? 0) > 0 && (() => {
               const p = vendor.panditPricing!
               const cards = p.cards.filter(c => c.price > 0)
               if (cards.length === 0) return null
               const fromPrice = getPanditFromPrice(p)
-              const single = cards.length === 1
+              const picked = panditSel.cardIds || []
+              const total = getPanditSelectionTotal(vendor, panditSel)
               return (
                 <div className="mb-4">
-                  <p className="text-[20px] font-bold text-magenta">{single ? formatINR(cards[0].price) : `From ${formatINR(fromPrice)}`}</p>
-                  <p className="text-[10px] text-gray-400 mb-3">
-                    {single ? `Price for ${cards[0].event}` : `${cards.length} events · flat price each`}
-                  </p>
+                  <p className="text-[20px] font-bold text-magenta">From {formatINR(fromPrice)}</p>
+                  <p className="text-[10px] text-gray-400 mb-2">Pick the events you need — your price updates live</p>
 
-                  <div className="rounded-xl border border-card-border divide-y divide-card-border mb-3">
-                    {cards.map(c => (
-                      <div key={c.id} className="px-3 py-2.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[12px] text-dark font-medium min-w-0 truncate">{c.event}</span>
-                          <span className="text-[12px] font-semibold text-dark shrink-0">{formatINR(c.price)}</span>
-                        </div>
-                        {c.ritualsIncluded.length > 0 && (
-                          <p className="text-[10px] text-gray-500 mt-0.5">{c.ritualsIncluded.join(', ')}</p>
-                        )}
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          {c.durationVaries ? 'Duration varies by caste' : `${c.durationHours} ${c.durationHours === 1 ? 'hr' : 'hrs'}`}
-                          {c.purohits ? ` · ${c.purohits} ${c.purohits === 1 ? 'purohit' : 'purohits'}` : ''}
-                          {` · ${c.transportIncluded ? 'Transport included' : 'Transport extra'}`}
-                        </p>
+                  <div className="p-3 rounded-xl bg-mustard-light/30 border border-mustard/20 space-y-3">
+                    <div className="space-y-1.5">
+                      {cards.map(c => {
+                        const on = picked.includes(c.id)
+                        return (
+                          <button
+                            key={c.id} type="button" onClick={() => togglePanditCard(c.id)}
+                            className={`w-full flex items-start justify-between gap-2 px-3 py-2 rounded-lg border text-left transition-all ${on ? 'border-magenta bg-white' : 'border-card-border bg-white/60'}`}
+                          >
+                            <span className="flex items-start gap-2 min-w-0">
+                              <span className={`w-4 h-4 mt-0.5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${on ? 'border-magenta bg-magenta' : 'border-gray-300 bg-white'}`}>
+                                {on && <span className="text-white text-[9px] leading-none">✓</span>}
+                              </span>
+                              <span className="min-w-0">
+                                <span className="text-[12px] font-medium text-dark block">{c.event}</span>
+                                {c.ritualsIncluded.length > 0 && (
+                                  <span className="text-[10px] text-gray-500 block">{c.ritualsIncluded.join(', ')}</span>
+                                )}
+                                <span className="text-[10px] text-gray-400 block">
+                                  {c.durationVaries ? 'Duration varies by caste' : `${c.durationHours} ${c.durationHours === 1 ? 'hr' : 'hrs'}`}
+                                  {c.purohits ? ` · ${c.purohits} ${c.purohits === 1 ? 'purohit' : 'purohits'}` : ''}
+                                  {` · ${c.transportIncluded ? 'Transport included' : 'Transport extra'}`}
+                                </span>
+                              </span>
+                            </span>
+                            <span className="text-[12px] font-semibold text-dark shrink-0">{formatINR(c.price)}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Total */}
+                    {total != null && (
+                      <div className="pt-3 border-t border-mustard/20 flex items-center justify-between">
+                        <span className="text-[12px] font-semibold text-dark">Estimated total</span>
+                        <span className="text-[16px] font-bold text-magenta">{formatINR(total)}</span>
                       </div>
-                    ))}
-                  </div>
+                    )}
 
-                  {ritualId && categoryId && (
-                    <button
-                      type="button"
-                      onClick={() => selectVendor(ritualId, categoryId, vendor.id)}
-                      className={`w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
-                        isAddedToBoard
-                          ? 'bg-green-100 text-green-700 border border-green-300'
-                          : 'bg-magenta text-white active:scale-[0.98]'
-                      }`}
-                    >
-                      {isAddedToBoard ? '✓ Added to your board' : `Add to my board · ${single ? formatINR(cards[0].price) : `from ${formatINR(fromPrice)}`}`}
-                    </button>
-                  )}
+                    {/* Add to board */}
+                    {ritualId && categoryId && (
+                      <button
+                        type="button"
+                        onClick={addPandit}
+                        className={`w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                          isAddedToBoard
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-magenta text-white active:scale-[0.98]'
+                        }`}
+                      >
+                        {isAddedToBoard
+                          ? '✓ Added to your board'
+                          : total != null ? `Add to my board · ${formatINR(total)}` : 'Add to my board'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })()}

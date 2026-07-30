@@ -979,6 +979,20 @@ export const useStore = create<AppState & LiveModeState & {
     }
   },
 
+  selectPanditOptions: (ritualId, categoryId, selection) => {
+    const { _liveMode } = get()
+    set((s) => ({
+      ritualBoards: s.ritualBoards.map((b) =>
+        b.id === ritualId
+          ? { ...b, categories: b.categories.map((c) => c.id === categoryId ? { ...c, panditSelection: selection } : c) }
+          : b
+      ),
+    }))
+    if (_liveMode) {
+      updateBoardCategory(categoryId, { panditSelection: selection })
+    }
+  },
+
   selectMenuOptions: (ritualId, categoryId, vendorId, packageKey, sectionPicks) => {
     const { _liveMode } = get()
     // Merge this vendor+package's picks into the category's menu selection,

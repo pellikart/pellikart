@@ -166,6 +166,8 @@ export interface Category {
   hairSelection?: { bridalLooks?: number; groomLooks?: number; guests?: number };
   /** Live Stalls per-item only: the couple's picked item ids + guest count. */
   stallSelection?: { itemIds?: string[]; guests?: number };
+  /** Pandit-only: the couple's picked event-card ids (Wedding + Satyanarayana, etc.). */
+  panditSelection?: { cardIds?: string[] };
   /** Catering/Venue menu picks. Keyed by vendor/listing id → package id (or
    *  'listing' for a package-less catering menu) → section name → picked dish
    *  keys (bank dish id number, or custom dish name string). */
@@ -257,6 +259,7 @@ export interface AppState {
   selectSareeOptions: (ritualId: string, categoryId: string, selection: { bridalLooks?: number; groomLooks?: number; guests?: number; prePleatingSarees?: number }) => void;
   selectHairOptions: (ritualId: string, categoryId: string, selection: { bridalLooks?: number; groomLooks?: number; guests?: number }) => void;
   selectStallOptions: (ritualId: string, categoryId: string, selection: { itemIds?: string[]; guests?: number }) => void;
+  selectPanditOptions: (ritualId: string, categoryId: string, selection: { cardIds?: string[] }) => void;
   /** Save the couple's menu dish picks for a vendor's package (or 'listing' for
    *  a package-less catering menu), keyed per section. */
   selectMenuOptions: (ritualId: string, categoryId: string, vendorId: string, packageKey: string, sectionPicks: Record<string, (number | string)[]>) => void;
