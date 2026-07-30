@@ -3,13 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { VendorListing } from '@/lib/vendor-types'
-import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice, getStallFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, emptyStallPricing, banjantriluCardValid, photographyPackageHasPrice, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing, type StallPricing } from '@/lib/vendor-category-config'
+import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice, getPanditFromPrice, getStallFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, isSingleListingCategory, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, emptyPanditPricing, emptyStallPricing, banjantriluCardValid, panditCardValid, photographyPackageHasPrice, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing, type PanditPricing, type StallPricing } from '@/lib/vendor-category-config'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
 import EntertainerPricingEditor from '@/components/EntertainerPricingEditor'
 import BanjantriluPricingEditor from '@/components/BanjantriluPricingEditor'
+import PanditPricingEditor from '@/components/PanditPricingEditor'
 import StallPricingEditor from '@/components/StallPricingEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuEditor from '@/components/MenuEditor'
@@ -55,6 +56,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const [entertainerPricing, setEntertainerPricing] = useState<EntertainerPricing>(emptyEntertainerPricing())
   // Banjantrilu-only: per-event pricing cards (event + artists + hours + flat price).
   const [banjantriluPricing, setBanjantriluPricing] = useState<BanjantriluPricing>(emptyBanjantriluPricing())
+  // Pandit-only: per-event pricing cards (event + rituals + duration + people + purohits + transport + flat price).
+  const [panditPricing, setPanditPricing] = useState<PanditPricing>(emptyPanditPricing())
   // Live Stalls-only: flat package price vs per-item (× guests) pricing.
   const [stallPricing, setStallPricing] = useState<StallPricing>(emptyStallPricing())
   const [includes, setIncludes] = useState<string[]>([])
@@ -124,6 +127,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setEventPackages([])
     setEntertainerPricing(emptyEntertainerPricing())
     setBanjantriluPricing(emptyBanjantriluPricing())
+    setPanditPricing(emptyPanditPricing())
     setStallPricing(emptyStallPricing())
     setIncludes([])
     setCategoryFields({})
@@ -176,13 +180,13 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const hasPaidRoomsStep = category === 'Venue'
   const hasMenuStep = category === 'Catering'
   const hasDesignsStep = category === 'Decor'
-  const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && category !== 'Live Stalls'
+  const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && category !== 'Pandit' && category !== 'Live Stalls'
   // Photography, Hosts/Entertainers & Banjantrilu don't ask for listing-level events
   // — each event package / rate / card carries its own event — so rituals is skipped.
   // Live Stalls keep the events question but fold it into the first spec screen
   // (rendered inline below) instead of a standalone slide.
   const ritualsInline = category === 'Live Stalls'
-  const hasRitualsStep = category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && !ritualsInline
+  const hasRitualsStep = category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && category !== 'Pandit' && !ritualsInline
 
   // Each category gets a contiguous run of steps. Decor skips Photos & Name, so its
   // step indices start at 1 with Rituals. Venue leads with a Location step.
@@ -260,6 +264,14 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     cards: banjantriluPricing.cards.filter(banjantriluCardValid),
   }
   const banjantriluReady = cleanedBanjantriluPricing.cards.length > 0
+
+  // Pandit pricing — per-event cards (event + rituals + duration + people + purohits + transport + flat price).
+  const panditFrom = getPanditFromPrice(panditPricing)
+  const cleanedPanditPricing: PanditPricing = {
+    ...panditPricing,
+    cards: panditPricing.cards.filter(panditCardValid),
+  }
+  const panditReady = cleanedPanditPricing.cards.length > 0
   // Number of dishes (dish-bank + custom) configured in a plate package's menu.
   const menuItemCount = (menu?: MenuSection[]) =>
     (menu || []).reduce((s, sec) => s + sec.dishIds.length + (sec.customDishes?.length || 0), 0)
@@ -396,6 +408,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       : category === 'Hosts / Entertainers' ? entertainerFrom
       // Banjantrilu: the "from" figure is the cheapest priced event card.
       : category === 'Banjantrilu' ? banjantriluFrom
+      // Pandit: the "from" figure is the cheapest priced event card.
+      : category === 'Pandit' ? panditFrom
       // Live Stalls per-item: the "from" figure is the cheapest per-guest item.
       : category === 'Live Stalls' && stallPricing.mode === 'perItem' ? getStallFromPrice(stallPricing)
       : price
@@ -558,6 +572,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       eventPackages: category === 'Photography' && validEventPackages.length > 0 ? validEventPackages : undefined,
       entertainerPricing: category === 'Hosts / Entertainers' && entertainerReady ? cleanedEntertainerPricing : undefined,
       banjantriluPricing: category === 'Banjantrilu' && banjantriluReady ? cleanedBanjantriluPricing : undefined,
+      panditPricing: category === 'Pandit' && panditReady ? cleanedPanditPricing : undefined,
       stallPricing: category === 'Live Stalls'
         ? (stallPricing.mode === 'perItem'
             ? { mode: 'perItem' as const, items: (stallPricing.items || []).filter(i => i.name.trim() && i.pricePerGuest > 0) }
@@ -1484,8 +1499,34 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
           </div>
         )}
 
-        {/* Pricing step — single-price slider (non-Venue, non-Photography, non-Entertainer, non-Banjantrilu) */}
-        {step === stylePriceStep && category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && (
+        {/* Pricing step — Pandit: per-event cards (event + rituals + duration + people + purohits + transport + flat price) */}
+        {step === stylePriceStep && category === 'Pandit' && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">Create your event cards</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Add a card per event — pick the event, list the rituals included, set the duration, number of people & purohits, whether transport is included, and a total price. Add as many events as you perform.</p>
+
+            <PanditPricingEditor value={panditPricing} onChange={setPanditPricing} />
+            {panditFrom > 0 && (
+              <p className="text-[11px] text-gray-600 mt-4">Board card shows <span className="font-bold text-mustard">from {formatINR(panditFrom)}</span>.</p>
+            )}
+
+            <div className="flex gap-2 mt-6">
+              {stylePriceStep > 1 ? (
+                <button onClick={() => setStep(stylePriceStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              ) : (
+                <button onClick={() => navigate(`${base}/listings`)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Cancel</button>
+              )}
+              <button
+                onClick={() => setStep(stylePriceStep + 1)}
+                disabled={!panditReady}
+                className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-40"
+              >Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* Pricing step — single-price slider (non-Venue, non-Photography, non-Entertainer, non-Banjantrilu, non-Pandit) */}
+        {step === stylePriceStep && category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && category !== 'Pandit' && (
           <div className="animate-fadeIn">
             <h1 className="text-[20px] font-bold text-dark">Pricing</h1>
             <p className="text-[11px] text-gray-400 mt-1 mb-5">Set your price.</p>
@@ -1687,6 +1728,18 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                           <p className="text-[16px] font-bold text-mustard">{formatINR(banjantriluFrom)} <span className="text-[10px] font-normal text-gray-400">/ event (from)</span></p>
                         )}
                         {!banjantriluReady && (
+                          <p className="text-[12px] text-gray-400 italic">Set at least one price</p>
+                        )}
+                      </div>
+                    )
+                  }
+                  if (category === 'Pandit') {
+                    return (
+                      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                        {panditFrom > 0 && (
+                          <p className="text-[16px] font-bold text-mustard">{formatINR(panditFrom)} <span className="text-[10px] font-normal text-gray-400">/ event (from)</span></p>
+                        )}
+                        {!panditReady && (
                           <p className="text-[12px] text-gray-400 italic">Set at least one price</p>
                         )}
                       </div>

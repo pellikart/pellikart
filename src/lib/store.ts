@@ -136,8 +136,8 @@ export function buildLiveVendorMap(
   availability: Record<string, unknown>[]
 ): { vendorMap: Record<string, Vendor>; lvMap: Record<string, string> } {
   // Fan each Photography event package / Entertainer event rate into its own listing.
-  // (Banjantrilu is intentionally NOT fanned — it stays one listing per vendor, with
-  // all its per-event cards shown inside the detail sheet.)
+  // (Banjantrilu & Pandit are intentionally NOT fanned — each stays one listing per
+  // vendor, with all its per-event cards shown inside the detail sheet.)
   listings = expandEventPackageListings(listings)
   listings = expandEntertainerListings(listings)
   const vendorMap: Record<string, Vendor> = {}
@@ -287,12 +287,21 @@ export function buildLiveVendorMap(
         const sp = l.stall_pricing as import('./vendor-category-config').StallPricing | null
         return sp && sp.mode ? sp : undefined
       })(),
-      // Banjantrilu is shown as ONE listing per vendor (not fanned per card), so its
-      // board-matching events are the union of its priced cards' events.
+      panditPricing: (() => {
+        const pp = l.pandit_pricing as import('./vendor-category-config').PanditPricing | null
+        return pp && Array.isArray(pp.cards) && pp.cards.length > 0 ? pp : undefined
+      })(),
+      // Banjantrilu & Pandit are shown as ONE listing per vendor (not fanned per
+      // card), so their board-matching events are the union of priced-card events.
       rituals: (() => {
         if (cat === 'Banjantrilu') {
           const bp = l.banjantrilu_pricing as BanjantriluPricing | null
           const evts = (bp?.cards || []).filter(c => c.event && c.price > 0).map(c => c.event)
+          return evts.length ? [...new Set(evts)] : undefined
+        }
+        if (cat === 'Pandit') {
+          const pp = l.pandit_pricing as import('./vendor-category-config').PanditPricing | null
+          const evts = (pp?.cards || []).filter(c => c.event && c.price > 0).map(c => c.event)
           return evts.length ? [...new Set(evts)] : undefined
         }
         return (l.rituals as string[]) || undefined

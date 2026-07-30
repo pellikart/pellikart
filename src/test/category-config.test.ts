@@ -66,10 +66,10 @@ describe('Vendor Category Config', () => {
         expect(LISTING_CONFIG[cat]).toBeDefined()
         expect(LISTING_CONFIG[cat].styles.length).toBeGreaterThan(0)
         expect(LISTING_CONFIG[cat].inclusions.length).toBeGreaterThan(0)
-        // Photography, Hosts/Entertainers and Banjantrilu have no spec steps —
-        // their details live in the custom per-event pricing step — so only the
-        // other categories require ≥1 generic step.
-        if (cat !== 'Photography' && cat !== 'Hosts / Entertainers' && cat !== 'Banjantrilu') {
+        // Photography, Hosts/Entertainers, Banjantrilu and Pandit have no spec
+        // steps — their details live in the custom per-event pricing step — so
+        // only the other categories require ≥1 generic step.
+        if (cat !== 'Photography' && cat !== 'Hosts / Entertainers' && cat !== 'Banjantrilu' && cat !== 'Pandit') {
           expect(LISTING_CONFIG[cat].steps.length).toBeGreaterThan(0)
         }
       }
@@ -146,14 +146,8 @@ describe('Vendor Category Config', () => {
       expect(traditions?.options).not.toContain('Marwari')
     })
 
-    it('listing uses Telugu ceremonies', () => {
-      const pandit = LISTING_CONFIG['Pandit']
-      const ceremonies = pandit.steps[0].fields.find(f => f.key === 'ceremonies')
-      expect(ceremonies?.options).toContain('Talambralu')
-      expect(ceremonies?.options).toContain('Jeelakarra Bellam')
-      expect(ceremonies?.options).toContain('Mangalsutra Dharana')
-      expect(ceremonies?.options).not.toContain('Pheras')
-      expect(ceremonies?.options).not.toContain('Varmala')
+    it('listing has no generic spec steps (priced as per-event cards)', () => {
+      expect(LISTING_CONFIG['Pandit'].steps.length).toBe(0)
     })
 
     it('listing inclusions use Telugu terms', () => {

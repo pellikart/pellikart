@@ -4,7 +4,7 @@ import ExpandableText from '@/components/ExpandableText'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, getStallFromPrice, listingDisplayName, hidesVendorMeta, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getPanditFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, getStallFromPrice, listingDisplayName, hidesVendorMeta, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
 import { getListingConfig, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
@@ -759,6 +759,59 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )
             })()}
 
+            {/* Pandit / Purohit — ONE listing per vendor showing all its per-event
+                cards (event + rituals + duration + people + purohits + transport
+                + flat price). Not fanned per card. */}
+            {vendor.panditPricing && (vendor.panditPricing.cards?.length ?? 0) > 0 && (() => {
+              const p = vendor.panditPricing!
+              const cards = p.cards.filter(c => c.price > 0)
+              if (cards.length === 0) return null
+              const fromPrice = getPanditFromPrice(p)
+              const single = cards.length === 1
+              return (
+                <div className="mb-4">
+                  <p className="text-[20px] font-bold text-magenta">{single ? formatINR(cards[0].price) : `From ${formatINR(fromPrice)}`}</p>
+                  <p className="text-[10px] text-gray-400 mb-3">
+                    {single ? `Price for ${cards[0].event}` : `${cards.length} events · flat price each`}
+                  </p>
+
+                  <div className="rounded-xl border border-card-border divide-y divide-card-border mb-3">
+                    {cards.map(c => (
+                      <div key={c.id} className="px-3 py-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[12px] text-dark font-medium min-w-0 truncate">{c.event}</span>
+                          <span className="text-[12px] font-semibold text-dark shrink-0">{formatINR(c.price)}</span>
+                        </div>
+                        {c.ritualsIncluded.length > 0 && (
+                          <p className="text-[10px] text-gray-500 mt-0.5">{c.ritualsIncluded.join(', ')}</p>
+                        )}
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          {c.durationVaries ? 'Duration varies by caste' : `${c.durationHours} ${c.durationHours === 1 ? 'hr' : 'hrs'}`}
+                          {c.purohits ? ` · ${c.purohits} ${c.purohits === 1 ? 'purohit' : 'purohits'}` : ''}
+                          {c.people ? ` · ${c.people} people` : ''}
+                          {` · ${c.transportIncluded ? 'Transport included' : 'Transport extra'}`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {ritualId && categoryId && (
+                    <button
+                      type="button"
+                      onClick={() => selectVendor(ritualId, categoryId, vendor.id)}
+                      className={`w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                        isAddedToBoard
+                          ? 'bg-green-100 text-green-700 border border-green-300'
+                          : 'bg-magenta text-white active:scale-[0.98]'
+                      }`}
+                    >
+                      {isAddedToBoard ? '✓ Added to your board' : `Add to my board · ${single ? formatINR(cards[0].price) : `from ${formatINR(fromPrice)}`}`}
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
+
             {/* Mehendi — standalone listing (a Makeup listing folds mehendi into its block below) */}
             {vendor.mehendiPricing && !vendor.makeupPricing && (() => {
               const p = vendor.mehendiPricing
@@ -1165,7 +1218,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             })()}
 
             {/* Price (non rate-card / non-mehendi / non-makeup / non-saree / non-hair / non-per-item-stall listings) */}
-            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.banjantriluPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && vendor.stallPricing?.mode !== 'perItem' && (
+            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.banjantriluPricing && !vendor.panditPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && vendor.stallPricing?.mode !== 'perItem' && (
             <p className="text-[20px] font-bold text-magenta">{formatINR(getEffectivePrice(vendor, selectedTierHours))}</p>
             )}
             {vendor.hourlyPricing && vendor.hourlyPricing.length > 0 && (
@@ -1182,7 +1235,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               <p className="text-[10px] text-gray-400">Starting price · varies by size below</p>
             )}
             {/* Transport & logistics — informational yes/no only (varies by distance, no amount) */}
-            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.banjantriluPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && vendor.stallPricing?.mode !== 'perItem' && (vendor.transportIncluded === true ? (
+            {!vendor.eventPackages?.length && !vendor.entertainerPricing && !vendor.banjantriluPricing && !vendor.panditPricing && !vendor.mehendiPricing && !vendor.makeupPricing && !vendor.sareeDrapingPricing && !vendor.hairStylingPricing && vendor.stallPricing?.mode !== 'perItem' && (vendor.transportIncluded === true ? (
               <>
                 <p className="text-[10px] text-green-600 mt-1 pl-3 relative before:content-['•'] before:absolute before:left-0">
                   Transport &amp; logistics included

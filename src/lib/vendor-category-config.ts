@@ -421,29 +421,10 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
     styles: ['Telugu Traditional', 'Vedic', 'Arya Vysya', 'Multi-tradition', 'North Indian'],
     inclusions: ['Full Ceremony', 'Homam Setup', 'Muhurtham Consultation', 'Ganapathi Puja', 'Pooja Samagri', 'Mangala Vaadyam', 'Talambralu', 'Jeelakarra Bellam', 'Saptapadi', 'Appaginthalu', 'Gruha Pravesham'],
     priceRange: { min: 5000, max: 100000, step: 2500 },
-    steps: [
-      {
-        title: 'Ceremony details',
-        subtitle: 'What ceremonies does this cover?',
-        fields: [
-          { key: 'tradition', label: 'Tradition', type: 'single', options: ['Telugu Brahmin', 'Telugu Niyogi', 'Arya Vysya', 'Multi-tradition', 'North Indian', 'Other'] },
-          { key: 'ceremonies', label: 'Ceremonies covered', type: 'multi', options: ['Ganapathi Puja', 'Punyahavachanam', 'Haldi', 'Bottu', 'Snathakam', 'Kashi Yatra', 'Mangalsutra Dharana', 'Talambralu', 'Jeelakarra Bellam', 'Saptapadi', 'Appaginthalu', 'Gruha Pravesham', 'Engagement', 'Satyanarayana Vratham'] },
-          { key: 'duration', label: 'Ceremony duration', type: 'single', options: ['1 hour', '2 hours', '3 hours', '4 hours', 'Full day'] },
-          { key: 'languages', label: 'Languages', type: 'multi', options: ['Telugu', 'Sanskrit', 'Hindi', 'Tamil', 'Kannada', 'English'] },
-        ],
-      },
-      {
-        title: 'Logistics',
-        subtitle: 'What else is included?',
-        fields: [
-          { key: 'samagri', label: 'Pooja samagri', type: 'single', options: ['Included', 'Extra cost', 'Not included'] },
-          { key: 'homamSetup', label: 'Homam / Agni setup', type: 'single', options: ['Included', 'Client provides'] },
-          { key: 'muhurthamConsult', label: 'Muhurtham consultation', type: 'single', options: ['Included', 'Add-on', 'Not available'] },
-          { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['Solo', 'Pandit + 1 assistant', 'Pandit + 2 assistants', 'Pandit + 3+ assistants'] },
-          { key: 'travel', label: 'Travel outside city', type: 'single', options: ['Yes', 'Up to 50km', 'Up to 100km', 'No'] },
-        ],
-      },
-    ],
+    // No spec steps — a Purohit is authored as per-event cards (event + rituals
+    // included + duration + people + purohits + transport + flat price) in the
+    // custom Pandit pricing step.
+    steps: [],
   },
   Invitations: {
     styles: ['Luxury Boxed', 'Digital Only', 'Eco-Friendly', 'Traditional Print', 'Designer', 'Acrylic'],
@@ -804,6 +785,68 @@ export function emptyBanjantriluPricing(): BanjantriluPricing {
 
 /** True if a card is complete enough to keep on save (an event + a real price). */
 export function banjantriluCardValid(c: BanjantriluCard): boolean {
+  return !!c.event?.trim() && c.price > 0
+}
+
+// ─── PANDIT / PUROHIT PRICING ───────────────
+
+/** Default events a Purohit prices against (canonical RITUALS values so the
+ *  listing board-matches the right per-ritual boards). Vendors add more events
+ *  (incl. custom poojas like "Satyanarayana Swami Vratham"). */
+export const PANDIT_DEFAULT_EVENTS = ['Pelli (Wedding)', 'Engagement'] as const
+
+/** One event → the purohit's offering + flat price for a Pandit listing. */
+export interface PanditCard {
+  /** Stable id (React key + card remove). */
+  id: string
+  /** Event this card applies to (a RITUALS value or a custom string). */
+  event: string
+  /** The rituals/poojas performed as part of this event (free-text list). */
+  ritualsIncluded: string[]
+  /** Event duration in hours. Ignored when durationVaries is true. */
+  durationHours: number
+  /** When true, duration "Varies by caste" and durationHours is not shown. */
+  durationVaries: boolean
+  /** Number of people the event is for (0 = not specified). */
+  people: number
+  /** Number of purohits performing this event. */
+  purohits: number
+  /** Whether transport is included for this event. */
+  transportIncluded: boolean
+  /** Total price (₹) for this event. 0 = not offered / incomplete. */
+  price: number
+}
+
+/** A Pandit listing's pricing — a list of per-event cards. */
+export interface PanditPricing {
+  cards: PanditCard[]
+}
+
+let panditCardSeq = 0
+/** A stable-ish unique id for a Pandit card. */
+export function newPanditCardId(): string {
+  return `pnd-${++panditCardSeq}`
+}
+
+/** A fresh Pandit pricing object seeded with the default events at price 0. */
+export function emptyPanditPricing(): PanditPricing {
+  return {
+    cards: PANDIT_DEFAULT_EVENTS.map(event => ({
+      id: newPanditCardId(),
+      event,
+      ritualsIncluded: [],
+      durationHours: 2,
+      durationVaries: false,
+      people: 0,
+      purohits: 1,
+      transportIncluded: false,
+      price: 0,
+    })),
+  }
+}
+
+/** True if a card is complete enough to keep on save (an event + a real price). */
+export function panditCardValid(c: PanditCard): boolean {
   return !!c.event?.trim() && c.price > 0
 }
 

@@ -68,6 +68,7 @@ function mapDbListingToVendorListing(l: Record<string, unknown>): VendorListing 
     eventPackages: arr(l.event_packages) as import('./vendor-category-config').PhotographyEventPackage[] | undefined,
     entertainerPricing: obj(l.entertainer_pricing) as import('./vendor-category-config').EntertainerPricing | undefined,
     banjantriluPricing: obj(l.banjantrilu_pricing) as import('./vendor-category-config').BanjantriluPricing | undefined,
+    panditPricing: obj(l.pandit_pricing) as import('./vendor-category-config').PanditPricing | undefined,
     mehendiPricing: obj(l.mehendi_pricing) as import('./vendor-category-config').MehendiPricing | undefined,
     makeupPricing: obj(l.makeup_pricing) as import('./vendor-category-config').MakeupPricing | undefined,
     sareeDrapingPricing: obj(l.saree_draping_pricing) as import('./vendor-category-config').SareeDrapingPricing | undefined,

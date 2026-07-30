@@ -65,7 +65,7 @@ export default function SharedBoardPage() {
       const vendorById: Record<string, Record<string, unknown>> = {}
       for (const v of allVendors) vendorById[(v as Record<string, unknown>).id as string] = v as Record<string, unknown>
       // Expand Photography event packages / Entertainer rates so a shared board's picks resolve.
-      // (Banjantrilu isn't fanned — its picks resolve directly to the base listing.)
+      // (Banjantrilu & Pandit aren't fanned — their picks resolve directly to the base listing.)
       const mapped: ListingLite[] = expandEntertainerListings(expandEventPackageListings(allListings as Record<string, unknown>[])).map((l, i) => {
         const row = l as Record<string, unknown>
         const vendorRow = vendorById[row.vendor_id as string]

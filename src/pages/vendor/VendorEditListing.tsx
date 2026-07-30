@@ -4,14 +4,15 @@ import { useVendorBase } from '@/lib/vendor-nav'
 import { useVendorStore } from '@/lib/vendor-store'
 import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
-import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getStallFromPrice } from '@/lib/helpers'
-import { getListingConfig, RITUALS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, emptyStallPricing, banjantriluCardValid, photographyPackageHasPrice, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing, type StallPricing } from '@/lib/vendor-category-config'
+import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice, getPanditFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getStallFromPrice } from '@/lib/helpers'
+import { getListingConfig, RITUALS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, emptyPanditPricing, emptyStallPricing, banjantriluCardValid, panditCardValid, photographyPackageHasPrice, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing, type PanditPricing, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing, type StallPricing } from '@/lib/vendor-category-config'
 import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice, InHouseDecor, PaidRoom } from '@/lib/vendor-types'
 import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
 import EntertainerPricingEditor from '@/components/EntertainerPricingEditor'
 import BanjantriluPricingEditor from '@/components/BanjantriluPricingEditor'
+import PanditPricingEditor from '@/components/PanditPricingEditor'
 import MenuEditor from '@/components/MenuEditor'
 import SizesEditor from '@/components/SizesEditor'
 import PlateSlotsEditor from '@/components/PlateSlotsEditor'
@@ -49,6 +50,7 @@ export default function VendorEditListing() {
   const [eventPackages, setEventPackages] = useState<PhotographyEventPackage[]>(emptyPhotographyEventPackages())
   const [entertainerPricing, setEntertainerPricing] = useState<EntertainerPricing>(emptyEntertainerPricing())
   const [banjantriluPricing, setBanjantriluPricing] = useState<BanjantriluPricing>(emptyBanjantriluPricing())
+  const [panditPricing, setPanditPricing] = useState<PanditPricing>(emptyPanditPricing())
   const [stallPricing, setStallPricing] = useState<StallPricing>(emptyStallPricing())
   const [mehendiPricing, setMehendiPricing] = useState<MehendiPricing>(emptyMehendiPricing())
   const [makeupPricing, setMakeupPricing] = useState<MakeupPricing>(emptyMakeupPricing())
@@ -117,6 +119,7 @@ export default function VendorEditListing() {
       setEventPackages(listing.eventPackages || emptyPhotographyEventPackages())
       setEntertainerPricing(listing.entertainerPricing || emptyEntertainerPricing())
       setBanjantriluPricing(listing.banjantriluPricing || emptyBanjantriluPricing())
+      setPanditPricing(listing.panditPricing || emptyPanditPricing())
       setStallPricing(listing.stallPricing || emptyStallPricing())
       setMehendiPricing(listing.mehendiPricing || emptyMehendiPricing())
       setMehendiAddon(listing.category === 'Makeup' && !!listing.mehendiPricing)
@@ -300,6 +303,14 @@ export default function VendorEditListing() {
   }
   const banjantriluReady = cleanedBanjantriluPricing.cards.length > 0
 
+  // Pandit pricing — per-event cards.
+  const panditFrom = getPanditFromPrice(panditPricing)
+  const cleanedPanditPricing: PanditPricing = {
+    ...panditPricing,
+    cards: panditPricing.cards.filter(panditCardValid),
+  }
+  const panditReady = cleanedPanditPricing.cards.length > 0
+
   // Venue pricing (mirrors the add flow's derivation).
   const venueOffersRent = venuePricingModels.includes('rent')
   const venueOffersPerPlate = venuePricingModels.includes('perPlate')
@@ -419,6 +430,7 @@ export default function VendorEditListing() {
       ? photoEventFrom
       : category === 'Hosts / Entertainers' ? entertainerFrom
       : category === 'Banjantrilu' ? banjantriluFrom
+      : category === 'Pandit' ? panditFrom
       : category === 'Mehendi' ? getMehendiFromPrice(mehendiPricing)
       : category === 'Makeup' ? getMakeupFromPrice(makeupPricingOut)
       : category === 'Saree Draping' ? getSareeDrapingFromPrice(sareePricing)
@@ -449,6 +461,7 @@ export default function VendorEditListing() {
       eventPackages: category === 'Photography' && validEventPackages.length > 0 ? validEventPackages : undefined,
       entertainerPricing: category === 'Hosts / Entertainers' && entertainerReady ? cleanedEntertainerPricing : undefined,
       banjantriluPricing: category === 'Banjantrilu' && banjantriluReady ? cleanedBanjantriluPricing : undefined,
+      panditPricing: category === 'Pandit' && panditReady ? cleanedPanditPricing : undefined,
       stallPricing: category === 'Live Stalls'
         ? (stallPricing.mode === 'perItem'
             ? { mode: 'perItem' as const, items: (stallPricing.items || []).filter(i => i.name.trim() && i.pricePerGuest > 0) }
@@ -499,8 +512,8 @@ export default function VendorEditListing() {
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard" />
         </div>
 
-        {/* Rituals — Photography/Entertainer/Banjantrilu events come from their per-event pricing, so hidden there */}
-        {category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && (
+        {/* Rituals — Photography/Entertainer/Banjantrilu/Pandit events come from their per-event pricing, so hidden there */}
+        {category !== 'Photography' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && category !== 'Pandit' && (
         <div>
           <label className="text-[11px] font-medium text-dark block mb-1.5">Events this listing is for</label>
           <div className="flex flex-wrap gap-1.5">
@@ -773,6 +786,15 @@ export default function VendorEditListing() {
             <BanjantriluPricingEditor value={banjantriluPricing} onChange={setBanjantriluPricing} />
             {banjantriluFrom > 0 && (
               <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(banjantriluFrom)}</span>.</p>
+            )}
+          </div>
+        ) : category === 'Pandit' ? (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-1">Create your event cards</label>
+            <p className="text-[10px] text-gray-400 mb-2">Add a card per event — pick the event, list rituals included, set duration, people, purohits, transport and a total price.</p>
+            <PanditPricingEditor value={panditPricing} onChange={setPanditPricing} />
+            {panditFrom > 0 && (
+              <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(panditFrom)}</span>.</p>
             )}
           </div>
         ) : category === 'Mehendi' ? (

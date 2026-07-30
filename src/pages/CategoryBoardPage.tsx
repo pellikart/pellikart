@@ -107,7 +107,7 @@ export default function CategoryBoardPage() {
           // rituals are the union of its priced-card events, so only show it on boards
           // it actually prices. Other non-fanned listings stay event-agnostic.
           const isFanned = v.id.includes('::ent::') || v.id.includes('::evt::')
-          const isEventScoped = isFanned || v.category === 'Banjantrilu'
+          const isEventScoped = isFanned || v.category === 'Banjantrilu' || v.category === 'Pandit'
           if (isEventScoped && !(v.rituals || []).includes(board.name)) return false
           return true
         })
