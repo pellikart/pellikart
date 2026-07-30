@@ -91,6 +91,9 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
   const [description, setDescription] = useState((draft.description as string) ?? '')
   const [experience, setExperience] = useState((draft.experience as string) ?? '')
   const [teamSize, setTeamSize] = useState((draft.teamSize as string) ?? '')
+  // These categories don't use the generic vendor-meta fields (area, years of
+  // experience, team size) — the questions are skipped and nothing is persisted.
+  const hideVendorMeta = ['Live Stalls', 'Mehendi', 'Banjantrilu', 'Pandit'].includes(category)
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [videoFiles, setVideoFiles] = useState<File[]>([])
@@ -204,15 +207,15 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
       businessName: businessName || 'My Business',
       category: category || 'Photography',
       city: 'Hyderabad',
-      area: area || 'Jubilee Hills',
+      area: hideVendorMeta ? '' : (area || 'Jubilee Hills'),
       phone: phone || '+919876543210',
       secondaryPhone: secondaryPhone.trim() || undefined,
       whatsapp: sameAsPhone ? (phone || '+919876543210') : (whatsapp || '+919876543210'),
       email: email || 'vendor@example.com',
       instagram: instagram.trim() || undefined,
       description: description || 'Professional wedding services',
-      experience: parseInt(experience) || 5,
-      teamSize: teamSize || '2-5',
+      experience: hideVendorMeta ? 0 : (parseInt(experience) || 5),
+      teamSize: hideVendorMeta ? '' : (teamSize || '2-5'),
       portfolioPhotos: [],
       portfolioVideos: undefined,
       rating: 0,
@@ -383,18 +386,20 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="text-[12px] font-medium text-dark block mb-1">Where you're based</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {AREAS.map((a) => (
-                    <button key={a} onClick={() => setArea(a)} className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${area === a ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}>
-                      {a}
-                    </button>
-                  ))}
+              {!hideVendorMeta && (
+                <div>
+                  <label className="text-[12px] font-medium text-dark block mb-1">Where you're based</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {AREAS.map((a) => (
+                      <button key={a} onClick={() => setArea(a)} className={`py-1.5 px-3 rounded-full text-[10px] font-medium transition-all ${area === a ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}>
+                        {a}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-            <p className="text-[11px] text-gray-400 mt-4">This helps couples nearby discover you.</p>
+            {!hideVendorMeta && <p className="text-[11px] text-gray-400 mt-4">This helps couples nearby discover you.</p>}
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
           </div>
         )}
@@ -446,40 +451,44 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tell couples what makes you special..." rows={4} className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[13px] outline-none focus:border-mustard resize-none" />
                 <span className="text-[9px] text-gray-400">Tip: wrap a line in **asterisks** to make it a bold subheading. Line breaks are kept.</span>
               </div>
-              <div>
-                <label className="text-[12px] font-medium text-dark block mb-1">Years of experience</label>
-                <div className="inline-flex items-stretch rounded-xl border border-card-border overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setExperience(String(Math.max(1, (parseInt(experience) || 5) - 1)))}
-                    disabled={(parseInt(experience) || 5) <= 1}
-                    className="px-3.5 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
-                  >−</button>
-                  <input
-                    type="number" min={1} max={70}
-                    value={parseInt(experience) || 5}
-                    onChange={(e) => setExperience(String(Math.min(70, Math.max(1, parseInt(e.target.value) || 1))))}
-                    className="w-16 text-center text-[13px] font-medium text-dark outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setExperience(String(Math.min(70, (parseInt(experience) || 5) + 1)))}
-                    disabled={(parseInt(experience) || 5) >= 70}
-                    className="px-3.5 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
-                  >+</button>
-                  <span className="px-3 flex items-center text-[11px] text-gray-500 border-l border-card-border bg-empty-bg">years</span>
+              {!hideVendorMeta && (
+                <div>
+                  <label className="text-[12px] font-medium text-dark block mb-1">Years of experience</label>
+                  <div className="inline-flex items-stretch rounded-xl border border-card-border overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExperience(String(Math.max(1, (parseInt(experience) || 5) - 1)))}
+                      disabled={(parseInt(experience) || 5) <= 1}
+                      className="px-3.5 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+                    >−</button>
+                    <input
+                      type="number" min={1} max={70}
+                      value={parseInt(experience) || 5}
+                      onChange={(e) => setExperience(String(Math.min(70, Math.max(1, parseInt(e.target.value) || 1))))}
+                      className="w-16 text-center text-[13px] font-medium text-dark outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setExperience(String(Math.min(70, (parseInt(experience) || 5) + 1)))}
+                      disabled={(parseInt(experience) || 5) >= 70}
+                      className="px-3.5 text-dark text-[16px] font-medium disabled:opacity-30 active:bg-mustard-light/40"
+                    >+</button>
+                    <span className="px-3 flex items-center text-[11px] text-gray-500 border-l border-card-border bg-empty-bg">years</span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="text-[12px] font-medium text-dark block mb-1.5">Team size</label>
-                <div className="flex flex-wrap gap-2">
-                  {(category === 'Decor' ? TEAM_SIZES_DECOR : TEAM_SIZES_DEFAULT).map((t) => (
-                    <button key={t} onClick={() => setTeamSize(t)} className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-[12px] font-medium transition-all ${teamSize === t ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>
-                      {t}
-                    </button>
-                  ))}
+              )}
+              {!hideVendorMeta && (
+                <div>
+                  <label className="text-[12px] font-medium text-dark block mb-1.5">Team size</label>
+                  <div className="flex flex-wrap gap-2">
+                    {(category === 'Decor' ? TEAM_SIZES_DECOR : TEAM_SIZES_DEFAULT).map((t) => (
+                      <button key={t} onClick={() => setTeamSize(t)} className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-[12px] font-medium transition-all ${teamSize === t ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <p className="text-[11px] text-gray-400 mt-4">This builds trust — couples want to know who they're booking.</p>
             <button onClick={next} className="mt-6 w-full py-3.5 rounded-xl bg-mustard text-white font-semibold text-[15px] active:scale-[0.98] transition-transform">Next</button>
@@ -712,14 +721,18 @@ export default function VendorOnboarding({ returnPath = '/vendor', adminSeed, dr
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">Category</p>
                   <p className="text-[12px] font-semibold text-dark mt-0.5">{category || 'Photography'}</p>
                 </div>
-                <div>
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">Based in</p>
-                  <p className="text-[12px] font-semibold text-dark mt-0.5">{area || 'Jubilee Hills'}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">Experience</p>
-                  <p className="text-[12px] font-semibold text-dark mt-0.5">{experience || '5'} years</p>
-                </div>
+                {!hideVendorMeta && (
+                  <div>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-wider">Based in</p>
+                    <p className="text-[12px] font-semibold text-dark mt-0.5">{area || 'Jubilee Hills'}</p>
+                  </div>
+                )}
+                {!hideVendorMeta && (
+                  <div>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-wider">Experience</p>
+                    <p className="text-[12px] font-semibold text-dark mt-0.5">{experience || '5'} years</p>
+                  </div>
+                )}
               </div>
             </div>
 

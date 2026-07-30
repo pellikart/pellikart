@@ -391,6 +391,20 @@ export function listingDisplayName(vendor: Vendor | undefined, unlocked: boolean
   return unlocked ? (vendor.name || vendor.code) : (vendor.publicCode || vendor.code)
 }
 
+/**
+ * Categories that don't use the generic vendor-meta fields (style, area, years
+ * of experience, team size) — they're dropped from both onboarding and every
+ * couple-facing surface for these categories.
+ */
+const NO_VENDOR_META_CATEGORIES = new Set(['Live Stalls', 'Mehendi', 'Banjantrilu', 'Pandit'])
+export function hidesVendorMeta(vendor: Vendor | undefined): boolean {
+  if (!vendor) return false
+  if (vendor.category) return NO_VENDOR_META_CATEGORIES.has(vendor.category)
+  // Fallback for rows without an explicit category (e.g. some mock data): the
+  // code is prefixed with the category label ("Live Stalls 001").
+  return [...NO_VENDOR_META_CATEGORIES].some(c => vendor.code?.startsWith(c))
+}
+
 export function bgStyle(photo: string): { background: string } {
   if (!photo) return { background: '#f3f4f6' }
   const val = photo.startsWith('url(') ? photo : `url("${photo}")`

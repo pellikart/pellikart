@@ -1,7 +1,7 @@
 import { useStore } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal, getVenueBoardPrice, makePublicCode, guestCountFor, listingDisplayName } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal, getVenueBoardPrice, makePublicCode, guestCountFor, listingDisplayName, hidesVendorMeta } from '@/lib/helpers'
 import { Vendor, Design, DecorBrief, SizeUnit } from '@/lib/types'
 import { mockVendors, designCategories, getDesignsForCategory, mockDesigns } from '@/lib/mock-data'
 import ListingDetailSheet from '@/components/ListingDetailSheet'
@@ -880,7 +880,7 @@ function VisualGridCard({
         </div>
         <div>
           <p className="text-white/80 text-[9px]">
-            {listingDisplayName(v, unlocked)} · {v.style}
+            {listingDisplayName(v, unlocked)}{!hidesVendorMeta(v) && v.style ? ` · ${v.style}` : ''}
             {v.category && <> · {v.category}</>}
           </p>
           {platePkg ? (
@@ -1014,18 +1014,22 @@ function CompareTable({
               )
             })}
           </tr>
-          <tr className="border-b border-card-border/50">
-            <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Style</td>
-            {vendors.map((v) => (
-              <td key={v.id} className="py-2 px-2 text-center text-dark">{v.style || '—'}</td>
-            ))}
-          </tr>
-          <tr className="border-b border-card-border/50">
-            <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Area</td>
-            {vendors.map((v) => (
-              <td key={v.id} className="py-2 px-2 text-center text-dark">{v.area || '—'}</td>
-            ))}
-          </tr>
+          {!hidesVendorMeta(vendors[0]) && (
+            <tr className="border-b border-card-border/50">
+              <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Style</td>
+              {vendors.map((v) => (
+                <td key={v.id} className="py-2 px-2 text-center text-dark">{v.style || '—'}</td>
+              ))}
+            </tr>
+          )}
+          {!hidesVendorMeta(vendors[0]) && (
+            <tr className="border-b border-card-border/50">
+              <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Area</td>
+              {vendors.map((v) => (
+                <td key={v.id} className="py-2 px-2 text-center text-dark">{v.area || '—'}</td>
+              ))}
+            </tr>
+          )}
           <tr className="border-b border-card-border/50">
             <td className="py-2 px-2 text-gray-500 sticky left-0 bg-white">Rating</td>
             {vendors.map((v) => (

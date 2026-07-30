@@ -4,7 +4,7 @@ import ExpandableText from '@/components/ExpandableText'
 import { useStore } from '@/lib/store'
 import { parseCoordsFromMapLink, distanceLabel } from '@/lib/geo'
 import { mockVendors, mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, getStallFromPrice, listingDisplayName, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
+import { formatINR, bgStyle, getEffectivePrice, getPhotographyEventFromPrice, getPhotographyEventSelectionTotal, getOfferedEventServices, getPhotographyModels, getEntertainerFromPrice, getBanjantriluFromPrice, getMehendiFromPrice, getMehendiSelectionTotal, getMakeupFromPrice, getMakeupSelectionTotal, getSareeDrapingFromPrice, getSareeSelectionTotal, getHairStylingFromPrice, getHairSelectionTotal, getStallFromPrice, listingDisplayName, hidesVendorMeta, venueFitsGuestBucket, guestCountFor } from '@/lib/helpers'
 import { getListingConfig, MEHENDI_COVERAGES, MEHENDI_DESIGNS, mehendiDesignLabel, MAKEUP_EVENTS, MAKEUP_ADDONS } from '@/lib/vendor-category-config'
 import type { MehendiPricing } from '@/lib/vendor-category-config'
 import { buildBundleEntries } from '@/lib/bundle'
@@ -493,7 +493,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
             {/* Rating + Likes + Availability */}
             <div className="flex items-center gap-2 flex-wrap mb-3">
               <span className="bg-dark/10 text-dark text-[11px] font-medium px-2 py-1 rounded-full">★ {vendor.rating}</span>
-              <span className="bg-empty-bg text-gray-500 text-[10px] px-2 py-1 rounded-full">{vendor.style}</span>
+              {!hidesVendorMeta(vendor) && vendor.style && <span className="bg-empty-bg text-gray-500 text-[10px] px-2 py-1 rounded-full">{vendor.style}</span>}
               {likeNames.length > 0 && (
                 <span className="bg-magenta-light text-magenta text-[10px] px-2 py-1 rounded-full">♥ {vendor.likes.length}</span>
               )}
@@ -1416,27 +1416,31 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
 
             {/* Details Grid */}
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div>
-                <p className="text-[9px] text-gray-400 uppercase tracking-wider">Style</p>
-                <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.style}</p>
-              </div>
-              <div>
-                <p className="text-[9px] text-gray-400 uppercase tracking-wider">Area</p>
-                <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.area || 'Hyderabad'}</p>
-              </div>
+              {!hidesVendorMeta(vendor) && (
+                <div>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">Style</p>
+                  <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.style}</p>
+                </div>
+              )}
+              {!hidesVendorMeta(vendor) && (
+                <div>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">Area</p>
+                  <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.area || 'Hyderabad'}</p>
+                </div>
+              )}
               {vendor.capacity && (
                 <div>
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">Capacity</p>
                   <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.capacity} guests</p>
                 </div>
               )}
-              {vendor.experience && vendor.experience > 0 && (
+              {!hidesVendorMeta(vendor) && vendor.experience && vendor.experience > 0 && (
                 <div>
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">Experience</p>
                   <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.experience} years</p>
                 </div>
               )}
-              {vendor.teamSize && (
+              {!hidesVendorMeta(vendor) && vendor.teamSize && (
                 <div>
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">Team Size</p>
                   <p className="text-[12px] font-medium text-dark mt-0.5">{vendor.teamSize}</p>

@@ -17,17 +17,18 @@ const TEAM_SIZES = ['Solo', '2-5', '5-10', '10+']
  * write a real description, upload a few photos, and fill the optional
  * fields to reach 100%.
  */
+const NO_META_CATEGORIES = ['Live Stalls', 'Mehendi', 'Banjantrilu', 'Pandit']
 function calcCompleteness(p: VendorProfileType): number {
+  const hideMeta = NO_META_CATEGORIES.includes(p.category)
   const checks = [
     p.businessName.trim().length > 0,
     p.category.trim().length > 0,
-    p.area.trim().length > 0,
+    ...(hideMeta ? [] : [p.area.trim().length > 0]),
     p.phone.trim().length > 0,
     p.whatsapp.trim().length > 0,
     p.email.trim().length > 0,
     p.description.trim().length >= 50,
-    p.experience > 0,
-    p.teamSize.trim().length > 0,
+    ...(hideMeta ? [] : [p.experience > 0, p.teamSize.trim().length > 0]),
     p.portfolioPhotos.length >= 3,
     !!p.instagram?.trim(),
     Object.keys(p.categoryFields || {}).length > 0,
@@ -55,6 +56,7 @@ export default function VendorProfile() {
   const [editTeamSize, setEditTeamSize] = useState('')
 
   if (!p) return null
+  const hideMeta = NO_META_CATEGORIES.includes(p.category)
 
   // Defensive: portfolio_photos column should be text[] / jsonb array, but a
   // manual SQL write that set it to a non-array (e.g. '{}' on a jsonb column)
@@ -119,10 +121,10 @@ export default function VendorProfile() {
             </div>
             <div className="flex-1">
               <p className="text-[14px] font-bold text-dark">{p.businessName}</p>
-              <p className="text-[10px] text-gray-500">{p.category} · {p.area}, {p.city}</p>
+              <p className="text-[10px] text-gray-500">{p.category}{hideMeta ? ` · ${p.city}` : ` · ${p.area}, ${p.city}`}</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[10px] text-mustard font-medium">★ {p.rating}</span>
-                <span className="text-[9px] text-gray-400">{p.experience} yrs exp · Team of {p.teamSize}</span>
+                {!hideMeta && <span className="text-[9px] text-gray-400">{p.experience} yrs exp · Team of {p.teamSize}</span>}
               </div>
             </div>
           </div>
@@ -151,7 +153,7 @@ export default function VendorProfile() {
         >
           <div>
             <p className="text-[12px] font-medium text-dark">Business Details</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">{p.category} · {p.area} · {p.phone}</p>
+            <p className="text-[10px] text-gray-400 mt-0.5">{p.category}{hideMeta ? '' : ` · ${p.area}`} · {p.phone}</p>
           </div>
           <span className="text-[10px] text-mustard font-medium">Edit</span>
         </button>
@@ -289,14 +291,16 @@ export default function VendorProfile() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[11px] font-medium text-dark block mb-1.5">Where you're based</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {AREAS.map((a) => (
-                    <button key={a} onClick={() => setEditArea(a)} className={`py-1.5 px-3 rounded-full text-[10px] font-medium ${editArea === a ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}>{a}</button>
-                  ))}
+              {!hideMeta && (
+                <div>
+                  <label className="text-[11px] font-medium text-dark block mb-1.5">Where you're based</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {AREAS.map((a) => (
+                      <button key={a} onClick={() => setEditArea(a)} className={`py-1.5 px-3 rounded-full text-[10px] font-medium ${editArea === a ? 'bg-mustard text-white' : 'bg-empty-bg text-gray-600'}`}>{a}</button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="text-[11px] font-medium text-dark block mb-1">Phone</label>
@@ -324,19 +328,23 @@ export default function VendorProfile() {
                 <span className="text-[8px] text-gray-400">Tip: wrap a line in **asterisks** to make it a bold subheading. Line breaks are kept.</span>
               </div>
 
-              <div>
-                <label className="text-[11px] font-medium text-dark block mb-1">Years of experience</label>
-                <input type="number" value={editExperience} onChange={(e) => setEditExperience(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard" />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-medium text-dark block mb-1.5">Team size</label>
-                <div className="flex gap-2">
-                  {TEAM_SIZES.map((t) => (
-                    <button key={t} onClick={() => setEditTeamSize(t)} className={`flex-1 py-2 rounded-xl text-[11px] font-medium ${editTeamSize === t ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>{t}</button>
-                  ))}
+              {!hideMeta && (
+                <div>
+                  <label className="text-[11px] font-medium text-dark block mb-1">Years of experience</label>
+                  <input type="number" value={editExperience} onChange={(e) => setEditExperience(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[12px] outline-none focus:border-mustard" />
                 </div>
-              </div>
+              )}
+
+              {!hideMeta && (
+                <div>
+                  <label className="text-[11px] font-medium text-dark block mb-1.5">Team size</label>
+                  <div className="flex gap-2">
+                    {TEAM_SIZES.map((t) => (
+                      <button key={t} onClick={() => setEditTeamSize(t)} className={`flex-1 py-2 rounded-xl text-[11px] font-medium ${editTeamSize === t ? 'border-2 border-mustard bg-mustard-light' : 'border border-card-border text-gray-600'}`}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button onClick={saveEdit} className="mt-5 w-full py-2.5 rounded-xl bg-mustard text-white font-semibold text-[13px] active:scale-[0.98] transition-transform">

@@ -1,7 +1,7 @@
 import { Vendor } from '@/lib/types'
 import ExpandableText from '@/components/ExpandableText'
 import { mockDesigns } from '@/lib/mock-data'
-import { formatINR, bgStyle } from '@/lib/helpers'
+import { formatINR, bgStyle, hidesVendorMeta } from '@/lib/helpers'
 
 function instagramUrl(handle: string): string {
   const cleaned = handle.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/$/, '')
@@ -27,6 +27,7 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
   const experience = vendor.experience || (5 + Math.floor(vendor.rating * 2) % 8)
   const teamSize = vendor.teamSize || (vendor.price > 200000 ? '5-10' : vendor.price > 100000 ? '2-5' : 'Solo')
   const totalBookings = 20 + Math.floor(vendor.rating * 15)
+  const hideMeta = hidesVendorMeta(vendor)
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[60] flex items-end justify-center" onClick={onClose}>
@@ -35,7 +36,7 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
         <div className="sticky top-0 bg-white border-b border-card-border px-4 py-3 flex items-center justify-between z-10">
           <div>
             <p className="text-[14px] font-bold text-dark">{unlocked ? vendor.name : vendor.code}</p>
-            <p className="text-[10px] text-gray-400">{vendor.style} · {vendor.area}</p>
+            {!hideMeta && <p className="text-[10px] text-gray-400">{vendor.style} · {vendor.area}</p>}
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-empty-bg flex items-center justify-center">
             <span className="text-gray-500 text-sm">✕</span>
@@ -49,14 +50,18 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
               <p className="text-[16px] font-bold text-dark">★ {vendor.rating}</p>
               <p className="text-[8px] text-gray-500">Rating</p>
             </div>
-            <div className="text-center p-2 rounded-xl bg-empty-bg">
-              <p className="text-[16px] font-bold text-dark">{experience}</p>
-              <p className="text-[8px] text-gray-500">Yrs Exp</p>
-            </div>
-            <div className="text-center p-2 rounded-xl bg-empty-bg">
-              <p className="text-[16px] font-bold text-dark">{teamSize}</p>
-              <p className="text-[8px] text-gray-500">Team</p>
-            </div>
+            {!hideMeta && (
+              <div className="text-center p-2 rounded-xl bg-empty-bg">
+                <p className="text-[16px] font-bold text-dark">{experience}</p>
+                <p className="text-[8px] text-gray-500">Yrs Exp</p>
+              </div>
+            )}
+            {!hideMeta && (
+              <div className="text-center p-2 rounded-xl bg-empty-bg">
+                <p className="text-[16px] font-bold text-dark">{teamSize}</p>
+                <p className="text-[8px] text-gray-500">Team</p>
+              </div>
+            )}
             <div className="text-center p-2 rounded-xl bg-empty-bg">
               <p className="text-[16px] font-bold text-dark">{totalBookings}</p>
               <p className="text-[8px] text-gray-500">Bookings</p>
@@ -70,7 +75,9 @@ export default function VendorPortfolioSheet({ vendor, unlocked, onClose, onView
               className="text-[11px] text-gray-600 leading-relaxed"
               text={
                 vendor.description ||
-                `${unlocked ? vendor.name : 'This vendor'} specializes in ${vendor.style.toLowerCase()} wedding services in ${vendor.area}. With ${experience} years of experience and a team of ${teamSize}, they've successfully delivered ${totalBookings}+ events. Known for attention to detail and personalized service.`
+                (hideMeta
+                  ? `${unlocked ? vendor.name : 'This vendor'} has successfully delivered ${totalBookings}+ events. Known for attention to detail and personalized service.`
+                  : `${unlocked ? vendor.name : 'This vendor'} specializes in ${vendor.style.toLowerCase()} wedding services in ${vendor.area}. With ${experience} years of experience and a team of ${teamSize}, they've successfully delivered ${totalBookings}+ events. Known for attention to detail and personalized service.`)
               }
             />
           </div>
