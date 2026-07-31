@@ -64,3 +64,29 @@ describe('getCategorySelectionTotal — per-plate venue', () => {
     expect(getCategorySelectionTotal(venue, makeCategory(), 400)).toBeNull()
   })
 })
+
+describe('getCategorySelectionTotal — per-plate catering', () => {
+  // Catering reuses the venue per-plate machinery: tiers with pricePerPlate,
+  // a picked package id, and rate × guests. The math is category-agnostic.
+  const caterer = makeVendor({
+    id: 'cat1', category: 'Catering', name: 'Test Caterer',
+    platePackages: [
+      { id: 'c-veg', name: 'Veg Silver', pricePerPlate: 800 },
+      { id: 'c-nonveg', name: 'Non-veg Gold', pricePerPlate: 1400 },
+    ],
+  })
+
+  it('returns the per-plate RATE when no guest count is passed', () => {
+    const cat = makeCategory({ label: 'Catering', selectedPlatePackageId: 'c-nonveg' })
+    expect(getCategorySelectionTotal(caterer, cat)).toBe(1400)
+  })
+
+  it('returns rate × guests (the TOTAL) for the picked tier', () => {
+    const cat = makeCategory({ label: 'Catering', selectedPlatePackageId: 'c-veg' })
+    expect(getCategorySelectionTotal(caterer, cat, 250)).toBe(800 * 250)
+  })
+
+  it('returns null when no plate package is picked', () => {
+    expect(getCategorySelectionTotal(caterer, makeCategory({ label: 'Catering' }), 250)).toBeNull()
+  })
+})

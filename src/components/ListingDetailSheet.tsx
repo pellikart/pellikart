@@ -1269,7 +1269,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                 {selectedTierHours ? `For ${selectedTierHours} hr rental` : `Default venue rent`}
               </p>
             )}
-            {vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.hourlyPricing && (
+            {((vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.hourlyPricing) || (vendor.category === 'Catering' && (vendor.platePackages?.length ?? 0) > 0)) && (
               <p className="text-[10px] text-gray-400">
                 Per plate{(vendor.platePackages?.length ?? 0) > 1 ? ' · from' : ''}
               </p>
@@ -1343,15 +1343,15 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </div>
             )}
 
-            {/* Per-plate packages (Venue per-plate model) */}
-            {vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && vendor.platePackages && vendor.platePackages.length > 0 && (
+            {/* Per-plate packages (Venue per-plate model & Catering) */}
+            {((vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate')) || vendor.category === 'Catering') && vendor.platePackages && vendor.platePackages.length > 0 && (
               <div className="mb-4 p-2.5 rounded-xl bg-mustard-light/30 border border-mustard/20">
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1">Per-plate packages</p>
                 {ritualId && categoryId && (
                   <p className="text-[10px] text-gray-500 mb-1.5">
                     {currentCategory?.platePackageByVendor?.[vendor.id]
                       ? '✓ On your board — tap another to switch package'
-                      : 'Pick the package you want to add this venue to your board'}
+                      : `Pick the package you want to add this ${vendor.category === 'Catering' ? 'caterer' : 'venue'} to your board`}
                   </p>
                 )}
                 {/* Venue-level service time slots — shared across all packages */}
@@ -1680,9 +1680,10 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </>
             )}
 
-            {/* Catering menu — photos (reference-only) if the vendor uploaded them,
-                otherwise the interactive dish picker per section. */}
+            {/* Catering menu — legacy listing-level menu (per-plate catering now
+                carries its menu inside each package, shown in the picker above). */}
             {(() => {
+              if ((vendor.platePackages?.length ?? 0) > 0) return null
               const showPhotos = vendor.menuMode === 'photos' && (vendor.menuPhotos?.length ?? 0) > 0
               const showPicker = !showPhotos && (vendor.menu?.length ?? 0) > 0
               if (!showPhotos && !showPicker) return null

@@ -74,7 +74,7 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
           )}
           {(() => {
             const photoSel = getCategorySelectionTotal(vendor, category)
-            const perPlateSel = vendor.category === 'Venue' && !!category.selectedPlatePackageId
+            const perPlateSel = (vendor.category === 'Venue' || vendor.category === 'Catering') && !!category.selectedPlatePackageId
             // For a per-plate venue, show the per-plate rate AND, below it, the
             // total for the event's guest count (price/plate × guests).
             const plateTotal = perPlateSel && photoSel != null && guests && guests > 0 ? photoSel * guests : null
@@ -86,7 +86,7 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
             )
             // Fallback: no package picked yet. A per-plate-only venue shows its
             // "from" per-plate rate; add the "from" total for the guest count.
-            const perPlateOnly = vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent')
+            const perPlateOnly = (vendor.category === 'Venue' && vendor.venuePricingModels?.includes('perPlate') && !vendor.venuePricingModels?.includes('rent')) || (vendor.category === 'Catering' && (vendor.platePackages?.length ?? 0) > 0)
             const fromTotal = perPlateOnly && guests && guests > 0 ? vendor.price * guests : null
             return (
               <div>

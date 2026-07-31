@@ -1197,7 +1197,8 @@ export async function fetchVendorTrials(vendorId: string): Promise<TrialRow[]> {
  * Leads: couples who selected (added to their board) one of this vendor's
  * listings. board_categories / ritual_boards are world-readable (migration 010),
  * so we can resolve the demand signal without exposing couple PII. For a
- * per-plate venue, the picked plate package is resolved from the listing.
+ * per-plate vendor (venue or caterer), the picked plate package is resolved from
+ * the listing.
  */
 export async function fetchVendorLeads(vendorId: string): Promise<import('./vendor-types').VendorLead[]> {
   if (!supabase) return []

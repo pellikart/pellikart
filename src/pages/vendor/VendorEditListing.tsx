@@ -6,7 +6,7 @@ import { uploadPhotos } from '@/lib/supabase-db'
 import { resolveMapLinkCoords } from '@/lib/resolveVenueGeo'
 import { formatINR, getPhotographyEventFromPrice, getEntertainerFromPrice, getBanjantriluFromPrice, getPanditFromPrice, getMehendiFromPrice, getMakeupFromPrice, getSareeDrapingFromPrice, getStallFromPrice } from '@/lib/helpers'
 import { getListingConfig, RITUALS, emptyMehendiPricing, emptyMakeupPricing, emptySareeDrapingPricing, emptyHairStylingPricing, emptyPhotographyEventPackages, emptyEntertainerPricing, emptyBanjantriluPricing, emptyPanditPricing, emptyStallPricing, banjantriluCardValid, panditCardValid, photographyPackageHasPrice, isSingleListingCategory, MAKEUP_EVENTS, type SelectField, type PhotographyPricingModel, type PhotographyEventPackage, type EntertainerPricing, type BanjantriluPricing, type PanditPricing, type MehendiPricing, type MakeupPricing, type MakeupSimpleInclude, type SareeDrapingPricing, type HairStylingPricing, type StallPricing } from '@/lib/vendor-category-config'
-import type { MenuSection, MenuMode, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice, InHouseDecor, PaidRoom } from '@/lib/vendor-types'
+import type { MenuSection, PlatePackage, PlateSlot, VenueLocation, VenuePricingModel, SizePrice, InHouseDecor, PaidRoom } from '@/lib/vendor-types'
 import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
 import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import PhotographyEventPackagesEditor from '@/components/PhotographyEventPackagesEditor'
@@ -77,11 +77,6 @@ export default function VendorEditListing() {
   const [categoryFields, setCategoryFields] = useState<Record<string, string | string[]>>({})
   const [bundledListings, setBundledListings] = useState<string[]>([])
   const [bundleMandatory, setBundleMandatory] = useState(false)
-  // Catering menu, and venue plate-package menus.
-  const [menu, setMenu] = useState<MenuSection[]>([])
-  // Catering menu photos + which input mode ('items' builder vs 'photos' upload).
-  const [menuPhotos, setMenuPhotos] = useState<string[]>([])
-  const [menuMode, setMenuMode] = useState<MenuMode>('items')
   const [platePackages, setPlatePackages] = useState<PlatePackage[]>([])
   // Venue-level service time slots, shared across all plate packages.
   const [slots, setSlots] = useState<PlateSlot[]>([])
@@ -143,9 +138,6 @@ export default function VendorEditListing() {
       setCategoryFields(listing.categoryFields || {})
       setBundledListings(listing.bundledListings || [])
       setBundleMandatory(listing.bundleMandatory || false)
-      setMenu(listing.menu || [])
-      setMenuPhotos(listing.menuPhotos || [])
-      setMenuMode(listing.menuMode || 'items')
       setPlatePackages(listing.platePackages || [])
       setSlots(listing.slots || [])
       setSizes(listing.sizes || [])
@@ -320,6 +312,9 @@ export default function VendorEditListing() {
   const venueFrom = venueOffersRent && venueRentPrice > 0 ? venueRentPrice
     : venueOffersPerPlate && venuePlateFrom > 0 && venuePlateFrom !== Infinity ? venuePlateFrom
     : 0
+  // Catering prices per-plate via package tiers (like the venue per-plate model),
+  // so its "from" board price is the cheapest priced tier.
+  const cateringFrom = venuePlateFrom > 0 && venuePlateFrom !== Infinity ? venuePlateFrom : 0
   // Decor "from" price = cheapest size variant.
   const decorPrices = sizes.map(s => s.price || 0).filter(p => p > 0)
   const decorFrom = decorPrices.length > 0 ? Math.min(...decorPrices) : 0
@@ -435,6 +430,7 @@ export default function VendorEditListing() {
       : category === 'Makeup' ? getMakeupFromPrice(makeupPricingOut)
       : category === 'Saree Draping' ? getSareeDrapingFromPrice(sareePricing)
       : category === 'Venue' ? venueFrom
+      : category === 'Catering' ? cateringFrom
       : category === 'Decor' ? decorFrom
       : category === 'Live Stalls' && stallPricing.mode === 'perItem' ? getStallFromPrice(stallPricing)
       : price
@@ -478,12 +474,13 @@ export default function VendorEditListing() {
       transportIncluded: transportIncluded === null ? undefined : transportIncluded,
       bundledListings: category === 'Venue' ? bundledListings : undefined,
       bundleMandatory: category === 'Venue' ? bundleMandatory : undefined,
-      // Menu edits: catering menu, or per-package venue menus. Left as-is for
-      // other categories (they carry over via the ...listing spread above).
-      menu: category === 'Catering' ? menu : listing.menu,
-      menuPhotos: category === 'Catering' ? menuPhotos : listing.menuPhotos,
-      menuMode: category === 'Catering' ? menuMode : listing.menuMode,
-      platePackages: category === 'Venue' ? platePackages : listing.platePackages,
+      // Catering & Venue per-plate both keep their menus per-package (inside
+      // platePackages), so the listing-level menu is cleared for catering. Left
+      // as-is for other categories (they carry over via the ...listing spread).
+      menu: category === 'Catering' ? undefined : listing.menu,
+      menuPhotos: category === 'Catering' ? undefined : listing.menuPhotos,
+      menuMode: category === 'Catering' ? undefined : listing.menuMode,
+      platePackages: category === 'Venue' || category === 'Catering' ? platePackages : listing.platePackages,
       slots: category === 'Venue' ? slots : listing.slots,
       sizes: category === 'Decor' ? (sizes.length > 0 ? sizes : undefined) : listing.sizes,
       venueLocation: category === 'Venue' ? (resolvedVenueLocation.address.trim() ? resolvedVenueLocation : undefined) : listing.venueLocation,
@@ -992,6 +989,11 @@ export default function VendorEditListing() {
               <p className="text-[11px] text-gray-600 mt-3">Board card shows <span className="font-bold text-mustard">from {formatINR(getStallFromPrice(stallPricing))}</span> / guest.</p>
             )}
           </div>
+        ) : category === 'Catering' ? (
+          <div>
+            <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
+            <p className="text-[10px] text-gray-400">Per-plate packages (and their menus) are managed in the “Per-plate packages” section below. Couples see the cheapest tier as the “from” price.</p>
+          </div>
         ) : (
           <div>
             <label className="text-[11px] font-medium text-dark block mb-1">{priceLabel}</label>
@@ -1053,26 +1055,11 @@ export default function VendorEditListing() {
         </div>
         )}
 
-        {/* Catering menu */}
-        {category === 'Catering' && (
+        {/* Plate packages — add/edit/remove per-plate tiers + their menus in place.
+            Shared by Venue (per-plate model) and Catering. */}
+        {(category === 'Venue' || category === 'Catering') && (
           <div>
-            <label className="text-[11px] font-medium text-dark block mb-1.5">Menu</label>
-            <MenuEditor
-              menu={menu}
-              onMenuChange={setMenu}
-              photos={menuPhotos}
-              onPhotosChange={setMenuPhotos}
-              mode={menuMode}
-              onModeChange={setMenuMode}
-              uploadFn={menuUploadFn}
-            />
-          </div>
-        )}
-
-        {/* Venue plate packages — add/edit/remove tiers + their menus in place */}
-        {category === 'Venue' && (
-          <div>
-            <label className="text-[11px] font-medium text-dark block mb-1.5">Plate packages</label>
+            <label className="text-[11px] font-medium text-dark block mb-1.5">{category === 'Catering' ? 'Per-plate packages' : 'Plate packages'}</label>
             <div className="space-y-2.5">
               {platePackages.map((pkg, idx) => (
                 <div key={pkg.id} className="rounded-xl border border-card-border p-3 space-y-2.5">
@@ -1147,10 +1134,12 @@ export default function VendorEditListing() {
             >
               + Add package
             </button>
-            {/* Venue-level service time slots — shared across all packages */}
-            <div className="mt-3 pt-3 border-t border-card-border">
-              <PlateSlotsEditor value={slots} onChange={setSlots} />
-            </div>
+            {/* Venue-level service time slots — shared across all packages (venue only) */}
+            {category === 'Venue' && (
+              <div className="mt-3 pt-3 border-t border-card-border">
+                <PlateSlotsEditor value={slots} onChange={setSlots} />
+              </div>
+            )}
           </div>
         )}
       </div>

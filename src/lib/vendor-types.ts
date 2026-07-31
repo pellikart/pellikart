@@ -118,7 +118,8 @@ export function resolveVenueSlots(rawSlots: unknown, platePackages: unknown): Pl
   return out.length > 0 ? out : undefined
 }
 
-/** Venue-only: a per-plate food package/tier for the rent-free (per-plate) model. */
+/** A per-plate food package/tier. Used by the Venue rent-free (per-plate) model
+ *  and by Catering (which prices entirely per-plate via these tiers). */
 export interface PlatePackage {
   /** Stable per-package id (so we can edit/remove individual tiers). */
   id: string
@@ -218,7 +219,7 @@ export interface VendorListing {
   venuePricingModels?: VenuePricingModel[]
   /** Venue-only: per-duration price tiers, e.g. [{ hours: 12, price: 500000 }, ...] */
   hourlyPricing?: { hours: number; price: number }[]
-  /** Venue-only: per-plate food packages (the rent-free / per-plate model). */
+  /** Venue (rent-free / per-plate model) & Catering: per-plate food package tiers. */
   platePackages?: PlatePackage[]
   /** Venue-only: service time slots offered by the venue (shared across all plate packages). */
   slots?: PlateSlot[]

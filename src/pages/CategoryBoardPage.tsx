@@ -219,16 +219,19 @@ export default function CategoryBoardPage() {
   }
   const bookingAmount = Math.round(ritualTotal * 0.04)
 
-  // A venue that prices per plate and has packages — its board price is one chosen package.
-  function isPerPlateVenue(v: Vendor | undefined): boolean {
-    return !!v && v.category === 'Venue' && !!v.venuePricingModels?.includes('perPlate') && (v.platePackages?.length ?? 0) > 0
+  // A vendor priced per plate with packages — its board price is one chosen
+  // package. Covers per-plate venues and caterers (both use platePackages).
+  function isPerPlatePackaged(v: Vendor | undefined): boolean {
+    if (!v || (v.platePackages?.length ?? 0) === 0) return false
+    if (v.category === 'Catering') return true
+    return v.category === 'Venue' && !!v.venuePricingModels?.includes('perPlate')
   }
 
-  // Add a vendor to the board. For a per-plate venue, first ask which package
-  // (so every board venue carries a chosen package and Compare lines them up).
+  // Add a vendor to the board. For a per-plate vendor, first ask which package
+  // (so every board entry carries a chosen package and Compare lines them up).
   function handleAddToBoard(vendorId: string, design?: Design) {
     const v = vendors[vendorId] || (design ? getExploreVendor(design) : undefined)
-    if (isPerPlateVenue(v)) {
+    if (isPerPlatePackaged(v)) {
       setPkgPicker({ vendorId, design })
       return
     }
@@ -247,9 +250,9 @@ export default function CategoryBoardPage() {
     const prev = prevId ? vendors[prevId] : null
     const next = vendors[newVendorId]
 
-    // A per-plate venue is chosen as one specific package. If it was added to the
+    // A per-plate vendor is chosen as one specific package. If it was added to the
     // board with a package, select it directly; otherwise open the sheet to pick.
-    if (isPerPlateVenue(next)) {
+    if (isPerPlatePackaged(next)) {
       if (!category!.platePackageByVendor?.[newVendorId]) {
         setDetailVendorId(newVendorId)
         return
@@ -745,7 +748,7 @@ export default function CategoryBoardPage() {
             <div className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
               <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3 md:hidden" />
               <p className="text-[14px] font-bold text-dark">Pick a package</p>
-              <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Choose which plate package to add for {unlocked ? v.name : (v.publicCode || v.code)}. You can compare this against other venues.</p>
+              <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Choose which plate package to add for {unlocked ? v.name : (v.publicCode || v.code)}. You can compare this against other {v.category === 'Catering' ? 'caterers' : 'venues'}.</p>
               <div className="space-y-1.5">
                 {v.platePackages!.map((pkg) => (
                   <button
@@ -888,7 +891,7 @@ function VisualGridCard({
           ) : selectionTotal != null ? (
             <p className="text-white font-bold text-xs">{formatINR(selectionTotal)}</p>
           ) : v.price > 0 ? (
-            <p className="text-white font-bold text-xs">{(v.eventPackages?.length || v.stallPricing?.mode === 'perItem') ? <span className="font-normal text-[10px]">from </span> : ''}{formatINR(v.price)}{v.stallPricing?.mode === 'perItem' ? <span className="font-normal text-[10px]">/guest</span> : v.category === 'Venue' && v.venuePricingModels?.includes('perPlate') && !v.venuePricingModels?.includes('rent') ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
+            <p className="text-white font-bold text-xs">{(v.eventPackages?.length || v.stallPricing?.mode === 'perItem') ? <span className="font-normal text-[10px]">from </span> : ''}{formatINR(v.price)}{v.stallPricing?.mode === 'perItem' ? <span className="font-normal text-[10px]">/guest</span> : (v.category === 'Venue' && v.venuePricingModels?.includes('perPlate') && !v.venuePricingModels?.includes('rent')) || (v.category === 'Catering' && (v.platePackages?.length ?? 0) > 0) ? <span className="font-normal text-[10px]">/plate</span> : ''}</p>
           ) : (
             <p className="text-white font-bold text-[11px]">Pricing on request</p>
           )}

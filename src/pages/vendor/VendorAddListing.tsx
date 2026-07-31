@@ -16,7 +16,7 @@ import PaidRoomsEditor from '@/components/PaidRoomsEditor'
 import MenuEditor from '@/components/MenuEditor'
 import PlateSlotsEditor from '@/components/PlateSlotsEditor'
 import DesignsEditor, { type DesignDraft } from '@/components/DesignsEditor'
-import type { PaidRoom, MenuSection, MenuMode, PlatePackage, PlateSlot, VenuePricingModel, InHouseDecor, VenueLocation } from '@/lib/vendor-types'
+import type { PaidRoom, MenuSection, PlatePackage, PlateSlot, VenuePricingModel, InHouseDecor, VenueLocation } from '@/lib/vendor-types'
 
 export default function VendorAddListing({ embedded = false, onPublished }: { embedded?: boolean; onPublished?: () => void } = {}) {
   const navigate = useNavigate()
@@ -106,11 +106,6 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const [paidRooms, setPaidRooms] = useState<PaidRoom[]>([])
   // Per-room pending File uploads (live mode publish replaces blob URLs with public URLs)
   const [paidRoomFiles, setPaidRoomFiles] = useState<Record<string, File[]>>({})
-  // Catering-only: curated menu
-  const [menu, setMenu] = useState<MenuSection[]>([])
-  // Catering-only: menu photos + which input mode ('items' builder vs 'photos' upload).
-  const [menuPhotos, setMenuPhotos] = useState<string[]>([])
-  const [menuMode, setMenuMode] = useState<MenuMode>('items')
   // Transport & logistics — collected on Review step for every category
   const [transportIncluded, setTransportIncluded] = useState<boolean | null>(null)
   // Decor-only: portfolio of designs — each becomes its own published listing
@@ -152,7 +147,6 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     setInHouseDecorFiles({})
     setPaidRooms([])
     setPaidRoomFiles({})
-    setMenu([])
     setDesigns([])
     setDesignFiles({})
     setTransportIncluded(null)
@@ -176,9 +170,11 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   // Live Stalls fold pricing into the last spec screen (rendered inline below)
   // instead of a standalone slide.
   const pricingInline = category === 'Live Stalls'
-  const hasStylePriceStep = category !== 'Venue' && category !== 'Decor' && !pricingInline
+  const hasStylePriceStep = category !== 'Venue' && category !== 'Decor' && category !== 'Catering' && !pricingInline
   const hasPaidRoomsStep = category === 'Venue'
-  const hasMenuStep = category === 'Catering'
+  // Catering prices per-plate via package tiers (like the venue per-plate model),
+  // so it gets a single "Per-plate packages" step instead of a menu + price step.
+  const hasCateringPackagesStep = category === 'Catering'
   const hasDesignsStep = category === 'Decor'
   const hasInclusionsStep = category !== 'Decor' && category !== 'Photography' && category !== 'Catering' && category !== 'Hosts / Entertainers' && category !== 'Banjantrilu' && category !== 'Pandit' && category !== 'Live Stalls'
   // Photography, Hosts/Entertainers & Banjantrilu don't ask for listing-level events
@@ -202,7 +198,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   let paidRoomsStep = -1
   let venuePricingStep = -1
   let decorCompulsoryStep = -1
-  let menuStep = -1
+  let cateringPackagesStep = -1
   let stylePriceStep = -1
   let designsStep = -1
   if (category === 'Venue') {
@@ -211,8 +207,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
     decorCompulsoryStep = nextStep++
     if (hasPaidRoomsStep) paidRoomsStep = nextStep++
   } else if (category === 'Catering') {
-    if (hasMenuStep) menuStep = nextStep++
-    if (hasStylePriceStep) stylePriceStep = nextStep++
+    if (hasCateringPackagesStep) cateringPackagesStep = nextStep++
   } else if (category === 'Decor') {
     if (hasDesignsStep) designsStep = nextStep++
   } else {
@@ -237,6 +232,12 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   const venuePricingReady =
     (venueOffersRent && venueRentPrice > 0) ||
     (venueOffersPerPlate && venuePlateFrom > 0)
+
+  // Catering per-plate packages (mirrors the venue per-plate model, minus
+  // rent/slots). The "from" board price is the cheapest priced tier.
+  const cateringPricedPlates = platePackages.map(p => p.pricePerPlate).filter(p => p > 0)
+  const cateringPlateFrom = cateringPricedPlates.length > 0 ? Math.min(...cateringPricedPlates) : 0
+  const cateringReady = category === 'Catering' && cateringPlateFrom > 0
 
   // Photography pricing — event-based only.
   const photoEventFrom = getPhotographyEventFromPrice(eventPackages)
@@ -287,6 +288,73 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
   // True when a package has any menu content (items or photos).
   const menuHasContent = (pkg: PlatePackage): boolean =>
     pkg.menuMode === 'photos' ? (pkg.menuPhotos?.length || 0) > 0 : menuItemCount(pkg.menu) > 0
+  // Per-plate package tiers editor (name + ₹/plate + per-package menu). Shared by
+  // the Venue per-plate model and the Catering flow — catering is per-plate too,
+  // just without the rent option or venue-level time slots.
+  const renderPlatePackagesEditor = () => (
+    <>
+      {platePackages.length > 0 && (
+        <div className="space-y-2 mb-2">
+          {platePackages.map((pkg, i) => {
+            const hasMenu = menuHasContent(pkg)
+            return (
+              <div key={pkg.id} className="p-2 rounded-lg bg-white border border-card-border">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={pkg.name}
+                    onChange={(e) => setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, name: e.target.value } : p))}
+                    className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
+                    placeholder="Tier name"
+                  />
+                  <div className="relative w-[110px] shrink-0">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={50}
+                      value={pkg.pricePerPlate || ''}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value) || 0
+                        setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, pricePerPlate: v } : p))
+                      }}
+                      className="w-full pl-6 pr-10 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">/plate</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPlatePackages(prev => prev.filter((_, idx) => idx !== i))}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100"
+                  >
+                    ×
+                  </button>
+                </div>
+                {/* Menu — opens the catering-style dish picker for this package */}
+                <button
+                  type="button"
+                  onClick={() => setMenuEditPkgId(pkg.id)}
+                  className={`mt-2 w-full flex items-center justify-between py-2 px-2.5 rounded-lg text-[11px] font-medium transition-all ${hasMenu ? 'bg-mustard-light/50 text-dark border border-mustard/30' : 'bg-empty-bg text-gray-600 border border-card-border'}`}
+                >
+                  <span>{hasMenu ? `Menu · ${menuSummary(pkg)}` : '+ Add menu'}</span>
+                  <span className="text-gray-400">›</span>
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setPlatePackages(prev => [...prev, { id: `pp-${Date.now()}-${prev.length}`, name: '', pricePerPlate: 0 }])}
+        className="px-3 py-1.5 rounded-full text-[10px] font-medium bg-empty-bg text-dark border border-card-border active:bg-mustard-light/40"
+      >
+        + Add package
+      </button>
+    </>
+  )
   // Live-mode menu-photo uploader for MenuEditor; undefined in demo mode (falls
   // back to local object-URL previews).
   const menuUploadFn = _liveMode && _vendorDbId
@@ -402,6 +470,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         : venueOffersPerPlate && venuePlateFrom > 0 ? venuePlateFrom
         : price)
       : category === 'Decor' ? 0
+      // Catering: the "from" board figure is the cheapest per-plate package.
+      : category === 'Catering' ? cateringPlateFrom
       // Photography: the "from" board figure is the cheapest event-package service.
       : category === 'Photography' ? photoEventFrom
       // Hosts/Entertainers: the "from" figure is the cheapest priced event rate.
@@ -566,7 +636,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
       venueLocation: category === 'Venue' && resolvedVenueLocation.address.trim() ? resolvedVenueLocation : undefined,
       venuePricingModels: category === 'Venue' && venuePricingModels.length > 0 ? venuePricingModels : undefined,
       hourlyPricing: category === 'Venue' && venueOffersRent && hourlyPricing.length > 0 ? hourlyPricing : undefined,
-      platePackages: category === 'Venue' && venueOffersPerPlate && platePackages.length > 0 ? platePackages : undefined,
+      platePackages: (category === 'Venue' && venueOffersPerPlate && platePackages.length > 0) || (category === 'Catering' && platePackages.length > 0) ? platePackages : undefined,
       slots: category === 'Venue' && venueOffersPerPlate && slots.length > 0 ? slots : undefined,
       photographyPricingModels: category === 'Photography' ? photographyPricingModels : undefined,
       eventPackages: category === 'Photography' && validEventPackages.length > 0 ? validEventPackages : undefined,
@@ -580,9 +650,6 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
         : undefined,
       paidRooms: category === 'Venue' && paidRoomsForPayload.length > 0 ? paidRoomsForPayload : undefined,
       inHouseDecor: category === 'Venue' ? inHouseDecorForPayload : undefined,
-      menu: category === 'Catering' && menu.length > 0 ? menu : undefined,
-      menuPhotos: category === 'Catering' && menuPhotos.length > 0 ? menuPhotos : undefined,
-      menuMode: category === 'Catering' ? menuMode : undefined,
       ...transportFields,
     }
     const published = await addListing(listing)
@@ -939,30 +1006,8 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
           </div>
         )}
 
-        {/* Menu step (Catering only) */}
-        {step === menuStep && hasMenuStep && (
-          <div className="animate-fadeIn">
-            <h1 className="text-[20px] font-bold text-dark">Build your menu</h1>
-            <p className="text-[11px] text-gray-400 mt-1 mb-5">Add dishes one by one — or, for a large menu, just upload photos of it. Switch between the two anytime.</p>
-            <MenuEditor
-              menu={menu}
-              onMenuChange={setMenu}
-              photos={menuPhotos}
-              onPhotosChange={setMenuPhotos}
-              mode={menuMode}
-              onModeChange={setMenuMode}
-              uploadFn={menuUploadFn}
-              foodType={categoryFields.foodType as string | undefined}
-            />
-            <div className="flex gap-2 mt-6">
-              <button onClick={() => setStep(menuStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
-              <button onClick={() => setStep(menuStep + 1)} className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform">Next</button>
-            </div>
-          </div>
-        )}
-
-        {/* Pricing model step → per-package menu sub-screen (catering-style flow) */}
-        {step === venuePricingStep && category === 'Venue' && menuEditPkgId && (() => {
+        {/* Per-package menu sub-screen (shared by Venue per-plate & Catering) */}
+        {((step === venuePricingStep && category === 'Venue') || (step === cateringPackagesStep && category === 'Catering')) && menuEditPkgId && (() => {
           const pkg = platePackages.find(p => p.id === menuEditPkgId)
           if (!pkg) { setMenuEditPkgId(null); return null }
           return (
@@ -1001,7 +1046,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                 mode={pkg.menuMode || 'items'}
                 onModeChange={(next) => setPlatePackages(prev => prev.map(p => p.id === pkg.id ? { ...p, menuMode: next } : p))}
                 uploadFn={menuUploadFn}
-                foodType={categoryFields.foodPolicy as string | undefined}
+                foodType={(category === 'Catering' ? categoryFields.foodType : categoryFields.foodPolicy) as string | undefined}
               />
               <button
                 onClick={() => setMenuEditPkgId(null)}
@@ -1138,67 +1183,7 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                 <p className="text-[12px] font-semibold text-dark mb-0.5">Per-plate packages</p>
                 <p className="text-[10px] text-gray-500 mb-2">Add menu tiers (e.g. Veg Silver, Non-veg Gold), each with its own per-plate price. Couples see the lowest as the "from" price.</p>
 
-                {platePackages.length > 0 && (
-                  <div className="space-y-2 mb-2">
-                    {platePackages.map((pkg, i) => {
-                      const hasMenu = menuHasContent(pkg)
-                      return (
-                        <div key={pkg.id} className="p-2 rounded-lg bg-white border border-card-border">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={pkg.name}
-                              onChange={(e) => setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, name: e.target.value } : p))}
-                              className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
-                              placeholder="Tier name"
-                            />
-                            <div className="relative w-[110px] shrink-0">
-                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">₹</span>
-                              <input
-                                type="number"
-                                min={0}
-                                step={50}
-                                value={pkg.pricePerPlate || ''}
-                                onChange={(e) => {
-                                  const v = parseInt(e.target.value) || 0
-                                  setPlatePackages(prev => prev.map((p, idx) => idx === i ? { ...p, pricePerPlate: v } : p))
-                                }}
-                                className="w-full pl-6 pr-10 py-2 rounded-lg border border-card-border text-[11px] outline-none focus:border-mustard"
-                                placeholder="0"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">/plate</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setPlatePackages(prev => prev.filter((_, idx) => idx !== i))}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 active:bg-gray-100"
-                            >
-                              ×
-                            </button>
-                          </div>
-                          {/* Menu — opens the catering-style dish picker for this package */}
-                          <button
-                            type="button"
-                            onClick={() => setMenuEditPkgId(pkg.id)}
-                            className={`mt-2 w-full flex items-center justify-between py-2 px-2.5 rounded-lg text-[11px] font-medium transition-all ${hasMenu ? 'bg-mustard-light/50 text-dark border border-mustard/30' : 'bg-empty-bg text-gray-600 border border-card-border'}`}
-                          >
-                            <span>{hasMenu ? `Menu · ${menuSummary(pkg)}` : '+ Add menu'}</span>
-                            <span className="text-gray-400">›</span>
-                          </button>
-
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setPlatePackages(prev => [...prev, { id: `pp-${Date.now()}-${prev.length}`, name: '', pricePerPlate: 0 }])}
-                  className="px-3 py-1.5 rounded-full text-[10px] font-medium bg-empty-bg text-dark border border-card-border active:bg-mustard-light/40"
-                >
-                  + Add package
-                </button>
+                {renderPlatePackagesEditor()}
                 {/* Venue-level service time slots — shared across all packages */}
                 <div className="mt-3 pt-3 border-t border-mustard/20">
                   <PlateSlotsEditor value={slots} onChange={setSlots} />
@@ -1211,6 +1196,26 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
               <button
                 onClick={() => setStep(venuePricingStep + 1)}
                 disabled={!venuePricingReady}
+                className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-40"
+              >Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* Per-plate packages step (Catering only) — mirrors the venue per-plate
+            model: menu tiers with their own price/plate + menu, no rent/slots. */}
+        {step === cateringPackagesStep && category === 'Catering' && !menuEditPkgId && (
+          <div className="animate-fadeIn">
+            <h1 className="text-[20px] font-bold text-dark">Your per-plate packages</h1>
+            <p className="text-[11px] text-gray-400 mt-1 mb-5">Add menu tiers (e.g. Veg Silver, Non-veg Gold), each with its own per-plate price and menu. Couples pick one and see the price × their guest count.</p>
+
+            {renderPlatePackagesEditor()}
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setStep(cateringPackagesStep - 1)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-[13px]">Back</button>
+              <button
+                onClick={() => setStep(cateringPackagesStep + 1)}
+                disabled={!cateringReady}
                 className="flex-1 py-3 rounded-xl bg-mustard text-white font-semibold text-[14px] active:scale-[0.98] transition-transform disabled:opacity-40"
               >Next</button>
             </div>
@@ -1745,7 +1750,11 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                       </div>
                     )
                   }
-                  return <p className="text-[16px] font-bold text-mustard mt-1">{formatINR(price)}{category === 'Catering' ? ' /plate' : category === 'Invitations' ? ' /invite' : ''}</p>
+                  // Catering prices per-plate via tiers — show the cheapest as "from".
+                  if (category === 'Catering') {
+                    return <p className="text-[16px] font-bold text-mustard mt-1">{platePackages.length > 1 ? 'from ' : ''}{formatINR(cateringPlateFrom)} <span className="text-[10px] font-normal text-gray-400">/plate</span></p>
+                  }
+                  return <p className="text-[16px] font-bold text-mustard mt-1">{formatINR(price)}{category === 'Invitations' ? ' /invite' : ''}</p>
                 })()}
 
                 {/* Rituals */}
@@ -1833,6 +1842,30 @@ export default function VendorAddListing({ embedded = false, onPublished }: { em
                     </div>
                   ))}
                   {venueOffersPerPlate && platePackages.filter(p => p.pricePerPlate > 0).map((pkg) => {
+                    const hasMenu = menuHasContent(pkg)
+                    return (
+                      <div key={pkg.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5">
+                        <span className="text-[11px] text-dark truncate">
+                          {pkg.name.trim() || 'Per plate'}
+                          {hasMenu ? <span className="text-[9px] text-gray-400 font-normal"> · {menuSummary(pkg)}</span> : null}
+                        </span>
+                        <span className="text-[11px] font-semibold text-mustard">{formatINR(pkg.pricePerPlate)} <span className="text-[9px] font-normal text-gray-400">/plate</span></span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Catering-only: per-plate packages summary (edit in the packages step) */}
+            {category === 'Catering' && platePackages.length > 0 && (
+              <div className="mb-4 p-3 rounded-xl bg-mustard-light/30 border border-mustard/20">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[12px] font-semibold text-dark">Per-plate packages</p>
+                  <button onClick={() => setStep(cateringPackagesStep)} className="text-[10px] font-medium text-mustard">Edit</button>
+                </div>
+                <div className="space-y-1.5">
+                  {platePackages.filter(p => p.pricePerPlate > 0).map((pkg) => {
                     const hasMenu = menuHasContent(pkg)
                     return (
                       <div key={pkg.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5">
