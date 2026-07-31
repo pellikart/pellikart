@@ -208,20 +208,20 @@ export const mockVendors: Record<string, Vendor> = {
     id: "v-catering-1", code: "Catering 001", name: "Spice Route Caterers", photo: img("catering", 1),
     style: "North Indian Royal", area: "Lajpat Nagar, Delhi", price: 320000,
     rating: 4.7, packageTier: "Premium (800 pax)", likes: [{ userId: "u-mom", name: "Mom" }, { userId: "u-priya", name: "Priya" }], booked: false, amountPaid: 0,
-    categoryFields: { cuisineTypes: ["North Indian", "Mughlai"], foodType: "Veg & Non-veg", menuItems: "25", liveCounters: "3", minPlates: "200", maxPlates: "1000", teamSize: "20-40 staff", staffIncluded: "Included", crockeryIncluded: "Included", specialCounters: ["Chaat Station", "Dessert Bar", "Paan Counter"] },
+    categoryFields: { cuisineTypes: ["North Indian", "Mughlai"], foodType: "Veg & Non-veg", minPlates: "200", maxPlates: "1000", teamSize: "20-40 staff", staffIncluded: "Included", crockeryIncluded: "Included" },
     transportIncluded: false,
   },
   "v-catering-2": {
     id: "v-catering-2", code: "Catering 002", name: "Flavours & Forks", photo: img("catering", 2),
     style: "Multi-Cuisine Fusion", area: "Saket, Delhi", price: 280000,
     rating: 4.4, packageTier: "Standard (800 pax)", likes: [], booked: false, amountPaid: 0,
-    categoryFields: { cuisineTypes: ["Multi-Cuisine", "Continental", "Fusion"], foodType: "Veg & Non-veg", menuItems: "30+", liveCounters: "4+", minPlates: "100", maxPlates: "2000", teamSize: "20-40 staff", staffIncluded: "Included", crockeryIncluded: "Included", specialCounters: ["Pasta Counter", "Juice Bar", "Ice Cream Bar"] },
+    categoryFields: { cuisineTypes: ["Multi-Cuisine", "Continental", "Fusion"], foodType: "Veg & Non-veg", minPlates: "100", maxPlates: "2000", teamSize: "20-40 staff", staffIncluded: "Included", crockeryIncluded: "Included" },
   },
   "v-catering-3": {
     id: "v-catering-3", code: "Catering 003", name: "Maharaja Feast", photo: img("catering", 3),
     style: "Rajasthani Thali", area: "Karol Bagh, Delhi", price: 250000,
     rating: 4.2, packageTier: "Standard (600 pax)", likes: [{ userId: "u-dad", name: "Dad" }], booked: false, amountPaid: 0,
-    categoryFields: { cuisineTypes: ["Rajasthani"], foodType: "Veg only", menuItems: "20", liveCounters: "2", minPlates: "100", maxPlates: "1000", teamSize: "10-20 staff", staffIncluded: "Extra charge", crockeryIncluded: "Extra charge", specialCounters: ["Chaat Station"] },
+    categoryFields: { cuisineTypes: ["Rajasthani"], foodType: "Veg only", minPlates: "100", maxPlates: "1000", teamSize: "10-20 staff", staffIncluded: "Extra charge", crockeryIncluded: "Extra charge" },
     transportIncluded: true,
   },
 

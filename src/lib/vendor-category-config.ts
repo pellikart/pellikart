@@ -271,8 +271,6 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'servingStyle', label: 'Serving style', type: 'single', options: ['Buffet', 'Banti Bojanalu'] },
           { key: 'cuisineTypes', label: 'Cuisine', type: 'multi', options: ['Andhra Style', 'Godavari Style', 'Rayalaseema Style', 'Telangana Style', 'Hyderabadi', 'Pure-Veg Traditional', 'Others'] },
           { key: 'foodType', label: 'Food type', type: 'single', options: ['Veg only', 'Non-veg', 'Veg & Non-veg'] },
-          { key: 'menuItems', label: 'Items in menu', type: 'single', options: ['10', '15', '20', '25', '30+'] },
-          { key: 'liveCounters', label: 'Live counters', type: 'single', options: ['None', '1', '2', '3', '4+'] },
         ],
       },
       {
@@ -284,7 +282,6 @@ export const LISTING_CONFIG: Record<string, CategoryListingConfig> = {
           { key: 'teamSize', label: 'Team on event day', type: 'single', options: ['5-10 staff', '10-20 staff', '20-40 staff', '40+ staff'] },
           { key: 'staffIncluded', label: 'Service staff', type: 'single', options: ['Included', 'Extra charge', 'Not available'] },
           { key: 'crockeryIncluded', label: 'Crockery & cutlery', type: 'single', options: ['Included', 'Extra charge', 'Client provides'] },
-          { key: 'specialCounters', label: 'Special counters', type: 'multi', options: ['Chaat Station', 'Ice Cream Bar', 'Paan Counter', 'Dessert Bar', 'Juice Bar', 'Dosa Counter', 'Pasta Counter'] },
           { key: 'orderLeadDays', label: 'How many days prior ordering is needed?', type: 'number', numberMin: 1, numberMax: 90, numberStep: 1, numberUnit: 'days' },
           { key: 'backupFoodPlates', label: 'Is backup food / plates available?', type: 'single', options: ['Yes', 'No'] },
         ],
