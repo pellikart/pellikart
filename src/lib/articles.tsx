@@ -9,6 +9,7 @@ import SangeetSongs from '@/pages/articles/SangeetSongs'
 import TeluguWeddingChecklist from '@/pages/articles/TeluguWeddingChecklist'
 import HyderabadWeddingCost from '@/pages/articles/HyderabadWeddingCost'
 import WeddingEmergencyKit from '@/pages/articles/WeddingEmergencyKit'
+import NriBrideChecklist from '@/pages/articles/NriBrideChecklist'
 
 /**
  * Articles registry for the marketing site (/articles).
@@ -47,6 +48,18 @@ export interface Article {
 }
 
 export const ARTICLES: Article[] = [
+  {
+    slug: 'nri-bride-wedding-checklist',
+    title: "NRI bride's wedding checklist: 84 tasks from 12 months out",
+    excerpt:
+      'Marrying in India but living abroad. Every task in order, split into what you can do from where you are, what only happens in India, and what to hand to family.',
+    cover: '/articles/nri-checklist-hero.jpg',
+    date: 'August 2026',
+    author: 'Team Pellikart',
+    readMins: 6,
+    layout: 'full',
+    Body: NriBrideChecklist,
+  },
   {
     slug: 'telugu-wedding-emergency-kit',
     title: 'Telugu wedding emergency kit: 76 things to pack',
