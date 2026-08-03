@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/" }
+    {
+      "source": "/((?!api/|venues/|photographers/|makeup-artists/|caterers/|decorators/|mehendi-artists/|wedding-invitations/).*)",
+      "destination": "/"
+    }
   ]
 }

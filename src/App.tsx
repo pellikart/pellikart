@@ -10,6 +10,11 @@ import CategoryCatalogPage from './pages/CategoryCatalogPage'
 import AdminVendorEditor from './pages/admin/AdminVendorEditor'
 import LandingPage from './pages/LandingPage'
 import ArticlesPage from './pages/ArticlesPage'
+import SeoLandingPage from './pages/SeoLandingPage'
+import { ADAPTERS } from './lib/seo/adapters'
+
+/** URL prefixes owned by the curated SEO landing pages, e.g. "venues". */
+const SEO_PREFIXES = ADAPTERS.map((a) => a.urlPrefix)
 import ShowcasePage from './pages/ShowcasePage'
 import TryAppPage from './pages/TryAppPage'
 import WhyUsPage from './pages/WhyUsPage'
@@ -73,6 +78,22 @@ export default function App({ isLiveApp = false }: { isLiveApp?: boolean }) {
       <Routes>
         <Route path="/showcase" element={<ShowcasePage />} />
         <Route path="/showcase/:slug" element={<ShowcasePage />} />
+      </Routes>
+    )
+  }
+
+  // Curated SEO landing pages — public, no auth. One shell serves every
+  // category; the URL prefix picks the category adapter and the slug picks the
+  // registry entry (src/lib/seo/registry.ts). Only curated slugs resolve —
+  // filter combinations never mint a URL.
+  if (SEO_PREFIXES.some((p) => pathname === `/${p}` || pathname.startsWith(`/${p}/`))) {
+    return (
+      <Routes>
+        {SEO_PREFIXES.map((p) => (
+          <Route key={p} path={`/${p}`} element={<Navigate to={`/${p}/hyderabad`} replace />} />
+        ))}
+        <Route path="/:prefix/:city" element={<SeoLandingPage />} />
+        <Route path="/:prefix/:city/:slug" element={<SeoLandingPage />} />
       </Routes>
     )
   }

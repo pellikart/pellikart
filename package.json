@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run prerender",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prerender": "vite build --ssr src/seo/prerender.tsx --outDir dist-ssr && node dist-ssr/prerender.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",

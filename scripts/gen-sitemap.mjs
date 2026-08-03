@@ -16,6 +16,11 @@ const registry = readFileSync(join(root, 'src/lib/articles.tsx'), 'utf8')
 const slugs = [...registry.matchAll(/^\s*slug: '([^']+)',$/gm)].map((m) => m[1])
 if (slugs.length === 0) throw new Error('No article slugs found in src/lib/articles.tsx')
 
+// NOTE: the venue SEO pages are NOT listed here. Their slugs are computed in
+// src/lib/venue-seo-pages.ts (template literals, not string literals), so they
+// can't be read out of the source text. src/seo/prerender.tsx enumerates the
+// real registry and splices those URLs into dist/sitemap.xml after the build.
+
 const today = new Date().toISOString().slice(0, 10)
 const urls = [
   { loc: `${ORIGIN}/`, priority: '1.0', changefreq: 'weekly' },
