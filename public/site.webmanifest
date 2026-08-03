@@ -1,0 +1,14 @@
+{
+  "name": "Pellikart",
+  "short_name": "Pellikart",
+  "description": "Plan your entire Indian wedding on one board. Real prices, real vendors, real control.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#D11680",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

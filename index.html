@@ -2,7 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
+    <!--
+      Favicons. Google picks the icon for search results from these tags on the
+      home page, and needs Googlebot-Image to be able to fetch the file. Sizes
+      are generated from public/logo.png — regenerate all of them together if the
+      logo changes so the small sizes never drift from the brand mark.
+    -->
+    <link rel="icon" type="image/png" sizes="48x48" href="/icon-48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/icon-96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,14 +25,38 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Pellikart — India's only wedding app that understands an Indian wedding" />
     <meta property="og:description" content="Plan your entire Indian wedding on one beautiful board. Real prices, real vendors, real control. No haggling. No spreadsheets." />
-    <meta property="og:image" content="/logo.png" />
+    <!-- og:image must be an absolute URL — WhatsApp and LinkedIn drop relative ones. -->
+    <meta property="og:image" content="https://www.pellikart.com/logo.png" />
+    <meta property="og:url" content="https://www.pellikart.com/" />
     <meta property="og:site_name" content="Pellikart" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Pellikart — India's only wedding app that understands an Indian wedding" />
     <meta name="twitter:description" content="Plan your entire Indian wedding on one beautiful board. Real prices, real vendors, real control." />
-    <meta name="twitter:image" content="/logo.png" />
+    <meta name="twitter:image" content="https://www.pellikart.com/logo.png" />
+
+    <!--
+      Organization markup. This is what makes a brand logo eligible to appear
+      beside the site in Google, separately from the favicon above. `logo` must
+      be a square or wide crawlable image of at least 112x112px.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Pellikart",
+        "alternateName": "Pellikart Weddings",
+        "url": "https://www.pellikart.com/",
+        "logo": "https://www.pellikart.com/icon-512.png",
+        "image": "https://www.pellikart.com/logo.png",
+        "description": "Plan your entire Indian wedding on one board. Real prices, real vendors, real control. Built for Hyderabad couples.",
+        "areaServed": {
+          "@type": "City",
+          "name": "Hyderabad"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
