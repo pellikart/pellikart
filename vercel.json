@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api/|venues/|photographers/|makeup-artists/|caterers/|decorators/|mehendi-artists/|wedding-invitations/).*)",
+      "source": "/((?!api/|venues/|photographers/|makeup-artists/|caterers/|decorators/|mehendi-artists/|wedding-invitations/|pandits/|wedding-bands/|live-stalls/|wedding-entertainers/|wedding-dj/|wedding-reels/|saree-draping/|wedding-props/).*)",
       "destination": "/"
     }
   ]

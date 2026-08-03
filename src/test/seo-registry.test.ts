@@ -3,7 +3,7 @@ import {
   buildPages, allSeoRoutes, getPage, getCity, seoPath, resolveCanonical, pagesForCategory,
 } from '@/lib/seo/registry'
 import { ADAPTERS, adapterByPrefix, venueAdapter, photographyAdapter, makeupAdapter } from '@/lib/seo/adapters'
-import { applyFilters, computeStats, sortRows, isIndexable, MIN_INDEXABLE_RESULTS } from '@/lib/seo/types'
+import { applyFilters, computeStats, sortRows, isIndexable, collapseFanOut, MIN_INDEXABLE_RESULTS } from '@/lib/seo/types'
 import { itemListLd } from '@/lib/useSeoHead'
 import type { Vendor } from '@/lib/types'
 
@@ -42,6 +42,15 @@ const APPROVED_URLS = [
   '/decorators/hyderabad/under-2-lakhs',
   '/mehendi-artists/hyderabad',
   '/wedding-invitations/hyderabad',
+  // Remaining categories: a city index each, no sub-pages until stock earns them.
+  '/pandits/hyderabad',
+  '/wedding-bands/hyderabad',
+  '/live-stalls/hyderabad',
+  '/wedding-entertainers/hyderabad',
+  '/wedding-dj/hyderabad',
+  '/wedding-reels/hyderabad',
+  '/saree-draping/hyderabad',
+  '/wedding-props/hyderabad',
 ]
 
 function vendor(over: Partial<Vendor> = {}): Vendor {
@@ -74,6 +83,22 @@ describe('curated SEO registry', () => {
     for (const b of banned) {
       expect(slugs.some((s) => s.includes(b))).toBe(false)
     }
+  })
+
+  it('gives every vendor category exactly one adapter and one index page', () => {
+    const categories = [
+      'Venue', 'Catering', 'Photography', 'Decor', 'Makeup', 'Mehendi', 'DJ / Music',
+      'Pandit', 'Invitations', 'Banjantrilu', 'Reels', 'Saree Draping', 'Live Stalls',
+      'Hosts / Entertainers', 'Wedding Props',
+    ]
+    expect(ADAPTERS).toHaveLength(categories.length)
+    for (const c of categories) {
+      expect(ADAPTERS.filter((a) => a.category === c)).toHaveLength(1)
+      expect(pagesForCategory('Hyderabad', c).filter((p) => p.slug === '')).toHaveLength(1)
+    }
+    // URL prefixes must be unique or routing becomes ambiguous.
+    const prefixes = ADAPTERS.map((a) => a.urlPrefix)
+    expect(new Set(prefixes).size).toBe(prefixes.length)
   })
 
   it('keeps those filters available in the UI', () => {
@@ -240,6 +265,35 @@ describe('adapters — extraction', () => {
     expect(m.price).toBe(25000)
     expect(m.facets.groomPrice).toBe(6000)
     expect(m.facets.hairStyling).toBe(true)
+  })
+})
+
+describe('fan-out collapsing', () => {
+  // The store fans one entertainer into a row per priced event so each ritual
+  // board matches. A category landing page must show the vendor once.
+  const fanned = [
+    { id: 'L1::ent::r1', label: 'PK-HOST-1-1', photo: '', rating: 4, price: 20000, priceUnit: 'x', area: 'A', summary: '', specs: [] as [string, string][], facets: { price: 20000, events: ['Reception'] } },
+    { id: 'L1::ent::r2', label: 'PK-HOST-1-1', photo: '', rating: 4, price: 12000, priceUnit: 'x', area: 'A', summary: '', specs: [] as [string, string][], facets: { price: 12000, events: ['Haldi'] } },
+    { id: 'L2', label: 'PK-HOST-2-1', photo: '', rating: 4, price: 30000, priceUnit: 'x', area: 'A', summary: '', specs: [] as [string, string][], facets: { price: 30000, events: ['Sangeeth'] } },
+  ]
+
+  it('collapses fanned rows to one card per listing', () => {
+    const out = collapseFanOut(fanned)
+    expect(out).toHaveLength(2)
+    expect(out.map((r) => r.id).sort()).toEqual(['L1', 'L2'])
+  })
+
+  it('keeps the cheapest row as the "from" price', () => {
+    expect(collapseFanOut(fanned).find((r) => r.id === 'L1')!.price).toBe(12000)
+  })
+
+  it('unions array facets so filters still see every event', () => {
+    const merged = collapseFanOut(fanned).find((r) => r.id === 'L1')!
+    expect((merged.facets.events as string[]).sort()).toEqual(['Haldi', 'Reception'])
+  })
+
+  it('leaves unfanned rows untouched', () => {
+    expect(collapseFanOut([fanned[2]])).toEqual([fanned[2]])
   })
 })
 

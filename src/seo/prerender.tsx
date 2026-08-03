@@ -7,7 +7,7 @@ import { fetchAllLiveVendors, fetchAllListings, fetchAllAvailability } from '@/l
 import { buildLiveVendorMap } from '@/lib/store'
 import { allSeoRoutes, seoPath } from '@/lib/seo/registry'
 import { ADAPTERS, adapterByCategory } from '@/lib/seo/adapters'
-import { isIndexable, computeStats, type SeoRow } from '@/lib/seo/types'
+import { isIndexable, computeStats, collapseFanOut, type SeoRow } from '@/lib/seo/types'
 import { breadcrumbLd, faqLd, itemListLd, SITE_ORIGIN } from '@/lib/useSeoHead'
 import type { Vendor } from '@/lib/types'
 
@@ -75,7 +75,7 @@ async function loadRowsByCategory(): Promise<Record<string, SeoRow[]>> {
   const all = Object.values(vendorMap) as Vendor[]
   const out: Record<string, SeoRow[]> = {}
   for (const a of ADAPTERS) {
-    out[a.category] = all.filter((v) => v.category === a.category).map(a.toRow)
+    out[a.category] = collapseFanOut(all.filter((v) => v.category === a.category).map(a.toRow))
   }
   return out
 }

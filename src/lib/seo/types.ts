@@ -186,6 +186,51 @@ export function computeStats(rows: SeoRow[]): SeoStats {
   }
 }
 
+/**
+ * Collapse fan-out rows back to one card per listing.
+ *
+ * The couple-side store fans a Photography listing into one pseudo-listing per
+ * event package, and an Entertainer listing into one per priced event, so each
+ * ritual board matches the right row. Those ids look like `<listingId>::evt::x`
+ * and `<listingId>::ent::x`.
+ *
+ * That is wrong for a category landing page: one entertainer priced across five
+ * events would appear five times and the hero would claim five vendors. This
+ * regroups by the underlying listing, keeps the cheapest row as the "from"
+ * price, and unions the array facets across the group so filters like Event
+ * still see everything that vendor covers.
+ */
+export function collapseFanOut(rows: SeoRow[]): SeoRow[] {
+  const groups = new Map<string, SeoRow[]>()
+  for (const r of rows) {
+    const baseId = r.id.split('::')[0]
+    const g = groups.get(baseId)
+    if (g) g.push(r)
+    else groups.set(baseId, [r])
+  }
+
+  const out: SeoRow[] = []
+  for (const [baseId, group] of groups) {
+    if (group.length === 1) { out.push(group[0]); continue }
+
+    const priced = group.filter((r) => r.price > 0)
+    const rep = (priced.length ? priced : group).reduce((a, b) => (a.price <= b.price ? a : b))
+
+    const facets: SeoRow['facets'] = { ...rep.facets }
+    for (const [key, value] of Object.entries(rep.facets)) {
+      if (!Array.isArray(value)) continue
+      const merged = new Set<string>()
+      for (const r of group) {
+        const v = r.facets[key]
+        if (Array.isArray(v)) v.forEach((x) => merged.add(String(x)))
+      }
+      facets[key] = [...merged]
+    }
+    out.push({ ...rep, id: baseId, facets })
+  }
+  return out
+}
+
 export type SeoSort = 'price-asc' | 'price-desc' | 'rating-desc'
 
 export function sortRows(rows: SeoRow[], sort: SeoSort): SeoRow[] {

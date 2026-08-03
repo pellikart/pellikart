@@ -12,7 +12,7 @@ import {
   getCity, getPage, pagesForCategory, seoPath, resolveCanonical, adapterByPrefix,
 } from '@/lib/seo/registry'
 import {
-  applyFilters, computeStats, sortRows, isIndexable,
+  applyFilters, computeStats, sortRows, isIndexable, collapseFanOut,
   type CategoryAdapter, type FilterValues, type SeoPageDef, type SeoRow, type SeoSort,
 } from '@/lib/seo/types'
 
@@ -50,11 +50,11 @@ export default function SeoLandingPage() {
           listings as Record<string, unknown>[],
           availability as Record<string, unknown>[],
         )
-        setRows(
+        setRows(collapseFanOut(
           Object.values(vendorMap)
             .filter((v) => v.category === adapter.category)
             .map(adapter.toRow),
-        )
+        ))
       } catch {
         if (!cancelled) { setLoadFailed(true); setRows([]) }
       }

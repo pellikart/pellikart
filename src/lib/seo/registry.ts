@@ -431,6 +431,114 @@ function invitationPages(city: string): SeoPageDef[] {
 }
 
 /* ------------------------------------------------------------------ *
+ * REMAINING CATEGORIES — one city index each.
+ *
+ * These get an index page and nothing below it. Splitting a category with
+ * single-digit stock into price bands would be exactly the programmatic SEO
+ * this architecture exists to avoid: the sub-pages would all return the same
+ * handful of vendors and compete with their own parent. Sub-pages get added
+ * per category when the catalogue earns them.
+ * ------------------------------------------------------------------ */
+
+interface IndexInput {
+  category: string
+  plural: string
+  unit: string
+  h1: string
+  title: string
+  description: string
+  intro: string
+  extraFaqs?: (s: SeoStats, city: string) => Faq[]
+}
+
+function categoryIndex(i: IndexInput, city: string): SeoPageDef {
+  return page({
+    category: i.category,
+    slug: '',
+    label: `All ${i.plural} in ${city}`,
+    h1: i.h1, title: i.title, description: i.description, intro: i.intro,
+    match: () => true,
+    related: [],
+    minResults: 1,
+    extraFaqs: i.extraFaqs,
+  }, i.plural, i.unit)
+}
+
+function remainingPages(city: string): SeoPageDef[] {
+  return [
+    categoryIndex({
+      category: 'Pandit', plural: 'wedding purohits', unit: 'per ceremony',
+      h1: `Wedding Purohits in ${city}`,
+      title: `Wedding Purohits & Pandits in ${city} — Compare Prices | Pellikart`,
+      description: `Compare wedding purohits in ${city} by price per ceremony, rituals covered, number of purohits and whether transport is included.`,
+      intro: `Purohits in ${city}, priced per ceremony with the rituals each one performs listed out. Duration often varies by community, so the card says so rather than quoting a number that will not hold.`,
+      extraFaqs: (s) => [{
+        q: `How much does a purohit charge for a wedding in ${city}?`,
+        a: s.minPrice != null
+          ? `These ${s.count} start between ${rupees(s.minPrice)} and ${rupees(s.maxPrice)} for a ceremony, averaging ${rupees(s.avgPrice)}. Ask separately whether pooja samagri is included — it is the most common addition to a quoted price.`
+          : `Purohits price per ceremony. Each card shows the starting price and the rituals covered.`,
+      }],
+    }, city),
+
+    categoryIndex({
+      category: 'Banjantrilu', plural: 'traditional wedding bands', unit: 'per event',
+      h1: `Nadaswaram & Traditional Wedding Bands in ${city}`,
+      title: `Nadaswaram & Wedding Bands in ${city} — Compare Prices | Pellikart`,
+      description: `Compare traditional wedding bands in ${city} by price per event, instruments, ensemble size and ceremonies covered.`,
+      intro: `Nadaswaram, sannai, dhol and tavil ensembles in ${city}, priced per event. The card shows how many artists play and which ceremonies they cover, because a baraat and a muhurtham are not the same booking.`,
+    }, city),
+
+    categoryIndex({
+      category: 'Live Stalls', plural: 'wedding live stalls', unit: 'per stall',
+      h1: `Live Stalls for Weddings in ${city}`,
+      title: `Live Stalls for Weddings in ${city} — Compare Prices | Pellikart`,
+      description: `Compare live stalls for weddings in ${city} — caricatures, portraits, bangles, tattoos and more. Price, guests served and setup needed.`,
+      intro: `Live entertainment stalls in ${city}. Some charge a flat price for the stall, others per guest — the card says which, along with how many guests they can serve an hour and what the venue has to provide.`,
+    }, city),
+
+    categoryIndex({
+      category: 'Hosts / Entertainers', plural: 'wedding entertainers', unit: 'per event',
+      h1: `Wedding Anchors & Entertainers in ${city}`,
+      title: `Wedding Anchors & Entertainers in ${city} — Compare Prices | Pellikart`,
+      description: `Compare wedding anchors, magicians, comedians and performers in ${city} by price per event, languages, duration and events covered.`,
+      intro: `Anchors, magicians, comedians and performers in ${city}, priced per event. Languages are on every card — for a Telugu wedding with guests flying in, a bilingual anchor is usually the booking that matters.`,
+    }, city),
+
+    categoryIndex({
+      category: 'DJ / Music', plural: 'wedding DJs and bands', unit: 'per event',
+      h1: `Wedding DJs & Live Bands in ${city}`,
+      title: `Wedding DJs & Live Bands in ${city} — Compare Prices | Pellikart`,
+      description: `Compare wedding DJs and live bands in ${city} by price, performance hours, genres, sound system and emcee availability.`,
+      intro: `DJs, live bands and dhol players in ${city}. Check the sound coverage against your venue size and the venue's music curfew — a 10 PM cut-off changes what you are buying.`,
+    }, city),
+
+    categoryIndex({
+      category: 'Reels', plural: 'wedding reel creators', unit: 'per package',
+      h1: `Wedding Reel Creators in ${city}`,
+      title: `Wedding Reel & Short-Form Video Creators in ${city} | Pellikart`,
+      description: `Compare wedding reel creators in ${city} by price, number of reels, turnaround time, drone footage and same-day edits.`,
+      intro: `Reel and short-form video creators in ${city}. Turnaround is the number that matters here — a reel delivered three weeks late has missed its moment entirely.`,
+    }, city),
+
+    categoryIndex({
+      category: 'Saree Draping', plural: 'saree draping artists', unit: 'per drape',
+      h1: `Saree Draping Artists in ${city}`,
+      title: `Bridal Saree Draping Artists in ${city} — Compare Prices | Pellikart`,
+      description: `Compare saree draping artists in ${city} by price per drape, styles offered, guest rates and pre-pleating service.`,
+      intro: `Saree draping artists in ${city}, priced per drape. Bridal, groom panche and guest rates are listed separately, along with the styles each artist actually drapes.`,
+    }, city),
+
+    categoryIndex({
+      category: 'Wedding Props', plural: 'wedding prop suppliers', unit: 'per item',
+      h1: `Wedding Props & Decor Items in ${city}`,
+      title: `Wedding Props & Traditional Items in ${city} | Pellikart`,
+      description: `Compare wedding prop suppliers in ${city} — aduthera, pelli butta, kalasham sets and more. Price, material, rental or sale.`,
+      intro: `Traditional wedding props in ${city} — aduthera, pelli butta, pelli pendiri, kalasham sets and photo-booth pieces. Each card says whether it is for rent or sale and who handles delivery.`,
+    }, city),
+  ]
+}
+
+/* ------------------------------------------------------------------ *
  * Assembly + lookup
  * ------------------------------------------------------------------ */
 
@@ -443,6 +551,7 @@ export function buildPages(cityName: string): SeoPageDef[] {
     ...decorPages(cityName),
     ...mehendiPages(cityName),
     ...invitationPages(cityName),
+    ...remainingPages(cityName),
   ]
 }
 

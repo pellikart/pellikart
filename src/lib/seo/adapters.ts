@@ -2,6 +2,8 @@ import type { Vendor } from '../types'
 import {
   formatINR, listingDisplayName, parseCapacityRange, getVenuePlateFromPrice,
   getPhotographyEventFromPrice, getMakeupFromPrice, getMehendiFromPrice,
+  getPanditFromPrice, getBanjantriluFromPrice, getStallFromPrice,
+  getEntertainerFromPrice, getSareeDrapingFromPrice,
 } from '../helpers'
 import { PHOTOGRAPHY_EVENT_SERVICES } from '../vendor-category-config'
 import type { CategoryAdapter, SeoRow } from './types'
@@ -482,9 +484,433 @@ export const invitationsAdapter: CategoryAdapter = {
 
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ *
+ * Pandit — priced as per-event cards; no listing spec fields exist.
+ * ------------------------------------------------------------------ */
+
+export const panditAdapter: CategoryAdapter = {
+  category: 'Pandit',
+  urlPrefix: 'pandits',
+  noun: 'wedding purohit',
+  nounPlural: 'wedding purohits',
+  toRow(v) {
+    const cards = v.panditPricing?.cards || []
+    const from = getPanditFromPrice(v.panditPricing)
+    const events = [...new Set(cards.map((c) => c.event).filter(Boolean))]
+    const rituals = [...new Set(cards.flatMap((c) => c.ritualsIncluded || []))]
+    const purohits = cards.map((c) => c.purohits || 0).filter((n) => n > 0)
+    const transport = cards.some((c) => c.transportIncluded)
+    const varies = cards.some((c) => c.durationVaries)
+    return {
+      id: v.id, label: label(v), photo: photo(v), rating: v.rating || 0,
+      price: from || v.price || 0,
+      priceUnit: 'per event, from',
+      area: v.area || '',
+      summary: [
+        events.length ? `${events.length} ceremonies priced` : '',
+        rituals.length ? `${rituals.length} rituals covered` : '',
+        purohits.length ? `${Math.max(...purohits)} purohits` : '',
+        transport ? 'Transport included' : '',
+      ].filter(Boolean).join(' · '),
+      specs: [
+        ['From', from ? formatINR(from) : '—'],
+        ['Ceremonies', events.length ? String(events.length) : '—'],
+        ['Rituals covered', rituals.length ? String(rituals.length) : '—'],
+        ['Purohits', purohits.length ? String(Math.max(...purohits)) : '—'],
+        ['Duration', varies ? 'Varies by caste' : cards[0]?.durationHours ? `${cards[0].durationHours}h` : '—'],
+        ['Transport', transport ? 'Included' : '—'],
+        ['Wedding', events.some((e) => e.includes('Pelli')) ? 'Yes' : '—'],
+        ['Engagement', events.includes('Engagement') ? 'Yes' : '—'],
+      ],
+      facets: {
+        price: from || v.price || 0,
+        events, rituals,
+        eventCount: events.length,
+        transportIncluded: transport,
+        area: v.area || '',
+      },
+    }
+  },
+  filters: [
+    { kind: 'max', key: 'price', label: 'Budget', options: bands([5000, 10000, 15000, 25000, 50000]) },
+    { kind: 'includes', key: 'events', label: 'Ceremony' },
+    { kind: 'includes', key: 'rituals', label: 'Ritual' },
+    { kind: 'bool', key: 'transportIncluded', label: 'Transport included' },
+    { kind: 'enum', key: 'area', label: 'Area' },
+  ],
+  compareRows: (r) => r.specs,
+  schemaType: 'Service',
+}
+
+/* ------------------------------------------------------------------ *
+ * Banjantrilu — traditional bands.
+ * ------------------------------------------------------------------ */
+
+export const banjantriluAdapter: CategoryAdapter = {
+  category: 'Banjantrilu',
+  urlPrefix: 'wedding-bands',
+  noun: 'traditional wedding band',
+  nounPlural: 'traditional wedding bands',
+  toRow(v) {
+    const cardFrom = getBanjantriluFromPrice(v.banjantriluPricing)
+    const from = cardFrom || v.price || 0
+    // Admin-built vendors carry these under slightly different keys than the
+    // onboarding config uses; read both so neither source is silently dropped.
+    const arr = (k: string): string[] => {
+      const val = v.categoryFields?.[k]
+      return Array.isArray(val) ? (val as string[]) : []
+    }
+    const instruments = arr('instruments')
+    const ceremonies = [...arr('ceremoniesCovered'), ...arr('ceremoniesPlayed')]
+    const ensemble = cf(v, 'ensembleSize')
+    const attire = cf(v, 'attire') || cf(v, 'traditionalAttire')
+    const travel = cf(v, 'travelIncluded') || cf(v, 'travelToVenue')
+    return {
+      id: v.id, label: label(v), photo: photo(v), rating: v.rating || 0,
+      price: from,
+      priceUnit: 'per event, from',
+      area: v.area || '',
+      summary: [
+        instruments.slice(0, 3).join(', '),
+        ensemble,
+        ceremonies.length ? `${ceremonies.length} ceremonies` : '',
+      ].filter(Boolean).join(' · '),
+      specs: [
+        ['From', from ? formatINR(from) : '—'],
+        ['Ensemble', dash(ensemble)],
+        ['Instruments', instruments.length ? String(instruments.length) : '—'],
+        ['Ceremonies', ceremonies.length ? String(ceremonies.length) : '—'],
+        ['Nadaswaram', instruments.includes('Nadaswaram') ? 'Yes' : '—'],
+        ['Dhol', instruments.includes('Dhol') ? 'Yes' : '—'],
+        ['Attire', dash(attire)],
+        ['Travel', dash(travel)],
+      ],
+      facets: {
+        price: from,
+        instruments, ceremonies,
+        ensembleSize: ensemble,
+        nadaswaram: instruments.includes('Nadaswaram'),
+        dhol: instruments.includes('Dhol'),
+        area: v.area || '',
+      },
+    }
+  },
+  filters: [
+    { kind: 'max', key: 'price', label: 'Budget', options: bands([10000, 20000, 30000, 50000]) },
+    { kind: 'includes', key: 'instruments', label: 'Instrument' },
+    { kind: 'includes', key: 'ceremonies', label: 'Ceremony' },
+    { kind: 'enum', key: 'ensembleSize', label: 'Ensemble size' },
+    { kind: 'enum', key: 'area', label: 'Area' },
+  ],
+  compareRows: (r) => r.specs,
+  schemaType: 'Service',
+}
+
+/* ------------------------------------------------------------------ *
+ * Live Stalls
+ * ------------------------------------------------------------------ */
+
+export const liveStallsAdapter: CategoryAdapter = {
+  category: 'Live Stalls',
+  urlPrefix: 'live-stalls',
+  noun: 'wedding live stall',
+  nounPlural: 'wedding live stalls',
+  toRow(v) {
+    const stallFrom = getStallFromPrice(v.stallPricing)
+    const from = stallFrom || v.price || 0
+    const perItem = v.stallPricing?.mode === 'perItem'
+    const setup = Array.isArray(v.categoryFields?.setupNeeded) ? (v.categoryFields.setupNeeded as string[]) : []
+    const guests = cfInt(v, 'totalGuests')
+    const duration = cfInt(v, 'duration')
+    const stallType = cf(v, 'stallType')
+    return {
+      id: v.id, label: label(v), photo: photo(v), rating: v.rating || 0,
+      price: from,
+      priceUnit: perItem ? 'per guest, from' : 'per stall',
+      area: v.area || '',
+      summary: [
+        stallType,
+        guests ? `Serves ${guests} guests` : '',
+        duration ? `${duration}h` : '',
+        cf(v, 'materialsIncluded'),
+      ].filter(Boolean).join(' · '),
+      specs: [
+        ['Price', from ? formatINR(from) : '—'],
+        ['Pricing', perItem ? 'Per guest' : 'Flat package'],
+        ['Stall type', dash(stallType)],
+        ['Guests served', guests != null ? String(guests) : '—'],
+        ['Duration', duration != null ? `${duration}h` : '—'],
+        ['Artists', dash(cf(v, 'artistsOnDuty'))],
+        ['Materials', dash(cf(v, 'materialsIncluded'))],
+        ['Setup needed', setup.length ? String(setup.length) : '—'],
+      ],
+      facets: {
+        price: from,
+        stallType,
+        totalGuests: guests,
+        duration,
+        perItem,
+        materialsIncluded: cf(v, 'materialsIncluded'),
+        setupNeeded: setup,
+        selfSetup: setup.includes('Setup brought by artist'),
+        area: v.area || '',
+      },
+    }
+  },
+  filters: [
+    { kind: 'max', key: 'price', label: 'Budget', options: bands([5000, 10000, 25000, 50000]) },
+    { kind: 'enum', key: 'stallType', label: 'Stall type' },
+    { kind: 'min', key: 'totalGuests', label: 'Guests served', options: [50, 100, 200, 500].map((v) => ({ value: v, label: `${v}+ guests` })) },
+    { kind: 'enum', key: 'materialsIncluded', label: 'Materials' },
+    { kind: 'bool', key: 'selfSetup', label: 'Brings own setup' },
+    { kind: 'enum', key: 'area', label: 'Area' },
+  ],
+  compareRows: (r) => r.specs,
+  schemaType: 'Service',
+}
+
+/* ------------------------------------------------------------------ *
+ * Hosts / Entertainers
+ * ------------------------------------------------------------------ */
+
+export const entertainersAdapter: CategoryAdapter = {
+  category: 'Hosts / Entertainers',
+  urlPrefix: 'wedding-entertainers',
+  noun: 'wedding entertainer',
+  nounPlural: 'wedding entertainers',
+  toRow(v) {
+    const p = v.entertainerPricing
+    const from = getEntertainerFromPrice(p) || v.price || 0
+    const rates = (p?.eventRates || []).filter((r) => r.price > 0)
+    const events = rates.map((r) => r.event)
+    const languages = p?.languages || []
+    const acts = Array.isArray(v.categoryFields?.performanceTypes) ? (v.categoryFields.performanceTypes as string[]) : []
+    return {
+      id: v.id, label: label(v), photo: photo(v), rating: v.rating || 0,
+      price: from,
+      priceUnit: 'per event, from',
+      area: v.area || '',
+      summary: [
+        acts.slice(0, 2).join(', '),
+        events.length ? `${events.length} events priced` : '',
+        p?.durationHours ? `${p.durationHours}h set` : '',
+        languages.slice(0, 3).join(', '),
+      ].filter(Boolean).join(' · '),
+      specs: [
+        ['From', from ? formatINR(from) : '—'],
+        ['Events priced', events.length ? String(events.length) : '—'],
+        ['Duration', p?.durationHours ? `${p.durationHours}h` : '—'],
+        ['Extra hour', p?.additionalHourCharge ? formatINR(p.additionalHourCharge) : '—'],
+        ['Languages', languages.length ? languages.join(', ') : '—'],
+        ['Wedding', events.some((e) => e.includes('Pelli')) ? 'Yes' : '—'],
+        ['Sangeeth', events.includes('Sangeeth') ? 'Yes' : '—'],
+        ['Reception', events.includes('Reception') ? 'Yes' : '—'],
+      ],
+      facets: {
+        price: from,
+        events, languages, acts,
+        durationHours: p?.durationHours ?? null,
+        area: v.area || '',
+      },
+    }
+  },
+  filters: [
+    { kind: 'max', key: 'price', label: 'Budget', options: bands([10000, 25000, 50000, 100000]) },
+    { kind: 'includes', key: 'events', label: 'Event' },
+    { kind: 'includes', key: 'languages', label: 'Language' },
+    { kind: 'includes', key: 'acts', label: 'Act' },
+    { kind: 'enum', key: 'area', label: 'Area' },
+  ],
+  compareRows: (r) => r.specs,
+  schemaType: 'Service',
+}
+
+/* ------------------------------------------------------------------ *
+ * DJ / Music, Reels, Saree Draping, Wedding Props — no live listings yet.
+ * Defined so the pages exist and populate the moment vendors onboard; the
+ * indexability threshold keeps them out of the index until then.
+ * ------------------------------------------------------------------ */
+
+export const djAdapter: CategoryAdapter = {
+  category: 'DJ / Music',
+  urlPrefix: 'wedding-dj',
+  noun: 'wedding DJ',
+  nounPlural: 'wedding DJs and bands',
+  toRow(v) {
+    const arr = (k: string) => (Array.isArray(v.categoryFields?.[k]) ? (v.categoryFields[k] as string[]) : [])
+    const types = arr('performanceType')
+    const genres = arr('genres')
+    return {
+      id: v.id, label: label(v), photo: photo(v), rating: v.rating || 0,
+      price: v.price || 0, priceUnit: 'from', area: v.area || '',
+      summary: [types.slice(0, 2).join(', '), cf(v, 'performanceHours'), genres.slice(0, 3).join(', ')].filter(Boolean).join(' · '),
+      specs: [
+        ['From', v.price ? formatINR(v.price) : '—'],
+        ['Type', types.length ? types.join(', ') : '—'],
+        ['Hours', dash(cf(v, 'performanceHours'))],
+        ['Team', dash(cf(v, 'teamSize'))],
+        ['Sound system', dash(cf(v, 'soundSystem'))],
+        ['Coverage', dash(cf(v, 'wattage'))],
+        ['Emcee', dash(cf(v, 'emcee'))],
+        ['Live dhol', dash(cf(v, 'liveDhol'))],
+      ],
+      facets: {
+        price: v.price || 0, types, genres,
+        performanceHours: cf(v, 'performanceHours'),
+        emcee: cf(v, 'emcee') === 'Included',
+        area: v.area || '',
+      },
+    }
+  },
+  filters: [
+    { kind: 'max', key: 'price', label: 'Budget', options: bands([25000, 50000, 100000, 200000]) },
+    { kind: 'includes', key: 'types', label: 'Type' },
+    { kind: 'includes', key: 'genres', label: 'Genre' },
+    { kind: 'bool', key: 'emcee', label: 'Emcee included' },
+    { kind: 'enum', key: 'area', label: 'Area' },
+  ],
+  compareRows: (r) => r.specs,
+  schemaType: 'Service',
+}
+
+export const reelsAdapter: CategoryAdapter = {
+  category: 'Reels',
+  urlPrefix: 'wedding-reels',
+  noun: 'wedding reel creator',
+  nounPlural: 'wedding reel creators',
+  toRow(v) {
+    const arr = (k: string) => (Array.isArray(v.categoryFields?.[k]) ? (v.categoryFields[k] as string[]) : [])
+    const styles = arr('reelStyles')
+    return {
+      id: v.id, label: label(v), photo: photo(v), rating: v.rating || 0,
+      price: v.price || 0, priceUnit: 'from', area: v.area || '',
+      summary: [cf(v, 'reelsIncluded'), styles.slice(0, 2).join(', '), cf(v, 'turnaroundTime')].filter(Boolean).join(' · '),
+      specs: [
+        ['From', v.price ? formatINR(v.price) : '—'],
+        ['Reels', dash(cf(v, 'reelsIncluded'))],
+        ['Duration', dash(cf(v, 'reelDuration'))],
+        ['Coverage', dash(cf(v, 'coverageHours'))],
+        ['Crew', dash(cf(v, 'crewSize'))],
+        ['Turnaround', dash(cf(v, 'turnaroundTime'))],
+        ['Drone', dash(cf(v, 'droneFootage'))],
+        ['Same-day', dash(cf(v, 'sameDayEdit'))],
+      ],
+      facets: {
+        price: v.price || 0, styles,
+        turnaroundTime: cf(v, 'turnaroundTime'),
+        drone: cf(v, 'droneFootage') === 'Included',
+        sameDay: cf(v, 'sameDayEdit') === 'Yes',
+        area: v.area || '',
+      },
+    }
+  },
+  filters: [
+    { kind: 'max', key: 'price', label: 'Budget', options: bands([25000, 50000, 100000, 200000]) },
+    { kind: 'includes', key: 'styles', label: 'Style' },
+    { kind: 'enum', key: 'turnaroundTime', label: 'Turnaround' },
+    { kind: 'bool', key: 'drone', label: 'Drone' },
+    { kind: 'bool', key: 'sameDay', label: 'Same-day reel' },
+    { kind: 'enum', key: 'area', label: 'Area' },
+  ],
+  compareRows: (r) => r.specs,
+  schemaType: 'Service',
+}
+
+export const sareeDrapingAdapter: CategoryAdapter = {
+  category: 'Saree Draping',
+  urlPrefix: 'saree-draping',
+  noun: 'saree draping artist',
+  nounPlural: 'saree draping artists',
+  toRow(v) {
+    const p = v.sareeDrapingPricing
+    const from = getSareeDrapingFromPrice(p) || v.price || 0
+    const styles = Array.isArray(v.categoryFields?.drapingStyles) ? (v.categoryFields.drapingStyles as string[]) : []
+    return {
+      id: v.id, label: label(v), photo: photo(v), rating: v.rating || 0,
+      price: from, priceUnit: 'per drape, from', area: v.area || '',
+      summary: [
+        styles.slice(0, 2).join(', '),
+        p?.guestPricePerPerson ? `Guest ${formatINR(p.guestPricePerPerson)}` : '',
+        cf(v, 'timePerDrape'),
+      ].filter(Boolean).join(' · '),
+      specs: [
+        ['Bridal', p?.bridalPricePerLook ? formatINR(p.bridalPricePerLook) : '—'],
+        ['Groom', p?.groomPricePerLook ? formatINR(p.groomPricePerLook) : '—'],
+        ['Guest', p?.guestPricePerPerson ? formatINR(p.guestPricePerPerson) : '—'],
+        ['Pre-pleating', p?.prePleatingPricePerSaree ? formatINR(p.prePleatingPricePerSaree) : '—'],
+        ['Styles', styles.length ? String(styles.length) : '—'],
+        ['Time per drape', dash(cf(v, 'timePerDrape'))],
+        ['Team', dash(cf(v, 'teamSize'))],
+        ['Travel', dash(cf(v, 'travelToVenue'))],
+      ],
+      facets: {
+        price: from, styles,
+        guestPrice: p?.guestPricePerPerson ?? null,
+        groom: (p?.groomPricePerLook ?? 0) > 0,
+        area: v.area || '',
+      },
+    }
+  },
+  filters: [
+    { kind: 'max', key: 'price', label: 'Budget', options: bands([2000, 5000, 10000, 20000]) },
+    { kind: 'max', key: 'guestPrice', label: 'Guest price', options: bands([500, 800, 1200]) },
+    { kind: 'includes', key: 'styles', label: 'Draping style' },
+    { kind: 'bool', key: 'groom', label: 'Groom draping' },
+    { kind: 'enum', key: 'area', label: 'Area' },
+  ],
+  compareRows: (r) => r.specs,
+  schemaType: 'Service',
+}
+
+export const propsAdapter: CategoryAdapter = {
+  category: 'Wedding Props',
+  urlPrefix: 'wedding-props',
+  noun: 'wedding prop supplier',
+  nounPlural: 'wedding prop suppliers',
+  toRow(v) {
+    return {
+      id: v.id, label: label(v), photo: photo(v), rating: v.rating || 0,
+      price: v.price || 0, priceUnit: 'from', area: v.area || '',
+      summary: [cf(v, 'propType'), cf(v, 'serviceModel'), cf(v, 'material')].filter(Boolean).join(' · '),
+      specs: [
+        ['From', v.price ? formatINR(v.price) : '—'],
+        ['Prop', dash(cf(v, 'propType'))],
+        ['Quantity', dash(cf(v, 'quantity'))],
+        ['Material', dash(cf(v, 'material'))],
+        ['Condition', dash(cf(v, 'condition'))],
+        ['Rental or sale', dash(cf(v, 'serviceModel'))],
+        ['Delivery', dash(cf(v, 'delivery'))],
+        ['Setup', dash(cf(v, 'setup'))],
+      ],
+      facets: {
+        price: v.price || 0,
+        propType: cf(v, 'propType'),
+        material: cf(v, 'material'),
+        serviceModel: cf(v, 'serviceModel'),
+        rental: cf(v, 'serviceModel').includes('Rental') || cf(v, 'serviceModel').includes('Both'),
+        area: v.area || '',
+      },
+    }
+  },
+  filters: [
+    { kind: 'max', key: 'price', label: 'Budget', options: bands([2000, 5000, 15000, 50000]) },
+    { kind: 'enum', key: 'propType', label: 'Prop' },
+    { kind: 'enum', key: 'material', label: 'Material' },
+    { kind: 'bool', key: 'rental', label: 'Available to rent' },
+    { kind: 'enum', key: 'area', label: 'Area' },
+  ],
+  compareRows: (r) => r.specs,
+  schemaType: 'Service',
+}
+
+/* ------------------------------------------------------------------ */
+
+/** Every vendor category has an adapter — all 15 live categories. */
 export const ADAPTERS: CategoryAdapter[] = [
   venueAdapter, photographyAdapter, makeupAdapter,
   cateringAdapter, decorAdapter, mehendiAdapter, invitationsAdapter,
+  panditAdapter, banjantriluAdapter, liveStallsAdapter, entertainersAdapter,
+  djAdapter, reelsAdapter, sareeDrapingAdapter, propsAdapter,
 ]
 
 export function adapterByPrefix(prefix: string | undefined): CategoryAdapter | undefined {
