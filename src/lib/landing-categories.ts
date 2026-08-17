@@ -16,12 +16,15 @@ export interface LandingCategory {
   category: string
   src: string
   href: string
+  /** Kept in the list but off the strip until the category has vendors to show.
+   *  Delete the flag to bring one back — the icon and route are already here. */
+  paused?: boolean
 }
 
 export const CATEGORY_ICONS: LandingCategory[] = [
   { label: 'Venue', category: 'Venue', src: '/icons/categories/venue.webp', href: '/venues/hyderabad' },
-  { label: 'Catering', category: 'Catering', src: '/icons/categories/catering.webp', href: '/caterers/hyderabad' },
-  { label: 'Decor', category: 'Decor', src: '/icons/categories/decor.webp', href: '/decorators/hyderabad' },
+  { label: 'Catering', category: 'Catering', src: '/icons/categories/catering.webp', href: '/caterers/hyderabad', paused: true },
+  { label: 'Decor', category: 'Decor', src: '/icons/categories/decor.webp', href: '/decorators/hyderabad', paused: true },
   { label: 'Photography', category: 'Photography', src: '/icons/categories/photographer.webp', href: '/photographers/hyderabad' },
   { label: 'Makeup', category: 'Makeup', src: '/icons/categories/makeup.webp', href: '/makeup-artists/hyderabad' },
   { label: 'Mehendi', category: 'Mehendi', src: '/icons/categories/mehendi.webp', href: '/mehendi-artists/hyderabad' },
@@ -30,3 +33,6 @@ export const CATEGORY_ICONS: LandingCategory[] = [
   { label: 'Hosts', category: 'Hosts / Entertainers', src: '/icons/categories/hosts.webp', href: '/wedding-entertainers/hyderabad' },
   { label: 'Live Stalls', category: 'Live Stalls', src: '/icons/categories/live-stalls.webp', href: '/live-stalls/hyderabad' },
 ]
+
+/** The categories the landing page actually shows. */
+export const LIVE_CATEGORY_ICONS = CATEGORY_ICONS.filter((c) => !c.paused)

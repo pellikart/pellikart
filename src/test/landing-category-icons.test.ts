@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CATEGORY_ICONS } from '@/lib/landing-categories'
+import { CATEGORY_ICONS, LIVE_CATEGORY_ICONS } from '@/lib/landing-categories'
 import { allSeoRoutes, seoPath } from '@/lib/seo/registry'
 import { adapterByCategory } from '@/lib/seo/adapters'
 
@@ -23,6 +23,14 @@ describe('landing page category icons', () => {
       expect(adapter, `no adapter for category "${cat.category}"`).toBeDefined()
       expect(cat.href).toBe(seoPath(adapter!.urlPrefix, 'hyderabad', ''))
     }
+  })
+
+  it('keeps paused categories out of the strip but still routable', () => {
+    // Paused entries stay in CATEGORY_ICONS so their href keeps being checked
+    // above — restoring one is a matter of dropping the flag.
+    expect(LIVE_CATEGORY_ICONS.length).toBeGreaterThan(0)
+    expect(LIVE_CATEGORY_ICONS.every((c) => !c.paused)).toBe(true)
+    expect(LIVE_CATEGORY_ICONS).toEqual(CATEGORY_ICONS.filter((c) => !c.paused))
   })
 
   it('has a distinct icon, label and destination per entry', () => {

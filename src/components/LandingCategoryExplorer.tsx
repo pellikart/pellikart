@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CATEGORY_ICONS, type LandingCategory } from '@/lib/landing-categories'
+import { LIVE_CATEGORY_ICONS, type LandingCategory } from '@/lib/landing-categories'
 import { fetchAllLiveVendors, fetchAllListings, fetchAllAvailability } from '@/lib/supabase-db'
 import { buildLiveVendorMap, useStore } from '@/lib/store'
 import { adapterByCategory } from '@/lib/seo/adapters'
@@ -12,8 +12,15 @@ import type { Vendor } from '@/lib/types'
  *  of the landing bundle until someone actually asks for a vendor. */
 const ListingDetailSheet = lazy(() => import('@/components/ListingDetailSheet'))
 
-/** Cards shown inline per category. The rest live on the category's own page. */
-const PREVIEW_COUNT = 6
+/** Cards per page. Every listing in a category is reachable from here; this
+ *  only bounds how many images the browser paints at once. */
+const PAGE_SIZE = 12
+
+/** Spelled-out counts for the heading, so it can never contradict the strip. */
+const COUNT_WORDS = [
+  'No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven',
+  'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen',
+]
 
 /**
  * The category strip under the hero, and the listings for whichever category is
@@ -29,7 +36,8 @@ const PREVIEW_COUNT = 6
  * the business name replaced by its public code and the contact block withheld.
  */
 export default function LandingCategoryExplorer() {
-  const [active, setActive] = useState<LandingCategory>(CATEGORY_ICONS[0])
+  const [active, setActive] = useState<LandingCategory>(LIVE_CATEGORY_ICONS[0])
+  const [page, setPage] = useState(1)
   const [vendors, setVendors] = useState<Record<string, Vendor> | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -73,17 +81,29 @@ export default function LandingCategoryExplorer() {
     )
   }, [vendors, adapter])
 
-  const shown = rows?.slice(0, PREVIEW_COUNT) ?? []
-  // Judge coverage on the whole category, not just the six on screen, so the
-  // columns don't shift when the same listing appears on its own page.
+  const total = rows?.length ?? 0
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  // Guards the window against a stale page number in the render right after a
+  // category switch, before the effect below resets it.
+  const current = Math.min(page, pageCount)
+  const shown = rows?.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE) ?? []
+  // Judge coverage on the whole category, not just the page on screen, so the
+  // columns don't shift as you move between pages.
   const specKeys = useMemo(() => usefulSpecKeys(rows ?? []), [rows])
   const loading = rows === null
   const detailVendor = detailId && vendors ? vendors[detailId] : null
 
   function choose(cat: LandingCategory, el: HTMLElement) {
     setActive(cat)
+    setPage(1)
     // On mobile the strip scrolls — bring the tapped icon fully into view.
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }
+
+  function goToPage(next: number) {
+    setPage(next)
+    // Land at the top of the results rather than mid-grid.
+    panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
@@ -93,18 +113,20 @@ export default function LandingCategoryExplorer() {
           EVERYTHING YOU NEED
         </p>
         <h2 className="font-serif text-center text-[28px] md:text-[34px] font-bold text-dark leading-tight mb-10">
-          Ten categories. One wedding board.
+          {COUNT_WORDS[LIVE_CATEGORY_ICONS.length] ?? LIVE_CATEGORY_ICONS.length} categories. One wedding board.
         </h2>
 
-        {/* Equal gap between every icon at every breakpoint: a single scrollable
-            row on mobile, then a 5-up grid, then all ten across on desktop. */}
-        {/* scroll-pl-6 keeps the snap points inside the padding, otherwise the
+        {/* Equal gap between every icon at every breakpoint: a scrollable row on
+            mobile, then a centred wrapping row. Fixed-width items rather than a
+            fixed column count, so the spacing stays even however many
+            categories are live (ten still fit on one desktop row).
+            scroll-pl-6 keeps the snap points inside the padding, otherwise the
             first tile snaps flush against the viewport edge. */}
-        <ul className="no-scrollbar flex overflow-x-auto snap-x scroll-pl-6 -mx-6 px-6 pb-2 gap-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:grid sm:grid-cols-5 lg:grid-cols-10 sm:gap-x-3 sm:gap-y-7 md:gap-x-4">
-          {CATEGORY_ICONS.map((cat) => {
+        <ul className="no-scrollbar flex overflow-x-auto snap-x scroll-pl-6 -mx-6 px-6 pb-2 gap-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap sm:justify-center sm:gap-x-3 sm:gap-y-7 md:gap-x-4">
+          {LIVE_CATEGORY_ICONS.map((cat) => {
             const isActive = cat.label === active.label
             return (
-              <li key={cat.label} className="w-[88px] shrink-0 snap-start sm:w-auto">
+              <li key={cat.label} className="w-[88px] shrink-0 snap-start sm:w-[96px]">
                 <a
                   href={cat.href}
                   aria-current={isActive ? 'true' : undefined}
@@ -146,10 +168,11 @@ export default function LandingCategoryExplorer() {
             <h3 aria-live="polite" className="font-serif text-[24px] md:text-[28px] font-bold text-dark">
               {adapter ? cap(adapter.nounPlural) : active.label} in Hyderabad
             </h3>
-            {!loading && rows.length > PREVIEW_COUNT && (
-              <Link to={active.href} className="text-[13px] font-semibold text-magenta hover:underline">
-                View all {adapter?.nounPlural ?? active.label} →
-              </Link>
+            {!loading && total > 0 && (
+              <p className="text-[13px] text-gray-500">
+                {total} {total === 1 ? adapter?.noun : adapter?.nounPlural}
+                {pageCount > 1 && <span className="text-gray-400"> · page {current} of {pageCount}</span>}
+              </p>
             )}
           </div>
 
@@ -183,10 +206,46 @@ export default function LandingCategoryExplorer() {
                   <SeoVendorCard key={r.id} row={r} specKeys={specKeys} onOpen={() => setDetailId(r.id)} />
                 ))}
               </div>
+              {pageCount > 1 && (
+                <nav aria-label={`${adapter?.nounPlural ?? active.label} pages`} className="mt-8 flex items-center justify-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => goToPage(current - 1)}
+                    disabled={current === 1}
+                    className="px-3 py-2 rounded-lg text-[13px] font-medium text-dark border border-card-border hover:border-dark disabled:opacity-35 disabled:hover:border-card-border transition-colors"
+                  >
+                    ← Prev
+                  </button>
+                  {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => goToPage(n)}
+                      aria-current={n === current ? 'page' : undefined}
+                      className={`min-w-[36px] px-2.5 py-2 rounded-lg text-[13px] font-semibold transition-colors ${
+                        n === current
+                          ? 'bg-magenta text-white'
+                          : 'text-dark border border-card-border hover:border-dark'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => goToPage(current + 1)}
+                    disabled={current === pageCount}
+                    className="px-3 py-2 rounded-lg text-[13px] font-medium text-dark border border-card-border hover:border-dark disabled:opacity-35 disabled:hover:border-card-border transition-colors"
+                  >
+                    Next →
+                  </button>
+                </nav>
+              )}
+
               <p className="mt-6 text-center text-[13px] text-gray-500">
                 Names and contact details stay hidden until you unlock.{' '}
                 <Link to={active.href} className="font-semibold text-magenta hover:underline">
-                  See all {adapter?.nounPlural ?? active.label} →
+                  Filter and compare {adapter?.nounPlural ?? active.label} →
                 </Link>
               </p>
             </>
