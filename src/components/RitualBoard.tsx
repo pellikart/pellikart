@@ -167,7 +167,6 @@ export default function RitualBoard({ board }: Props) {
               spanTwo={index === 0 && (filledCategories.length + (emptyCategories.length > 0 ? 1 : 0)) > 2}
               unlocked={unlocked}
               guests={guests}
-              boardName={board.name}
               packageName={pkg?.name}
               onRemove={() => {
                 if (pkg) setBreakPrompt({ pkg, categoryId: cat.id })

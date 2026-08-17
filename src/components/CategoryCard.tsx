@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Category, Vendor } from '@/lib/types'
 import { formatINR, bgStyle, getCategorySelectionTotal } from '@/lib/helpers'
-import { countExploreOptions } from '@/lib/explore'
-import { useStore } from '@/lib/store'
 import ListingDetailSheet from './ListingDetailSheet'
 
 interface Props {
@@ -20,32 +18,20 @@ interface Props {
    *  routes removal straight to onRemove (the parent shows the package break prompt)
    *  instead of the generic remove confirmation. */
   packageName?: string
-  /** The event this card sits on. Only used to scope the "see more" count, since
-   *  some listings (fanned photography/entertainer rows, pandits, banjantrilu)
-   *  are only offered for particular events. */
-  boardName: string
 }
 
-export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlocked, onRemove, guests, packageName, boardName }: Props) {
+export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlocked, onRemove, guests, packageName }: Props) {
   const [showDetail, setShowDetail] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const navigate = useNavigate()
-  const vendors = useStore((s) => s.vendors)
-  const liveMode = useStore((s) => s._liveMode)
   const wrapperClass = `rounded-xl overflow-hidden relative ${spanTwo ? 'span-2' : ''} min-h-[90px] md:min-h-[200px]`
 
   const openExplorer = () => navigate(`/category/${ritualId}/${category.id}`)
 
-  // How many other listings they could look at here. Feedback was that the bare
-  // swap icon read as nothing at all — people didn't know a whole category of
-  // vendors sat behind it — so the card says so in words, with the number.
-  const otherCount = countExploreOptions({
-    liveMode, vendors, categoryLabel: category.label, boardName, excludeId: vendor.id,
-  })
-  const exploreShort = otherCount > 0 ? `${otherCount} more options` : 'More options'
-  const exploreLong = otherCount > 0
-    ? `See ${otherCount} more ${category.label} options`
-    : `See more ${category.label} options`
+  // The way into the rest of the category, in words. The bare swap glyph that
+  // used to sit here read as nothing at all — people didn't know a whole
+  // category of vendors was behind it.
+  const exploreLabel = `See more ${category.label} options`
 
   return (
     <>
@@ -114,20 +100,17 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
             )
           })()}
 
-          {/* The way into the rest of the category. It used to be a bare
-              two-arrow glyph in the corner and people didn't read it as
-              anything — so it says what it does, and how much is behind it. */}
+          {/* The way into the rest of the category. */}
           <button
             onClick={openExplorer}
-            aria-label={exploreLong}
+            aria-label={exploreLabel}
             className="pointer-events-auto w-full flex items-center justify-center gap-1 md:gap-1.5 rounded-lg bg-white/90 text-dark text-[9px] md:text-[12px] font-semibold py-1 md:py-1.5 active:bg-white transition-colors"
           >
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="md:w-3 md:h-3 shrink-0">
               <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
               <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
             </svg>
-            <span className="md:hidden truncate">{exploreShort}</span>
-            <span className="hidden md:inline truncate">{exploreLong}</span>
+            <span className="truncate">{exploreLabel}</span>
           </button>
           </div>
         </div>

@@ -1,14 +1,11 @@
 /**
- * What's waiting for a couple inside a category.
+ * Which listings belong to a category's explore feed.
  *
- * The board card advertises how many other vendors they could look at ("See 12
- * more Venue options"), and the category explorer lists them. Those two numbers
- * have to agree — a card promising twelve and a page showing four is worse than
- * no number at all — so both sides share the predicate below rather than each
- * filtering the vendor map their own way.
+ * Lives on its own so the rule has one home: the category explorer filters with
+ * it, and anything else that needs to reason about "what else is in this
+ * category" can use the same predicate rather than re-deriving it.
  */
 import type { Vendor } from './types'
-import { getDesignsForCategory } from './mock-data'
 
 /**
  * Is this listing part of `categoryLabel`'s explore feed on `boardName`?
@@ -26,28 +23,4 @@ export function isExploreCandidate(v: Vendor, categoryLabel: string, boardName: 
   const isEventScoped = isFanned || v.category === 'Banjantrilu' || v.category === 'Pandit'
   if (isEventScoped && !(v.rituals || []).includes(boardName)) return false
   return true
-}
-
-/**
- * How many listings the couple could still look at in this category — the
- * number on the board card's "see more" bar.
- *
- * `excludeId` drops the listing already sitting on the board, so the count is
- * genuinely "other" ones. Returns 0 when there's nothing to explore, which the
- * card treats as "don't promise anything".
- */
-export function countExploreOptions(args: {
-  liveMode: boolean
-  vendors: Record<string, Vendor>
-  categoryLabel: string
-  boardName: string
-  excludeId?: string | null
-}): number {
-  const { liveMode, vendors, categoryLabel, boardName, excludeId } = args
-
-  const ids = liveMode
-    ? Object.values(vendors).filter((v) => isExploreCandidate(v, categoryLabel, boardName)).map((v) => v.id)
-    : getDesignsForCategory(categoryLabel).map((d) => d.id)
-
-  return ids.filter((id) => id !== excludeId).length
 }
