@@ -1,5 +1,11 @@
 import { useMemo } from 'react'
+import { matchesFilter } from '@/lib/seo/types'
 import type { FilterDef, FilterValues, SeoRow, SeoSort } from '@/lib/seo/types'
+
+/** Area is exempt from `minOptionResults`: a couple filtering by neighbourhood
+ *  is looking for a specific place, and a short list there is the answer rather
+ *  than a dead end. */
+const ALWAYS_KEEP = new Set(['area'])
 
 /**
  * Category-agnostic filter bar for the SEO landing pages.
@@ -25,26 +31,60 @@ interface Props {
    *  and the bar's own max-width — for use inside a section that already sets
    *  its own width, e.g. the landing page's category explorer. */
   embedded?: boolean
+  /** Hide any choice that would narrow the list below this many listings, so
+   *  the bar never offers a route to two results. 0 offers everything.
+   *  Area is exempt — see ALWAYS_KEEP. */
+  minOptionResults?: number
 }
 
 export default function SeoFilterBar({
-  rows, defs, values, onChange, sort, onSortChange, resultCount, onReset, embedded = false,
+  rows, defs, values, onChange, sort, onSortChange, resultCount, onReset,
+  embedded = false, minOptionResults = 0,
 }: Props) {
+  /** How many listings a given choice would leave. */
+  const countFor = useMemo(() => (d: FilterDef, val: FilterValues[string]) =>
+    rows.reduce((n, r) => n + (matchesFilter(r, d, val) ? 1 : 0), 0), [rows])
+
+  const keepsEnough = (d: FilterDef, val: FilterValues[string]) =>
+    ALWAYS_KEEP.has(d.key) || countFor(d, val) >= minOptionResults
+
   const derived = useMemo(() => {
     const out: Record<string, string[]> = {}
     for (const d of defs) {
       if (d.kind !== 'enum' && d.kind !== 'includes') continue
-      if (d.options?.length) { out[d.key] = d.options; continue }
-      const seen = new Set<string>()
-      for (const r of rows) {
-        const v = r.facets[d.key]
-        if (typeof v === 'string' && v) seen.add(v)
-        else if (Array.isArray(v)) v.forEach((x) => seen.add(x))
+      let options: string[]
+      if (d.options?.length) {
+        options = d.options
+      } else {
+        const seen = new Set<string>()
+        for (const r of rows) {
+          const v = r.facets[d.key]
+          if (typeof v === 'string' && v) seen.add(v)
+          else if (Array.isArray(v)) v.forEach((x) => seen.add(x))
+        }
+        options = [...seen].sort()
       }
-      out[d.key] = [...seen].sort()
+      // Keep a value the couple has already picked, even if it now falls below
+      // the threshold — pulling the selected option out from under them would
+      // silently widen their search.
+      out[d.key] = options.filter((o) => o === values[d.key] || keepsEnough(d, o))
     }
     return out
-  }, [defs, rows])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defs, rows, values, minOptionResults])
+
+  /** Numeric bands (budget, capacity) pruned the same way. */
+  const bands = useMemo(() => {
+    const out: Record<string, { value: string; label: string }[]> = {}
+    for (const d of defs) {
+      if (d.kind !== 'max' && d.kind !== 'min') continue
+      out[d.key] = d.options
+        .filter((o) => String(o.value) === String(values[d.key]) || keepsEnough(d, o.value))
+        .map((o) => ({ value: String(o.value), label: o.label }))
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defs, rows, values, minOptionResults])
 
   const set = (key: string, val: FilterValues[string]) => onChange({ ...values, [key]: val })
 
@@ -53,10 +93,13 @@ export default function SeoFilterBar({
   ).length
 
   // A filter with fewer than two choices can only narrow to nothing or to
-  // everything — noise either way, so it isn't rendered.
-  const visible = defs.filter((d) =>
-    d.kind === 'bool' || d.kind === 'max' || d.kind === 'min' || (derived[d.key]?.length ?? 0) > 1,
-  )
+  // everything — noise either way, so it isn't rendered. A toggle or a set of
+  // bands with nothing left above the threshold goes the same way.
+  const visible = defs.filter((d) => {
+    if (d.kind === 'bool') return values[d.key] === true || keepsEnough(d, true)
+    if (d.kind === 'max' || d.kind === 'min') return (bands[d.key]?.length ?? 0) > 0
+    return (derived[d.key]?.length ?? 0) > 1
+  })
 
   return (
     <div className={embedded
@@ -84,7 +127,7 @@ export default function SeoFilterBar({
             const active = value !== undefined && value !== ''
             const options =
               d.kind === 'max' || d.kind === 'min'
-                ? d.options.map((o) => ({ value: String(o.value), label: o.label }))
+                ? bands[d.key] ?? []
                 : (derived[d.key] ?? []).map((o) => ({ value: o, label: o }))
             return (
               <select

@@ -129,23 +129,29 @@ function facetNum(r: SeoRow, key: string): number | null {
   return typeof v === 'number' ? v : null
 }
 
+/**
+ * Does one row satisfy one filter set to one value?
+ *
+ * Shared with the filter bar, which counts what each option would return so it
+ * can hide the ones that lead nowhere — that count has to agree exactly with
+ * the filtering itself, so both sides read from here.
+ */
+export function matchesFilter(r: SeoRow, d: FilterDef, val: FilterValues[string]): boolean {
+  if (val === undefined || val === '' || val === false) return true
+  switch (d.kind) {
+    case 'max': { const n = facetNum(r, d.key); return n != null && n <= Number(val) }
+    case 'min': { const n = facetNum(r, d.key); return n != null && n >= Number(val) }
+    case 'enum': return r.facets[d.key] === val
+    case 'includes': {
+      const arr = r.facets[d.key]
+      return Array.isArray(arr) && arr.includes(String(val))
+    }
+    case 'bool': return r.facets[d.key] === true
+  }
+}
+
 export function applyFilters(rows: SeoRow[], defs: FilterDef[], values: FilterValues): SeoRow[] {
-  return rows.filter((r) =>
-    defs.every((d) => {
-      const val = values[d.key]
-      if (val === undefined || val === '' || val === false) return true
-      switch (d.kind) {
-        case 'max': { const n = facetNum(r, d.key); return n != null && n <= Number(val) }
-        case 'min': { const n = facetNum(r, d.key); return n != null && n >= Number(val) }
-        case 'enum': return r.facets[d.key] === val
-        case 'includes': {
-          const arr = r.facets[d.key]
-          return Array.isArray(arr) && arr.includes(String(val))
-        }
-        case 'bool': return r.facets[d.key] === true
-      }
-    }),
-  )
+  return rows.filter((r) => defs.every((d) => matchesFilter(r, d, values[d.key])))
 }
 
 function summarise(nums: number[]): NumericStat {

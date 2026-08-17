@@ -220,6 +220,7 @@ export default function LandingCategoryExplorer() {
             <div className="mb-6">
               <SeoFilterBar
                 embedded
+                minOptionResults={5}
                 rows={rows}
                 defs={adapter.filters}
                 values={filters}
