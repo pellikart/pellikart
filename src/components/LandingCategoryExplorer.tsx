@@ -168,11 +168,8 @@ export default function LandingCategoryExplorer() {
             <h3 aria-live="polite" className="font-serif text-[24px] md:text-[28px] font-bold text-dark">
               {adapter ? cap(adapter.nounPlural) : active.label} in Hyderabad
             </h3>
-            {!loading && total > 0 && (
-              <p className="text-[13px] text-gray-500">
-                {total} {total === 1 ? adapter?.noun : adapter?.nounPlural}
-                {pageCount > 1 && <span className="text-gray-400"> · page {current} of {pageCount}</span>}
-              </p>
+            {!loading && pageCount > 1 && (
+              <p className="text-[13px] text-gray-400">Page {current} of {pageCount}</p>
             )}
           </div>
 
