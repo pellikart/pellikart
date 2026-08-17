@@ -6,6 +6,7 @@ import UnlockBanner from '@/components/UnlockBanner'
 import TrialsBanner from '@/components/TrialsBanner'
 import RitualBoard from '@/components/RitualBoard'
 import PackagesSection from '@/components/PackagesSection'
+import BoardReadyBanner from '@/components/BoardReadyBanner'
 
 export default function HomePage() {
   const { ritualBoards, vendors, addRitualBoard, activeBoardId, setActiveBoardId } = useStore()
@@ -53,6 +54,9 @@ export default function HomePage() {
   return (
     <div className="page-enter flex flex-col min-h-dvh md:h-dvh md:overflow-hidden md:-mx-6">
       <GrandTotalBar />
+      {/* Where the board goes once it's decided — the handoff to a human. Sits
+          above the unlock banner: it's the action that actually moves them on. */}
+      {activeBoard && <BoardReadyBanner key={activeBoard.id} board={activeBoard} />}
       <UnlockBanner />
       <TrialsBanner />
 

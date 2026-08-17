@@ -8,6 +8,7 @@ import ClaimPage from './pages/ClaimPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import CategoryCatalogPage from './pages/CategoryCatalogPage'
 import AdminVendorEditor from './pages/admin/AdminVendorEditor'
+import AdminConsults from './pages/admin/AdminConsults'
 import LandingPage from './pages/LandingPage'
 import ArticlesPage from './pages/ArticlesPage'
 import SeoLandingPage from './pages/SeoLandingPage'
@@ -314,6 +315,7 @@ function AdminGate() {
   return (
     <Routes>
       <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin/leads" element={<AdminConsults />} />
       <Route path="/admin/vendor/:id/*" element={<AdminVendorEditor />} />
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

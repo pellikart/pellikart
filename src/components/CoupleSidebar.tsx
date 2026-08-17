@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useStore } from '@/lib/store'
 import { formatINR, getCategorySelectionTotal, guestCountFor } from '@/lib/helpers'
 import AdminLink from './AdminLink'
 import RoleSwitch from './RoleSwitch'
 import SignOutButton from './SignOutButton'
+import ConsultSheet from './ConsultSheet'
 
 /**
  * Desktop-only left sidebar for the couple app. Hidden below `md` — on mobile
@@ -14,6 +16,7 @@ export default function CoupleSidebar() {
   const { ritualBoards, vendors, onboardingData, activeBoardId, setActiveBoardId } = useStore()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const [showConsult, setShowConsult] = useState(false)
 
   // Running grand total across every booked/selected vendor (mirrors GrandTotalBar).
   let grandTotal = 0
@@ -100,12 +103,29 @@ export default function CoupleSidebar() {
       {/* Account — pinned to the bottom-left. AdminLink self-checks and renders
           nothing for non-admins, so only admins see the admin panel link. */}
       <div className="shrink-0 border-t border-card-border px-3 py-4 space-y-2.5">
+        {/* Always available, board or no board — the way out of "I don't know
+            what to do next" shouldn't be hidden behind progress. */}
+        <button
+          onClick={() => setShowConsult(true)}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] font-semibold text-dark bg-magenta-light/50 hover:bg-magenta-light transition-colors"
+        >
+          <span className="text-[14px] leading-none">💬</span>
+          Talk to an expert
+        </button>
         <AdminLink className="block px-2 text-[13px] font-semibold text-magenta hover:underline" />
         <div className="px-2 text-[12px] text-gray-400">
           Are you a vendor? <RoleSwitch to="vendor" />
         </div>
         <SignOutButton />
       </div>
+
+      {showConsult && (
+        <ConsultSheet
+          board={ritualBoards.find((b) => b.id === effectiveActive)}
+          source="help"
+          onClose={() => setShowConsult(false)}
+        />
+      )}
     </aside>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth-context'
-import { fetchAdminVendors, createAdminVendor, deleteAdminVendor, createCatalogShare, listCatalogShares, type CatalogShareRow } from '@/lib/supabase-db'
+import { fetchAdminVendors, createAdminVendor, deleteAdminVendor, createCatalogShare, listCatalogShares, fetchConsultRequests, type CatalogShareRow } from '@/lib/supabase-db'
 import { CATEGORIES } from '@/pages/vendor/VendorOnboarding'
 
 interface AdminVendorRow {
@@ -84,7 +84,15 @@ export default function AdminDashboard() {
     else window.alert("Couldn't delete that vendor. Please try again.")
   }
 
-  useEffect(() => { load(); listCatalogShares().then(setShares) }, [])
+  // Unworked expert requests — badged in the nav so a waiting lead is never
+  // sitting unseen behind another tab.
+  const [newLeads, setNewLeads] = useState(0)
+
+  useEffect(() => {
+    load()
+    listCatalogShares().then(setShares)
+    fetchConsultRequests().then(rows => setNewLeads(rows.filter(r => r.status === 'new').length))
+  }, [])
 
   async function handleCreate() {
     if (!name.trim() || !category) {
@@ -138,6 +146,24 @@ export default function AdminDashboard() {
         </div>
         <button onClick={signOut} className="text-[12px] text-gray-400 hover:text-gray-600">Sign out</button>
       </header>
+
+      {/* Section nav */}
+      <div className="bg-white border-b border-card-border px-5">
+        <div className="max-w-2xl mx-auto flex gap-5">
+          <button className="py-2.5 text-[13px] font-semibold text-dark border-b-2 border-magenta">
+            Vendors
+          </button>
+          <button
+            onClick={() => navigate('/admin/leads')}
+            className="py-2.5 text-[13px] font-medium text-gray-500 hover:text-dark border-b-2 border-transparent"
+          >
+            Expert requests
+            {newLeads > 0 && (
+              <span className="ml-1.5 text-[10px] font-bold bg-magenta text-white px-1.5 py-0.5 rounded-full">{newLeads}</span>
+            )}
+          </button>
+        </div>
+      </div>
 
       <main className="max-w-2xl mx-auto px-5 py-6">
         {/* Share a full-details vendor catalog for a category (for offline events) */}

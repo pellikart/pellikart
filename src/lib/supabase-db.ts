@@ -1558,3 +1558,104 @@ export async function fetchVendorEarningsDb(vendorId: string) {
   const { data } = await supabase.from('earnings').select('*').eq('vendor_id', vendorId).order('created_at', { ascending: false })
   return data || []
 }
+
+// ─── EXPERT CONSULT REQUESTS ────────────────
+// The couple-side handoff: a ready board books a slot with a Pellikart expert
+// and the lead lands in the admin panel. See src/lib/consult.ts.
+
+export interface ConsultRequestRow {
+  id: string
+  user_id: string | null
+  couple_id: string | null
+  contact_name: string | null
+  phone: string
+  email: string | null
+  board_id: string | null
+  board_name: string | null
+  preferred_date: string | null
+  preferred_slot: string | null
+  notes: string | null
+  source: string
+  snapshot: import('./consult').ConsultSnapshot | Record<string, never>
+  status: import('./consult').ConsultStatus
+  admin_notes: string | null
+  scheduled_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ConsultRequestInput {
+  name?: string
+  phone: string
+  email?: string
+  boardId?: string
+  boardName?: string
+  preferredDate?: string
+  preferredSlot?: string
+  notes?: string
+  source?: import('./consult').ConsultSource
+  snapshot?: import('./consult').ConsultSnapshot | null
+}
+
+/** Raise a consult request. Goes through the security-definer RPC so it works
+ *  for an anonymous visitor in the public demo too, not just a signed-in couple.
+ *  Returns the request id, or null when it couldn't be saved. */
+export async function requestConsult(input: ConsultRequestInput): Promise<string | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase.rpc('request_consult', {
+    p_name: input.name ?? null,
+    p_phone: input.phone,
+    p_email: input.email ?? null,
+    p_board_id: input.boardId ?? null,
+    p_board_name: input.boardName ?? null,
+    p_preferred_date: input.preferredDate || null,
+    p_preferred_slot: input.preferredSlot ?? null,
+    p_notes: input.notes ?? null,
+    p_source: input.source ?? 'board_ready',
+    p_snapshot: input.snapshot ?? {},
+  })
+  if (error) { console.error('[db] requestConsult failed:', error.message); return null }
+  return (data as string) || null
+}
+
+/** The signed-in couple's own requests, newest first — drives the board's
+ *  "expert call requested" state across devices. */
+export async function fetchMyConsultRequests(userId: string): Promise<ConsultRequestRow[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('consult_requests')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) { console.error('[db] fetchMyConsultRequests failed:', error.message); return [] }
+  return (data as ConsultRequestRow[]) || []
+}
+
+/** The whole queue (admin), newest first. */
+export async function fetchConsultRequests(): Promise<ConsultRequestRow[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('consult_requests')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) { console.error('[db] fetchConsultRequests failed:', error.message); return [] }
+  return (data as ConsultRequestRow[]) || []
+}
+
+/** Move a lead along the queue. `scheduled_at` is stamped the first time it's
+ *  marked as a booked slot, so we can tell "when we agreed" from "when they asked". */
+export async function updateConsultRequest(
+  id: string,
+  updates: { status?: import('./consult').ConsultStatus; adminNotes?: string },
+): Promise<boolean> {
+  if (!supabase) return false
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (updates.status) {
+    patch.status = updates.status
+    if (updates.status === 'scheduled') patch.scheduled_at = new Date().toISOString()
+  }
+  if (updates.adminNotes !== undefined) patch.admin_notes = updates.adminNotes || null
+  const { error } = await supabase.from('consult_requests').update(patch).eq('id', id)
+  if (error) { console.error('[db] updateConsultRequest failed:', error.message); return false }
+  return true
+}

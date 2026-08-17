@@ -4,6 +4,7 @@ import { formatINR, guestCountFor } from '@/lib/helpers'
 import SignOutButton from './SignOutButton'
 import RoleSwitch from './RoleSwitch'
 import AdminLink from './AdminLink'
+import ConsultSheet from './ConsultSheet'
 
 // Mirrors the onboarding guest stepper (see OnboardingPage).
 const GUEST_STEP = 50
@@ -18,7 +19,9 @@ const GUEST_DEFAULT = 300
  * and guest changes re-price totals/packages immediately on save.
  */
 export default function ProfileSheet({ onClose }: { onClose: () => void }) {
-  const { onboardingData, updateOnboardingData } = useStore()
+  const { onboardingData, updateOnboardingData, ritualBoards, activeBoardId } = useStore()
+  const [showConsult, setShowConsult] = useState(false)
+  const activeBoard = ritualBoards.find((b) => b.id === activeBoardId) ?? ritualBoards[0]
 
   const events = useMemo(
     () => (onboardingData ? [...onboardingData.events, ...onboardingData.customEvents] : []),
@@ -150,6 +153,22 @@ export default function ProfileSheet({ onClose }: { onClose: () => void }) {
             {saved ? 'Saved ✓' : 'Save changes'}
           </button>
 
+          {/* Help — always reachable, not just once the board is "ready". A
+              couple who's stuck shouldn't have to earn the right to ask. */}
+          <section className="pt-2 border-t border-card-border">
+            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2">Need a hand?</p>
+            <button
+              onClick={() => setShowConsult(true)}
+              className="w-full flex items-center gap-3 p-3 rounded-xl border border-card-border text-left active:bg-empty-bg transition-colors"
+            >
+              <span className="w-9 h-9 rounded-full bg-magenta-light flex items-center justify-center shrink-0 text-[15px]">💬</span>
+              <span className="min-w-0">
+                <span className="block text-[13px] font-semibold text-dark">Talk to a Pellikart expert</span>
+                <span className="block text-[11px] text-gray-400">Free call — we chase the vendors and quotes for you.</span>
+              </span>
+            </button>
+          </section>
+
           {/* Account */}
           <section className="pt-2 border-t border-card-border space-y-3">
             <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Account</p>
@@ -161,6 +180,14 @@ export default function ProfileSheet({ onClose }: { onClose: () => void }) {
           </section>
         </div>
       </div>
+
+      {/* Stops the consult sheet's own backdrop click from also closing the
+          profile drawer underneath it. */}
+      {showConsult && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ConsultSheet board={activeBoard} source="help" onClose={() => setShowConsult(false)} />
+        </div>
+      )}
     </div>
   )
 }
