@@ -126,8 +126,8 @@ export default function BoardReadyBanner({ board }: { board: RitualBoard }) {
               {board.name} board is ready 🎉
             </p>
             <p className="text-[10.5px] text-dark/70 mt-0.5 leading-relaxed">
-              {filled} of {total} categories decided. Book a free slot with a Pellikart expert —
-              we call your shortlisted vendors, get real quotes and hold your dates.
+              {filled} of {total} categories decided. We'll call your shortlisted vendors,
+              get you real quotes and hold your dates.
             </p>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function BoardReadyBanner({ board }: { board: RitualBoard }) {
           onClick={() => setShowSheet(true)}
           className="w-full mt-2.5 py-2.5 rounded-lg bg-magenta text-white text-[12px] font-semibold active:scale-[0.98] transition-transform"
         >
-          Book a slot with a Pellikart expert
+          Book a free slot with a Pellikart expert
         </button>
       </div>
     )

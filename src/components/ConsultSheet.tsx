@@ -145,9 +145,9 @@ export default function ConsultSheet({ board, source = 'board_ready', onClose, o
           </div>
         ) : (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-[2px] text-mustard">Free · No obligation</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[2px] text-mustard">No obligation</p>
             <h2 id="consult-title" className="text-[17px] font-bold text-dark mt-1.5 leading-tight">
-              Book a slot with a Pellikart expert
+              Book a free slot with a Pellikart expert
             </h2>
             <p className="text-[12px] text-gray-500 mt-1.5 leading-relaxed">
               You've done the picking — we do the running around. We call the vendors on your

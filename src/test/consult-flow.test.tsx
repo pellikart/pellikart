@@ -64,19 +64,19 @@ describe('board → expert call', () => {
   it('offers the call once the board is decided', () => {
     renderBanner(readyBoard)
     expect(screen.getByText(/board is ready/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Book a slot with a Pellikart expert/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Book a free slot with a Pellikart expert/i })).toBeInTheDocument()
   })
 
   it('points at the next category while the board is still thin', () => {
     renderBanner(thinBoard)
     expect(screen.getByRole('button', { name: /Explore Decor/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Book a slot/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Book a free slot/i })).not.toBeInTheDocument()
   })
 
   it('keeps the confirmation on screen after a successful submit', async () => {
     renderBanner(readyBoard)
 
-    fireEvent.click(screen.getByRole('button', { name: /Book a slot with a Pellikart expert/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Book a free slot with a Pellikart expert/i }))
     fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
     fireEvent.click(screen.getByRole('button', { name: /Request my call/i }))
 
@@ -90,7 +90,7 @@ describe('board → expert call', () => {
   it('sends the board snapshot with the lead, not just the phone number', async () => {
     renderBanner(readyBoard)
 
-    fireEvent.click(screen.getByRole('button', { name: /Book a slot with a Pellikart expert/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Book a free slot with a Pellikart expert/i }))
     fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '9876543210' } })
     fireEvent.click(screen.getByRole('button', { name: /Request my call/i }))
 
@@ -110,7 +110,7 @@ describe('board → expert call', () => {
     renderBanner(readyBoard)
 
     expect(screen.getByText(/Expert call requested/i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Book a slot/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Book a free slot/i })).not.toBeInTheDocument()
   })
 
   it('still offers the call on a different event board', () => {
