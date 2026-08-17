@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 interface Props {
   /** When true, nav background starts transparent and turns white on scroll. Default false (always white). */
@@ -10,20 +10,6 @@ export default function LandingNav({ transparentOnTop = false }: Props) {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { pathname } = useLocation()
-  const navigate = useNavigate()
-
-  function goToWaitlist() {
-    setMobileMenuOpen(false)
-    if (pathname === '/') {
-      document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' })
-    } else {
-      navigate('/')
-      // Wait for landing to render, then scroll
-      setTimeout(() => {
-        document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' })
-      }, 100)
-    }
-  }
 
   useEffect(() => {
     if (!transparentOnTop) return
@@ -63,9 +49,6 @@ export default function LandingNav({ transparentOnTop = false }: Props) {
               <Link key={l.href} to={l.href} className={cls}>{l.label}</Link>
             )
           })}
-          <button onClick={goToWaitlist} className="bg-magenta text-white text-[13px] font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity">
-            Join waitlist
-          </button>
         </div>
 
         {/* Mobile hamburger */}
@@ -101,9 +84,6 @@ export default function LandingNav({ transparentOnTop = false }: Props) {
                 </Link>
               )
             )}
-            <button onClick={goToWaitlist} className="bg-magenta text-white text-[13px] font-semibold px-4 py-2 rounded-lg text-center">
-              Join waitlist
-            </button>
           </div>
         </div>
       )}
