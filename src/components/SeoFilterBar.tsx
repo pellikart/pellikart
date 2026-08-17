@@ -21,10 +21,14 @@ interface Props {
   onSortChange: (s: SeoSort) => void
   resultCount: number
   onReset: () => void
+  /** Drops the page-level chrome — sticky positioning, the full-bleed border
+   *  and the bar's own max-width — for use inside a section that already sets
+   *  its own width, e.g. the landing page's category explorer. */
+  embedded?: boolean
 }
 
 export default function SeoFilterBar({
-  rows, defs, values, onChange, sort, onSortChange, resultCount, onReset,
+  rows, defs, values, onChange, sort, onSortChange, resultCount, onReset, embedded = false,
 }: Props) {
   const derived = useMemo(() => {
     const out: Record<string, string[]> = {}
@@ -55,8 +59,10 @@ export default function SeoFilterBar({
   )
 
   return (
-    <div className="sticky top-0 z-30 border-b border-card-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-      <div className="mx-auto max-w-[1180px] px-5 py-3">
+    <div className={embedded
+      ? 'rounded-2xl border border-card-border bg-white'
+      : 'sticky top-0 z-30 border-b border-card-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80'}>
+      <div className={embedded ? 'px-4 py-3' : 'mx-auto max-w-[1180px] px-5 py-3'}>
         <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {visible.map((d) => {
             if (d.kind === 'bool') {

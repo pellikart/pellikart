@@ -4,8 +4,12 @@ import { LIVE_CATEGORY_ICONS, type LandingCategory } from '@/lib/landing-categor
 import { fetchAllLiveVendors, fetchAllListings, fetchAllAvailability } from '@/lib/supabase-db'
 import { buildLiveVendorMap, useStore } from '@/lib/store'
 import { adapterByCategory } from '@/lib/seo/adapters'
-import { collapseFanOut, sortRows, usefulSpecKeys, type SeoRow } from '@/lib/seo/types'
+import {
+  applyFilters, collapseFanOut, sortRows, usefulSpecKeys,
+  type FilterValues, type SeoRow, type SeoSort,
+} from '@/lib/seo/types'
 import SeoVendorCard from '@/components/SeoVendorCard'
+import SeoFilterBar from '@/components/SeoFilterBar'
 import ShortlistSignupModal from '@/components/ShortlistSignupModal'
 import { setPendingShortlist } from '@/lib/pending-shortlist'
 import { listingDisplayName } from '@/lib/helpers'
@@ -41,6 +45,8 @@ const COUNT_WORDS = [
 export default function LandingCategoryExplorer() {
   const [active, setActive] = useState<LandingCategory>(LIVE_CATEGORY_ICONS[0])
   const [page, setPage] = useState(1)
+  const [filters, setFilters] = useState<FilterValues>({})
+  const [sort, setSort] = useState<SeoSort>('price-asc')
   const [vendors, setVendors] = useState<Record<string, Vendor> | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -77,15 +83,18 @@ export default function LandingCategoryExplorer() {
 
   const adapter = adapterByCategory(active.category)
 
+  /** Every listing in the category, before filtering. */
   const rows: SeoRow[] | null = useMemo(() => {
     if (!vendors || !adapter) return null
-    return sortRows(
-      collapseFanOut(
-        Object.values(vendors).filter((v) => v.category === adapter.category).map(adapter.toRow),
-      ),
-      'price-asc',
+    return collapseFanOut(
+      Object.values(vendors).filter((v) => v.category === adapter.category).map(adapter.toRow),
     )
   }, [vendors, adapter])
+
+  const visible: SeoRow[] | null = useMemo(() => {
+    if (!rows || !adapter) return null
+    return sortRows(applyFilters(rows, adapter.filters, filters), sort)
+  }, [rows, adapter, filters, sort])
 
   /**
    * Card id → the listing to open.
@@ -111,14 +120,14 @@ export default function LandingCategoryExplorer() {
     return out
   }, [vendors, rows])
 
-  const total = rows?.length ?? 0
+  const total = visible?.length ?? 0
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
   // Guards the window against a stale page number in the render right after a
-  // category switch, before the effect below resets it.
+  // category switch or a filter change, before the handler resets it.
   const current = Math.min(page, pageCount)
-  const shown = rows?.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE) ?? []
-  // Judge coverage on the whole category, not just the page on screen, so the
-  // columns don't shift as you move between pages.
+  const shown = visible?.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE) ?? []
+  // Judge coverage on the whole category — not the page, and not the filtered
+  // subset — so the columns hold still while browsing and filtering.
   const specKeys = useMemo(() => usefulSpecKeys(rows ?? []), [rows])
   const loading = rows === null
   const detailVendor = detailId ? listingForCard[detailId] ?? null : null
@@ -126,6 +135,10 @@ export default function LandingCategoryExplorer() {
   function choose(cat: LandingCategory, el: HTMLElement) {
     setActive(cat)
     setPage(1)
+    // Filters are declared per category — carrying them across would apply a
+    // venue's capacity filter to a mehendi artist.
+    setFilters({})
+    setSort('price-asc')
     // On mobile the strip scrolls — bring the tapped icon fully into view.
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
   }
@@ -203,6 +216,22 @@ export default function LandingCategoryExplorer() {
             )}
           </div>
 
+          {!loading && adapter && rows.length > 0 && (
+            <div className="mb-6">
+              <SeoFilterBar
+                embedded
+                rows={rows}
+                defs={adapter.filters}
+                values={filters}
+                onChange={(next) => { setFilters(next); setPage(1) }}
+                sort={sort}
+                onSortChange={(s) => { setSort(s); setPage(1) }}
+                resultCount={total}
+                onReset={() => { setFilters({}); setPage(1) }}
+              />
+            </div>
+          )}
+
           {loading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -220,11 +249,25 @@ export default function LandingCategoryExplorer() {
               <p className="text-[15px] font-semibold text-dark">
                 {loadFailed
                   ? "We couldn't load these just now"
-                  : `No ${adapter?.nounPlural ?? active.label} listed yet`}
+                  : rows.length > 0
+                    ? 'Nothing matches these filters'
+                    : `No ${adapter?.nounPlural ?? active.label} listed yet`}
               </p>
               <p className="mt-2 text-[13.5px] text-gray-500">
-                {loadFailed ? 'Check your connection and refresh the page.' : 'New vendors join every week.'}
+                {loadFailed
+                  ? 'Check your connection and refresh the page.'
+                  : rows.length > 0
+                    ? 'Widen a filter — price rules out the most vendors.'
+                    : 'New vendors join every week.'}
               </p>
+              {!loadFailed && rows.length > 0 && (
+                <button
+                  onClick={() => { setFilters({}); setPage(1) }}
+                  className="mt-5 px-6 py-2.5 rounded-full border border-card-border text-[13px] font-medium text-dark hover:border-dark transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           ) : (
             <>
