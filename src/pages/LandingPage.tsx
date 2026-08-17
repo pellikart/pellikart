@@ -89,39 +89,12 @@ export default function LandingPage() {
       {/* ============ THE PROBLEM ============ */}
       <section className="py-24 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
-          {/* Two-column: illustration left, text right (on mobile: text first, illustration after) */}
-          <div className="grid md:grid-cols-2 gap-10 items-center mb-16">
-            {/* Illustration */}
-            <div className="flex justify-center order-2 md:order-1">
-              <img src="/section2.png" alt="" className="w-full max-w-[480px] h-auto" />
-            </div>
-
-            {/* Text */}
-            <div className="order-1 md:order-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[2px] text-mustard mb-3">
-                SOUND FAMILIAR?
-              </p>
-              <h2 className="font-serif text-[34px] md:text-[42px] font-bold text-dark leading-tight mb-3">
-                Indian weddings are beautiful.<br />Planning them is brutal.
-              </h2>
-              <p className="text-[16px] text-gray-500 mb-6">
-                Every couple in India knows this story.
-              </p>
-
-              {/* Emotional gut punch — rhythmic paragraph */}
-              <p className="text-[16px] md:text-[17px] text-dark leading-[1.7]">
-                You'll message 30 vendors. Get 30 different prices.
-                Hear <em>"price on request"</em> twelve times.
-                Open Excel. Cry.
-                Open WhatsApp. Cry harder.
-                Tell your dad it's <em>"under control"</em> for the eleventh time.
-                <br /><br />
-                <span className="text-magenta font-semibold">It's not under control.</span>
-                <br />
-                <span className="text-magenta font-semibold">It's never under control.</span>
-              </p>
-            </div>
-          </div>
+          <p className="text-center text-[11px] font-semibold uppercase tracking-[2px] text-mustard mb-3">
+            SOUND FAMILIAR?
+          </p>
+          <h2 className="font-serif text-center text-[34px] md:text-[42px] font-bold text-dark leading-tight mb-12">
+            Indian weddings are beautiful.<br />Planning them is brutal.
+          </h2>
 
           <div className="grid md:grid-cols-2 gap-4">
             {[
