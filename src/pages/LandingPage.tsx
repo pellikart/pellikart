@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import LandingNav from '@/components/LandingNav'
 import LandingFooter from '@/components/LandingFooter'
 import { supabase } from '@/lib/supabase'
@@ -63,12 +62,14 @@ export default function LandingPage() {
             <p className="text-[18px] text-gray-500 leading-relaxed mb-8 max-w-[480px]">
               No haggling. No spreadsheets. No surprises. Just your dream wedding, crafted by you, all in one place.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <Link to="/try" className="bg-magenta text-white font-semibold px-6 py-3.5 rounded-xl text-center hover:opacity-90 transition-opacity">
-                How it works →
-              </Link>
-              <a href="#waitlist" className="border-2 border-magenta text-magenta font-semibold px-6 py-3.5 rounded-xl text-center hover:bg-magenta-light transition-colors">
-                Join early access
+            {/* /app runs under its own router basename, so this has to be a
+                plain anchor — a Link would route within the marketing site. */}
+            <div className="mb-4">
+              <a
+                href="/app"
+                className="inline-block bg-magenta text-white font-semibold px-8 py-3.5 rounded-xl text-center hover:opacity-90 transition-opacity"
+              >
+                Go to the app →
               </a>
             </div>
             <p className="text-[12px] text-gray-400">
