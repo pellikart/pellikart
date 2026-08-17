@@ -7,7 +7,7 @@ import {
   CONSULT_SLOTS, buildConsultSnapshot, setLocalConsult,
   type ConsultSnapshot, type ConsultSource,
 } from '@/lib/consult'
-import type { RitualBoard } from '@/lib/types'
+import { UNLOCK_PRICE, type RitualBoard } from '@/lib/types'
 
 /** Optional WhatsApp number for the "couldn't save it" escape hatch. Unset in
  *  most environments — the fallback simply doesn't render then. */
@@ -25,20 +25,28 @@ function todayISO(): string {
 }
 
 /**
- * "My board is ready — call me." The one place the couple hands off to a human.
+ * The handoff to a human, in two doors.
  *
- * It sends a lead with a frozen snapshot of the board, so the expert opens the
- * call already knowing what they picked, what they're still deciding between,
- * and what's missing. Works signed-out too (public demo / landing) — the row
- * just carries no user, and the phone number is what we work from.
+ * Both send a lead carrying a frozen snapshot of the board, so whoever picks it
+ * up already knows what they chose, what they're still deciding between, and
+ * what's missing. Works signed-out too (public demo / landing) — the row just
+ * carries no user, and the phone number is what we work from.
+ *
+ *  - 'consult' — free: they book a call slot and we do the work on the phone.
+ *  - 'unlock'  — the ₹300 deposit: refundable, adjusted against the booking.
+ *    There's no payment gateway in the app, so this raises the request and we
+ *    send a payment link; the leads desk flips their unlock once it lands.
  */
-export default function ConsultSheet({ board, source = 'board_ready', onClose, onSubmitted }: {
+export default function ConsultSheet({ board, source = 'board_ready', variant = 'consult', onClose, onSubmitted }: {
   /** The board being handed off. Omitted for a generic "talk to someone" ask. */
   board?: RitualBoard
   source?: ConsultSource
+  /** Which door this is. 'unlock' swaps the framing and drops the call slot. */
+  variant?: 'consult' | 'unlock'
   onClose: () => void
   onSubmitted?: () => void
 }) {
+  const isUnlock = variant === 'unlock'
   const { vendors, onboardingData, ritualBoards } = useStore()
   const auth = useOptionalAuth()
 
@@ -79,10 +87,12 @@ export default function ConsultSheet({ board, source = 'board_ready', onClose, o
       name, phone, email,
       boardId: board?.id,
       boardName: board?.name,
-      preferredDate: date,
-      preferredSlot: slot,
+      // The unlock door isn't booking a call slot — leaving these off keeps the
+      // desk from showing a time we never agreed to.
+      preferredDate: isUnlock ? undefined : date,
+      preferredSlot: isUnlock ? undefined : slot,
       notes,
-      source,
+      source: isUnlock ? 'paid_unlock' : source,
       snapshot,
     })
     setSaving(false)
@@ -119,19 +129,31 @@ export default function ConsultSheet({ board, source = 'board_ready', onClose, o
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <p id="consult-title" className="text-[15px] font-bold text-dark mt-3">Your slot is requested</p>
+            <p id="consult-title" className="text-[15px] font-bold text-dark mt-3">
+              {isUnlock ? "We're sending your payment link" : 'Your slot is requested'}
+            </p>
             <p className="text-[12px] text-gray-500 mt-1 px-4">
-              An expert will call you on <span className="font-semibold text-dark">{phone}</span>
-              {date ? <> — {new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, {slot}</> : null}.
+              {isUnlock ? (
+                <>We'll WhatsApp it to <span className="font-semibold text-dark">{phone}</span>. Your shortlist unlocks the moment it's paid.</>
+              ) : (
+                <>
+                  An expert will call you on <span className="font-semibold text-dark">{phone}</span>
+                  {date ? <> — {new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, {slot}</> : null}.
+                </>
+              )}
             </p>
 
             <div className="mt-5 text-left rounded-xl bg-empty-bg p-3.5 space-y-2.5">
               <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">What happens next</p>
-              {[
+              {(isUnlock ? [
+                `We WhatsApp you a ${formatINR(UNLOCK_PRICE)} payment link.`,
+                'Vendor names, profiles and addresses open up on your board.',
+                'We check every shortlisted vendor for your dates and come back with quotes.',
+              ] : [
                 'We confirm your slot on WhatsApp.',
                 'The expert reviews your board and calls the vendors on it.',
                 'You get real quotes and availability — and we hold the dates.',
-              ].map((step, i) => (
+              ]).map((step, i) => (
                 <div key={step} className="flex items-start gap-2.5">
                   <span className="shrink-0 w-[18px] h-[18px] rounded-full bg-magenta-light text-magenta text-[10px] font-bold flex items-center justify-center mt-px">{i + 1}</span>
                   <span className="text-[12px] text-dark leading-snug">{step}</span>
@@ -145,14 +167,30 @@ export default function ConsultSheet({ board, source = 'board_ready', onClose, o
           </div>
         ) : (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-[2px] text-mustard">No obligation</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[2px] text-mustard">
+              {isUnlock ? 'Refundable deposit' : 'No obligation'}
+            </p>
             <h2 id="consult-title" className="text-[17px] font-bold text-dark mt-1.5 leading-tight">
-              Book a free slot with a Pellikart expert
+              {isUnlock ? 'Unlock your shortlist' : 'Book a free slot with a Pellikart expert'}
             </h2>
             <p className="text-[12px] text-gray-500 mt-1.5 leading-relaxed">
-              You've done the picking — we do the running around. We call the vendors on your
-              board, get you real quotes and availability, and hold your dates.
+              {isUnlock
+                ? 'See who every vendor on your board actually is — real names, full profiles and addresses — while we check each one for your dates.'
+                : "You've done the picking — we do the running around. We call the vendors on your board, get you real quotes and availability, and hold your dates."}
             </p>
+
+            {isUnlock && (
+              <div className="mt-3 rounded-xl border border-magenta/25 bg-magenta-light/40 p-3">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[13px] font-bold text-dark">{formatINR(UNLOCK_PRICE)}</span>
+                  <span className="text-[10px] font-semibold text-magenta uppercase tracking-wider">Fully refundable</span>
+                </div>
+                <p className="text-[11px] text-dark/70 mt-1 leading-relaxed">
+                  It comes off your booking — the deposit is adjusted against whatever you book
+                  through us. Changed your mind, or nobody's free on your dates? We refund it.
+                </p>
+              </div>
+            )}
 
             {/* What the expert will be looking at */}
             {snapshot && (
@@ -219,32 +257,37 @@ export default function ConsultSheet({ board, source = 'board_ready', onClose, o
                 </div>
               )}
 
-              <div>
-                <label htmlFor="consult-date" className="text-[11px] font-medium text-dark block mb-1">Preferred day</label>
-                <input
-                  id="consult-date" type="date" value={date} min={todayISO()} onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[12px] text-dark outline-none focus:border-magenta"
-                />
-              </div>
+              {/* The unlock door isn't booking a call — no slot to pick. */}
+              {!isUnlock && (
+                <>
+                  <div>
+                    <label htmlFor="consult-date" className="text-[11px] font-medium text-dark block mb-1">Preferred day</label>
+                    <input
+                      id="consult-date" type="date" value={date} min={todayISO()} onChange={(e) => setDate(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-card-border text-[12px] text-dark outline-none focus:border-magenta"
+                    />
+                  </div>
 
-              <div>
-                <p className="text-[11px] font-medium text-dark mb-1.5">Preferred time</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {CONSULT_SLOTS.map((s) => (
-                    <button
-                      key={s} type="button" onClick={() => setSlot(s)}
-                      aria-pressed={slot === s}
-                      className={`py-2 rounded-xl text-[11px] font-medium border transition-colors ${
-                        slot === s
-                          ? 'bg-magenta text-white border-magenta'
-                          : 'border-card-border text-gray-600 active:bg-empty-bg'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div>
+                    <p className="text-[11px] font-medium text-dark mb-1.5">Preferred time</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {CONSULT_SLOTS.map((s) => (
+                        <button
+                          key={s} type="button" onClick={() => setSlot(s)}
+                          aria-pressed={slot === s}
+                          className={`py-2 rounded-xl text-[11px] font-medium border transition-colors ${
+                            slot === s
+                              ? 'bg-magenta text-white border-magenta'
+                              : 'border-card-border text-gray-600 active:bg-empty-bg'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label htmlFor="consult-notes" className="text-[11px] font-medium text-dark block mb-1">
@@ -276,7 +319,9 @@ export default function ConsultSheet({ board, source = 'board_ready', onClose, o
                 phoneOk && !saving ? 'bg-magenta text-white active:scale-[0.98]' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {saving ? 'Requesting…' : 'Request my call'}
+              {saving
+                ? (isUnlock ? 'Sending…' : 'Requesting…')
+                : (isUnlock ? `Send me the ${formatINR(UNLOCK_PRICE)} link` : 'Request my call')}
             </button>
             <button onClick={onClose} className="w-full mt-2 py-2 text-[12px] text-gray-500">
               Not yet — keep planning

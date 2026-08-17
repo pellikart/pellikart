@@ -182,17 +182,15 @@ describe('Couple Store', () => {
     expect(useStore.getState().milestoneProgress[vendorId]).toBe(1)
   })
 
-  it('subscribes to a tier', () => {
-    useStore.getState().subscribe('gold')
-    expect(useStore.getState().subscription).toBe('gold')
-    expect(useStore.getState().getMaxTrials()).toBe(3)
+  // Silver/Gold are retired — there's one wall now, the ₹300 refundable deposit.
+  it('unlocks the account', () => {
+    useStore.getState().subscribe('unlocked')
+    expect(useStore.getState().subscription).toBe('unlocked')
   })
 
-  it('respects trial limits per subscription tier', () => {
+  it('gives trials only to an unlocked account', () => {
     expect(useStore.getState().getMaxTrials()).toBe(0) // free
-    useStore.getState().subscribe('silver')
-    expect(useStore.getState().getMaxTrials()).toBe(1)
-    useStore.getState().subscribe('gold')
+    useStore.getState().subscribe('unlocked')
     expect(useStore.getState().getMaxTrials()).toBe(3)
   })
 

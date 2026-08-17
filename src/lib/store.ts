@@ -368,10 +368,10 @@ export function buildLiveVendorMap(
   return { vendorMap, lvMap }
 }
 
-function maxTrialsForTier(tier: SubscriptionTier): number {
-  if (tier === 'gold') return 3;
-  if (tier === 'silver') return 1;
-  return 0;
+/** Trials came in tiers (Silver 1, Gold 3). With one wall there's nothing left
+ *  to upsell, so the unlock carries what Gold used to. */
+export function maxTrialsForTier(tier: SubscriptionTier): number {
+  return tier === 'unlocked' ? 3 : 0;
 }
 
 interface LiveModeState {

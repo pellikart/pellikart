@@ -1,4 +1,4 @@
-import { useStore } from '@/lib/store'
+import { useStore, maxTrialsForTier } from '@/lib/store'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { formatINR, bgStyle, getEffectivePrice, getListingTotal, getCategorySelectionTotal, getVenueBoardPrice, makePublicCode, guestCountFor, listingDisplayName, hidesVendorMeta } from '@/lib/helpers'
@@ -35,7 +35,7 @@ export default function CategoryBoardPage() {
     addDesignAsVendor, setDecorBrief, restoreCategory,
   } = useStore()
   const unlocked = subscription !== 'free'
-  const maxTrials = subscription === 'gold' ? 3 : subscription === 'silver' ? 1 : 0
+  const maxTrials = maxTrialsForTier(subscription)
 
   const [activeTab, setActiveTab] = useState<'visual' | 'compare'>('visual')
   // Customize tab state (Decor only — couples brief vendors on what they want)
@@ -305,10 +305,9 @@ export default function CategoryBoardPage() {
           <span className="text-[10px] text-gray-500">
             Trials: <span className="font-semibold text-dark">{trialsUsed[`${ritualId}-${categoryId}`] || 0}/{maxTrials}</span> used
           </span>
-          {subscription === 'silver' && (trialsUsed[`${ritualId}-${categoryId}`] || 0) >= maxTrials && (
-            <button onClick={() => useStore.getState().subscribe('gold')} className="text-[9px] text-magenta font-semibold">
-              Upgrade to Gold for 2 more →
-            </button>
+          {/* Nothing to upsell any more — one unlock, one trial allowance. */}
+          {(trialsUsed[`${ritualId}-${categoryId}`] || 0) >= maxTrials && (
+            <span className="text-[9px] text-gray-400">All used for this category</span>
           )}
         </div>
       )}
@@ -440,10 +439,10 @@ export default function CategoryBoardPage() {
                 )
               })}
             </div>
-            {subscription === 'silver' && (trialsUsed[`${ritualId}-${categoryId}`] || 0) >= maxTrials && (
-              <button onClick={() => useStore.getState().subscribe('gold')} className="w-full mt-2 text-[9px] text-magenta font-semibold text-center">
-                Upgrade to Gold for 2 more trials →
-              </button>
+            {(trialsUsed[`${ritualId}-${categoryId}`] || 0) >= maxTrials && (
+              <p className="w-full mt-2 text-[9px] text-gray-400 text-center">
+                You've used all {maxTrials} trials for this category.
+              </p>
             )}
           </div>
         )}

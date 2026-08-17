@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth-context'
-import { fetchConsultRequests, updateConsultRequest, type ConsultRequestRow } from '@/lib/supabase-db'
+import { fetchConsultRequests, updateConsultRequest, unlockCouple, markConsultPaid, type ConsultRequestRow } from '@/lib/supabase-db'
 import { CONSULT_STATUS_LABELS, type ConsultSnapshot, type ConsultStatus } from '@/lib/consult'
 import { formatINR } from '@/lib/helpers'
+import { UNLOCK_PRICE } from '@/lib/types'
 
 const STATUSES: ConsultStatus[] = ['new', 'contacted', 'scheduled', 'won', 'lost']
 
@@ -19,6 +20,7 @@ const SOURCE_LABELS: Record<string, string> = {
   board_ready: 'Board ready',
   help: 'Asked for help',
   landing: 'Landing page',
+  paid_unlock: `Wants to pay ${formatINR(UNLOCK_PRICE)}`,
 }
 
 /**
@@ -63,6 +65,31 @@ export default function AdminConsults() {
       setRows(prev)
       window.alert("Couldn't update that request. Please try again.")
     }
+  }
+
+  /**
+   * Payment lands out-of-band (we WhatsApp a link), so this is where money
+   * becomes access: record the deposit on the lead and flip the couple's
+   * profile to unlocked. Anonymous leads have no account to unlock — they have
+   * to sign in first, and the button says so rather than failing silently.
+   */
+  async function markPaid(row: ConsultRequestRow) {
+    if (!row.user_id) {
+      window.alert("This lead isn't signed in, so there's no account to unlock. Ask them to sign in with the same number first.")
+      return
+    }
+    if (!window.confirm(`Confirm ${formatINR(UNLOCK_PRICE)} received from ${row.contact_name || row.phone}? This unlocks vendor names on their board.`)) return
+
+    const unlocked = await unlockCouple(row.user_id)
+    if (!unlocked) {
+      window.alert("Couldn't unlock that account. Please try again.")
+      return
+    }
+    const recorded = await markConsultPaid(row.id, UNLOCK_PRICE)
+    setRows((rs) => rs.map((r) => (r.id === row.id
+      ? { ...r, unlock_paid: true, unlock_paid_at: new Date().toISOString(), unlock_amount: UNLOCK_PRICE }
+      : r)))
+    if (!recorded) window.alert('Unlocked, but the payment note failed to save. Worth a second look.')
   }
 
   async function saveNotes(row: ConsultRequestRow, adminNotes: string) {
@@ -141,6 +168,7 @@ export default function AdminConsults() {
                 onToggle={() => setOpenId(openId === r.id ? null : r.id)}
                 onStatus={(s) => setStatus(r, s)}
                 onSaveNotes={(n) => saveNotes(r, n)}
+                onMarkPaid={() => markPaid(r)}
               />
             ))}
           </ul>
@@ -150,12 +178,13 @@ export default function AdminConsults() {
   )
 }
 
-function ConsultCard({ row, open, onToggle, onStatus, onSaveNotes }: {
+function ConsultCard({ row, open, onToggle, onStatus, onSaveNotes, onMarkPaid }: {
   row: ConsultRequestRow
   open: boolean
   onToggle: () => void
   onStatus: (s: ConsultStatus) => void
   onSaveNotes: (notes: string) => void
+  onMarkPaid: () => void
 }) {
   const [notes, setNotes] = useState(row.admin_notes || '')
   const snap = (row.snapshot || {}) as Partial<ConsultSnapshot>
@@ -215,6 +244,22 @@ function ConsultCard({ row, open, onToggle, onStatus, onSaveNotes }: {
           {open ? 'Hide board' : 'View board'}
         </button>
       </div>
+
+      {/* The deposit. Payment happens on WhatsApp, so this is the step that
+          turns it into access on their board. */}
+      {row.unlock_paid ? (
+        <p className="mt-3 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+          ✓ {formatINR(row.unlock_amount ?? UNLOCK_PRICE)} received{row.unlock_paid_at ? ` · ${new Date(row.unlock_paid_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''} — board unlocked.
+          Refundable, and adjusted against their booking.
+        </p>
+      ) : (
+        <button
+          onClick={onMarkPaid}
+          className="mt-3 w-full py-2 rounded-lg border border-magenta text-magenta text-[12px] font-semibold active:bg-magenta-light/40 transition-colors"
+        >
+          Mark {formatINR(UNLOCK_PRICE)} received &amp; unlock their board
+        </button>
+      )}
 
       {row.notes && (
         <p className="mt-3 text-[12px] text-dark bg-empty-bg rounded-xl p-2.5">

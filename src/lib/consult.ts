@@ -17,8 +17,10 @@ import { getCategorySelectionTotal, guestCountFor } from './helpers'
 
 export type ConsultStatus = 'new' | 'contacted' | 'scheduled' | 'won' | 'lost'
 
-/** Where the request came from — tells us what the lead was looking at. */
-export type ConsultSource = 'board_ready' | 'help' | 'landing'
+/** Where the request came from — tells us what the lead was looking at.
+ *  'paid_unlock' is the ₹300 door: same queue, but they've asked to pay rather
+ *  than wait for a call, so the desk should reach them first. */
+export type ConsultSource = 'board_ready' | 'help' | 'landing' | 'paid_unlock'
 
 /** Call windows we staff. Kept coarse: this is a callback slot, not a booking
  *  system, and an expert confirms the exact time on the call. */

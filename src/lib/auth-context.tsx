@@ -9,7 +9,9 @@ export interface Profile {
   // null = the account hasn't chosen a role yet (new signup). The app shows the
   // couple/vendor chooser and persists the pick.
   role: AppRole | null
-  subscription_tier: 'free' | 'silver' | 'gold'
+  /** 'unlocked' = the ₹300 deposit is paid. Legacy silver/gold rows are
+   *  normalised on read — see normalizeTier in supabase-db. */
+  subscription_tier: 'free' | 'unlocked'
 }
 
 interface AuthContextValue {

@@ -1,109 +1,60 @@
 import { useState } from 'react'
 import { useStore } from '@/lib/store'
-import { SubscriptionTier } from '@/lib/types'
+import { formatINR } from '@/lib/helpers'
+import { UNLOCK_PRICE } from '@/lib/types'
+import ConsultSheet from './ConsultSheet'
 
+/**
+ * The app's only paywall.
+ *
+ * Silver (₹999) and Gold (₹1,999) are gone — two tiers selling the same unlock
+ * only ever lost the sale to hesitation. What's left is a single ₹300 deposit
+ * that is refundable and comes off the booking, which makes it a commitment
+ * rather than a fee. There's also a free door: book a call and an expert does
+ * the same work with you on the phone.
+ */
 export default function UnlockBanner() {
-  const { subscription, subscribe } = useStore()
-  const [showPicker, setShowPicker] = useState(false)
+  const { subscription, ritualBoards, activeBoardId } = useStore()
+  const [sheet, setSheet] = useState<'unlock' | 'consult' | null>(null)
 
   if (subscription !== 'free') return null
 
+  const board = ritualBoards.find((b) => b.id === activeBoardId) ?? ritualBoards[0]
+
   return (
     <>
-      <div className="mx-4 mt-3 p-3 rounded-xl bg-magenta-light border border-magenta/20">
-        <p className="text-xs text-dark/80 mb-2">
-          Vendor names hidden. Unlock to reveal, get trials & book.
+      {/* Deliberately not magenta-light: the board-ready banner above it already
+          owns that, and two pink blocks in a row read as one shouty thing. */}
+      <div className="mx-4 md:mx-6 mt-3 p-3 rounded-xl bg-white border border-card-border">
+        <p className="text-[12px] font-semibold text-dark">Vendor names are hidden</p>
+        <p className="text-[10.5px] text-gray-500 mt-0.5 leading-relaxed">
+          Unlock for {formatINR(UNLOCK_PRICE)} to see who each vendor is and have us check them
+          for your dates. It's refundable, and it comes off your booking.
         </p>
-        <button
-          onClick={() => setShowPicker(true)}
-          className="w-full py-2 rounded-lg bg-magenta text-white font-semibold text-xs active:scale-[0.98] transition-transform"
-        >
-          View Plans
-        </button>
+        <div className="flex items-center gap-3 mt-2.5">
+          <button
+            onClick={() => setSheet('unlock')}
+            className="py-2 px-3.5 rounded-lg bg-magenta text-white font-semibold text-[12px] active:scale-[0.98] transition-transform"
+          >
+            Unlock for {formatINR(UNLOCK_PRICE)}
+          </button>
+          <button
+            onClick={() => setSheet('consult')}
+            className="text-[11px] font-medium text-magenta"
+          >
+            Or talk to an expert, free
+          </button>
+        </div>
       </div>
 
-      {/* Tier Picker Bottom Sheet */}
-      {showPicker && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setShowPicker(false)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8" onClick={(e) => e.stopPropagation()}>
-            <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
-            <p className="text-[14px] font-bold text-dark mb-1">Choose your plan</p>
-            <p className="text-[11px] text-gray-500 mb-4">Unlock vendor names, trial sessions & booking</p>
-
-            <div className="flex gap-3">
-              {/* Silver */}
-              <TierCard
-                tier="silver"
-                name="Silver"
-                price="₹999"
-                features={[
-                  'See all vendor names',
-                  '1 trial session per category',
-                  'Book vendor slots',
-                  'Call & WhatsApp vendors',
-                ]}
-                onSelect={() => { subscribe('silver'); setShowPicker(false) }}
-              />
-
-              {/* Gold */}
-              <TierCard
-                tier="gold"
-                name="Gold"
-                price="₹1,999"
-                popular
-                features={[
-                  'See all vendor names',
-                  '3 trial sessions per category',
-                  'Book vendor slots',
-                  'Call & WhatsApp vendors',
-                ]}
-                onSelect={() => { subscribe('gold'); setShowPicker(false) }}
-              />
-            </div>
-          </div>
-        </div>
+      {sheet && (
+        <ConsultSheet
+          board={board}
+          variant={sheet === 'unlock' ? 'unlock' : 'consult'}
+          source={sheet === 'unlock' ? 'paid_unlock' : 'help'}
+          onClose={() => setSheet(null)}
+        />
       )}
     </>
-  )
-}
-
-function TierCard({
-  tier, name, price, features, popular, onSelect,
-}: {
-  tier: SubscriptionTier
-  name: string
-  price: string
-  features: string[]
-  popular?: boolean
-  onSelect: () => void
-}) {
-  return (
-    <div className={`flex-1 rounded-xl border-2 p-3 relative ${popular ? 'border-magenta bg-magenta-light/30' : 'border-card-border'}`}>
-      {popular && (
-        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-magenta text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-          Popular
-        </span>
-      )}
-      <p className="text-[13px] font-bold text-dark">{name}</p>
-      <p className="text-lg font-bold text-magenta mt-0.5">{price}</p>
-      <ul className="mt-2.5 space-y-1.5">
-        {features.map((f, i) => (
-          <li key={i} className="flex items-start gap-1.5 text-[10px] text-gray-600">
-            <span className="text-magenta mt-px">✓</span>
-            <span>{f}</span>
-          </li>
-        ))}
-      </ul>
-      <button
-        onClick={onSelect}
-        className={`w-full mt-3 py-2 rounded-lg text-[11px] font-semibold active:scale-[0.97] transition-transform ${
-          popular
-            ? 'bg-magenta text-white'
-            : 'border border-magenta text-magenta'
-        }`}
-      >
-        Get {name}
-      </button>
-    </div>
   )
 }

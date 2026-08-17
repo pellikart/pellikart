@@ -1,20 +1,21 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '@/lib/store'
-import { RitualBoard as RitualBoardType } from '@/lib/types'
+import { RitualBoard as RitualBoardType, UNLOCK_PRICE } from '@/lib/types'
 import { formatINR, formatDateRange, bgStyle, getCategorySelectionTotal, guestCountFor, listingDisplayName } from '@/lib/helpers'
 import { getUnavailableVendors } from '@/lib/availability'
 import { ONBOARDING_CONFIG } from '@/lib/vendor-category-config'
 import { isPackageIntact, intactPackageForListing } from '@/lib/packages'
 import type { ActivePackage } from '@/lib/types'
 import CategoryCard from './CategoryCard'
+import ConsultSheet from './ConsultSheet'
 
 interface Props {
   board: RitualBoardType
 }
 
 export default function RitualBoard({ board }: Props) {
-  const { vendors, subscription, removeCategory, restoreCategory, subscribe, addBoardCategory, removePackage, onboardingData } = useStore()
+  const { vendors, subscription, removeCategory, restoreCategory, addBoardCategory, removePackage, onboardingData } = useStore()
   const unlocked = subscription !== 'free'
   // Guests for this event (exact number now; upper limit of a legacy range) —
   // drives per-plate venue totals (price/plate × guests).
@@ -210,9 +211,9 @@ export default function RitualBoard({ board }: Props) {
         ) : (
           <button
             onClick={() => setShowTierPicker(true)}
-            className="py-1.5 px-3 rounded-lg bg-gray-400 text-white text-[10px] font-medium"
+            className="py-1.5 px-3 rounded-lg bg-magenta text-white text-[10px] font-medium active:scale-[0.98] transition-transform"
           >
-            Unlock to book
+            Unlock for {formatINR(UNLOCK_PRICE)}
           </button>
         )}
       </div>
@@ -301,28 +302,14 @@ export default function RitualBoard({ board }: Props) {
         </div>
       )}
 
-      {/* Tier Picker Modal */}
+      {/* The single paywall — the ₹300 refundable deposit. */}
       {showTierPicker && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setShowTierPicker(false)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="w-8 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
-            <p className="text-[14px] font-bold text-dark mb-1">Choose your plan</p>
-            <p className="text-[11px] text-gray-500 mb-4">Unlock vendor names, trial sessions & booking</p>
-            <div className="flex gap-3">
-              <button onClick={() => { subscribe('silver'); setShowTierPicker(false) }} className="flex-1 rounded-xl border-2 border-card-border p-3 text-left">
-                <p className="text-[13px] font-bold text-dark">Silver</p>
-                <p className="text-lg font-bold text-magenta mt-0.5">₹999</p>
-                <p className="text-[9px] text-gray-500 mt-1">1 trial per category</p>
-              </button>
-              <button onClick={() => { subscribe('gold'); setShowTierPicker(false) }} className="flex-1 rounded-xl border-2 border-magenta bg-magenta-light/30 p-3 text-left relative">
-                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-magenta text-white text-[7px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Popular</span>
-                <p className="text-[13px] font-bold text-dark">Gold</p>
-                <p className="text-lg font-bold text-magenta mt-0.5">₹1,999</p>
-                <p className="text-[9px] text-gray-500 mt-1">3 trials per category</p>
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConsultSheet
+          board={board}
+          variant="unlock"
+          source="paid_unlock"
+          onClose={() => setShowTierPicker(false)}
+        />
       )}
 
       {/* Share Sheet (fallback when navigator.share is unavailable) */}

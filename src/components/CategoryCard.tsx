@@ -104,13 +104,15 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
           <button
             onClick={openExplorer}
             aria-label={exploreLabel}
-            className="pointer-events-auto w-full flex items-center justify-center gap-1 md:gap-1.5 rounded-lg bg-white/90 text-dark text-[9px] md:text-[12px] font-semibold py-1 md:py-1.5 active:bg-white transition-colors"
+            className="pointer-events-auto w-full flex items-center justify-center gap-1 md:gap-1.5 rounded-lg bg-white/90 text-dark text-[9px] md:text-[12px] font-semibold py-1 md:py-1.5 px-1 leading-tight text-center active:bg-white transition-colors"
           >
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="md:w-3 md:h-3 shrink-0">
               <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
               <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
             </svg>
-            <span className="truncate">{exploreLabel}</span>
+            {/* Wraps rather than truncates — "See more Wedding Invitations
+                options" mustn't turn into "See more Wedding Invit…". */}
+            <span>{exploreLabel}</span>
           </button>
           </div>
         </div>

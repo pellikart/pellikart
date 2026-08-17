@@ -1,4 +1,10 @@
-export type SubscriptionTier = 'free' | 'silver' | 'gold';
+/** One wall, not three. 'unlocked' means the ₹300 refundable deposit is paid:
+ *  vendor names, profiles and addresses are visible and we're checking
+ *  availability. Contact details are not part of it — see UNLOCK_PRICE. */
+export type SubscriptionTier = 'free' | 'unlocked';
+
+/** The deposit, in rupees. Refundable, and adjusted against the booking. */
+export const UNLOCK_PRICE = 300;
 
 export interface OnboardingData {
   partner1: string;

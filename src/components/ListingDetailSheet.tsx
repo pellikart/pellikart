@@ -1643,8 +1643,11 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </div>
             )}
 
-            {/* Contact Details (behind paywall) */}
-            {unlocked && (vendor.phone || vendor.whatsapp || vendor.email) && (
+            {/* Contact details are NOT what the ₹300 buys. The deposit reveals
+                who the vendor is; we stay in the middle on availability and
+                negotiation, and hand over the number once the booking is
+                confirmed through us. */}
+            {vendor.booked && (vendor.phone || vendor.whatsapp || vendor.email) && (
               <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-100">
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-2">Contact</p>
                 {vendor.phone && <p className="text-[11px] text-gray-700">Phone: {vendor.phone}</p>}
@@ -1652,9 +1655,17 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                 {vendor.email && <p className="text-[11px] text-gray-700">Email: {vendor.email}</p>}
               </div>
             )}
+            {!vendor.booked && unlocked && (
+              <div className="mb-4 p-3 rounded-xl bg-empty-bg border border-card-border">
+                <p className="text-[10px] text-gray-600 leading-relaxed">
+                  We handle the calls with this vendor — availability, quotes and dates.
+                  Their contact details are shared once your booking is confirmed.
+                </p>
+              </div>
+            )}
             {!unlocked && _liveMode && (
               <div className="mb-4 p-3 rounded-xl bg-magenta-light border border-magenta/10 text-center">
-                <p className="text-[10px] text-magenta font-medium">Subscribe to see contact details and vendor name</p>
+                <p className="text-[10px] text-magenta font-medium">Unlock to see this vendor's name and full profile</p>
               </div>
             )}
 

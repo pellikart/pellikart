@@ -6,7 +6,7 @@
  */
 import { supabase } from './supabase'
 import type { VendorProfile, VendorListing, BlockedTimeRange } from './vendor-types'
-import type { OnboardingData, RitualBoard, Category } from './types'
+import type { OnboardingData, RitualBoard, Category, SubscriptionTier } from './types'
 
 // ─── VENDOR ─────────────────────────────────
 
@@ -484,15 +484,48 @@ export async function fetchUserLikes(userId: string): Promise<LikeRow[]> {
 
 // ─── SUBSCRIPTION ───────────────────────────
 
-export async function updateSubscriptionDb(userId: string, tier: 'free' | 'silver' | 'gold') {
+export async function updateSubscriptionDb(userId: string, tier: SubscriptionTier) {
   if (!supabase) return
   await supabase.from('profiles').update({ subscription_tier: tier }).eq('id', userId)
 }
 
-export async function fetchSubscriptionTier(userId: string): Promise<'free' | 'silver' | 'gold'> {
+export async function fetchSubscriptionTier(userId: string): Promise<SubscriptionTier> {
   if (!supabase) return 'free'
   const { data } = await supabase.from('profiles').select('subscription_tier').eq('id', userId).maybeSingle()
-  return (data?.subscription_tier as 'free' | 'silver' | 'gold') || 'free'
+  return normalizeTier(data?.subscription_tier)
+}
+
+/** Silver and Gold are retired, but rows predating the change still carry them
+ *  (and a stale client could still write one). Anyone who paid under the old
+ *  tiers keeps their access — they map onto the single unlocked state. */
+export function normalizeTier(raw: unknown): SubscriptionTier {
+  return raw === 'unlocked' || raw === 'silver' || raw === 'gold' ? 'unlocked' : 'free'
+}
+
+/** Grant the unlock to a couple whose ₹300 has landed. Admin-only (RLS), used
+ *  by the leads desk — there's no gateway, so this is how payment becomes
+ *  access. Never call it from the couple's own session. */
+export async function unlockCouple(userId: string): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase
+    .from('profiles')
+    .update({ subscription_tier: 'unlocked', updated_at: new Date().toISOString() })
+    .eq('id', userId)
+  if (error) { console.error('[db] unlockCouple failed:', error.message); return false }
+  return true
+}
+
+/** Record that a lead's deposit was collected, alongside the unlock itself. */
+export async function markConsultPaid(id: string, amount: number): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.from('consult_requests').update({
+    unlock_paid: true,
+    unlock_paid_at: new Date().toISOString(),
+    unlock_amount: amount,
+    updated_at: new Date().toISOString(),
+  }).eq('id', id)
+  if (error) { console.error('[db] markConsultPaid failed:', error.message); return false }
+  return true
 }
 
 // ─── VENDOR AVAILABILITY ────────────────────
@@ -1580,6 +1613,10 @@ export interface ConsultRequestRow {
   status: import('./consult').ConsultStatus
   admin_notes: string | null
   scheduled_at: string | null
+  /** The ₹300 deposit: collected by hand (payment link), recorded here. */
+  unlock_paid: boolean
+  unlock_paid_at: string | null
+  unlock_amount: number | null
   created_at: string
   updated_at: string
 }
