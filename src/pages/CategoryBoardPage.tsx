@@ -10,6 +10,7 @@ import { trackEvent, trackImpressions, selectBidDb, createBids, fetchCoupleBids 
 import { getListingConfig, type SelectField } from '@/lib/vendor-category-config'
 import { shouldShowBundlePopup, buildBundleEntries, planBundleApplication } from '@/lib/bundle'
 import { parseCoordsFromMapLink, distanceLabel, type LatLng } from '@/lib/geo'
+import { isExploreCandidate } from '@/lib/explore'
 
 const SETTING_OPTIONS = ['Indoor', 'Outdoor', 'Both']
 const COVERAGE_OPTIONS = ['Mandap only', 'Stage only', 'Entrance + Stage', 'Full venue', 'Specific area']
@@ -95,22 +96,8 @@ export default function CategoryBoardPage() {
   // design — read price from there so explore matches the board.
   const allDesigns = _liveMode
     ? Object.values(vendors)
-        .filter(v => {
-          // In live mode, vendor IDs are listing UUIDs. Match by checking
-          // if the vendor's style/packageTier/category matches this board category.
-          // The vendor map is keyed by listing ID, and the "code" field contains "Category NNN"
-          if (!v.code.toLowerCase().startsWith(category.label.toLowerCase())) return false
-          // Per-event fan-out rows (Entertainers `::ent::`, Photography `::evt::`)
-          // each carry a single ritual tag. On an event board, only show the row for
-          // THIS event — otherwise all fanned rows appear on every board. Banjantrilu
-          // isn't fanned (one listing per vendor) but is still event-scoped: its
-          // rituals are the union of its priced-card events, so only show it on boards
-          // it actually prices. Other non-fanned listings stay event-agnostic.
-          const isFanned = v.id.includes('::ent::') || v.id.includes('::evt::')
-          const isEventScoped = isFanned || v.category === 'Banjantrilu' || v.category === 'Pandit'
-          if (isEventScoped && !(v.rituals || []).includes(board.name)) return false
-          return true
-        })
+        // Shared with the board card's "see N more" count — see lib/explore.ts.
+        .filter(v => isExploreCandidate(v, category.label, board.name))
         .map(v => ({ id: v.id, vendorId: v.id, name: v.name, photo: v.photo, style: v.style, price: v.price, rating: v.rating, description: v.packageTier }))
     : getDesignsForCategory(category.label).map(d => {
         const v = vendors[d.id]

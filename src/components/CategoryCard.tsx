@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Category, Vendor } from '@/lib/types'
 import { formatINR, bgStyle, getCategorySelectionTotal } from '@/lib/helpers'
+import { countExploreOptions } from '@/lib/explore'
+import { useStore } from '@/lib/store'
 import ListingDetailSheet from './ListingDetailSheet'
 
 interface Props {
@@ -18,13 +20,32 @@ interface Props {
    *  routes removal straight to onRemove (the parent shows the package break prompt)
    *  instead of the generic remove confirmation. */
   packageName?: string
+  /** The event this card sits on. Only used to scope the "see more" count, since
+   *  some listings (fanned photography/entertainer rows, pandits, banjantrilu)
+   *  are only offered for particular events. */
+  boardName: string
 }
 
-export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlocked, onRemove, guests, packageName }: Props) {
+export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlocked, onRemove, guests, packageName, boardName }: Props) {
   const [showDetail, setShowDetail] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const navigate = useNavigate()
+  const vendors = useStore((s) => s.vendors)
+  const liveMode = useStore((s) => s._liveMode)
   const wrapperClass = `rounded-xl overflow-hidden relative ${spanTwo ? 'span-2' : ''} min-h-[90px] md:min-h-[200px]`
+
+  const openExplorer = () => navigate(`/category/${ritualId}/${category.id}`)
+
+  // How many other listings they could look at here. Feedback was that the bare
+  // swap icon read as nothing at all — people didn't know a whole category of
+  // vendors sat behind it — so the card says so in words, with the number.
+  const otherCount = countExploreOptions({
+    liveMode, vendors, categoryLabel: category.label, boardName, excludeId: vendor.id,
+  })
+  const exploreShort = otherCount > 0 ? `${otherCount} more options` : 'More options'
+  const exploreLong = otherCount > 0
+    ? `See ${otherCount} more ${category.label} options`
+    : `See more ${category.label} options`
 
   return (
     <>
@@ -37,37 +58,34 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
           </div>
         )}
 
-        {/* Tap card → open vendor detail */}
+        {/* Tapping the photo opens this vendor's details. It's a bare overlay
+            button so the controls layered above can be real buttons — they used
+            to be divs nested inside this one, which no keyboard could reach. */}
         <button
           onClick={() => setShowDetail(true)}
-          className="relative z-10 h-full w-full flex flex-col justify-between p-2 md:p-4 min-h-[90px] md:min-h-[200px] text-left"
-        >
+          aria-label={`View ${category.label} details`}
+          className="absolute inset-0 z-10"
+        />
+
+        {/* Content layer: transparent to taps except its own controls. */}
+        <div className="relative z-20 h-full w-full flex flex-col justify-between p-2 md:p-4 min-h-[90px] md:min-h-[200px] text-left pointer-events-none">
           <div className="flex items-start justify-between">
             <span className="bg-white/90 text-dark text-[10px] md:text-[13px] font-medium px-1.5 md:px-2 py-0.5 rounded-full">
               {category.label}
             </span>
-            <div className="flex items-center gap-1">
-              {/* Swap button → category board */}
-              <div
-                onClick={(e) => { e.stopPropagation(); navigate(`/category/${ritualId}/${category.id}`) }}
-                className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center backdrop-blur-sm cursor-pointer"
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                  <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                </svg>
-              </div>
-              {/* Remove button — package members defer to the parent's break prompt */}
-              <div
-                onClick={(e) => { e.stopPropagation(); if (packageName) { onRemove() } else { setShowRemoveConfirm(true) } }}
-                className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center backdrop-blur-sm cursor-pointer"
-              >
-                <span className="text-white text-[10px] leading-none">✕</span>
-              </div>
-            </div>
+            {/* Remove — package members defer to the parent's break prompt */}
+            <button
+              onClick={() => { if (packageName) { onRemove() } else { setShowRemoveConfirm(true) } }}
+              aria-label={`Remove ${category.label} from this event`}
+              className="pointer-events-auto w-5 h-5 rounded-full bg-white/25 flex items-center justify-center backdrop-blur-sm"
+            >
+              <span className="text-white text-[10px] leading-none">✕</span>
+            </button>
           </div>
+
+          <div className="space-y-1 md:space-y-1.5">
           {packageName && (
-            <div className="absolute bottom-1.5 right-1.5 z-10 bg-magenta text-white text-[8px] md:text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+            <div className="w-fit bg-magenta text-white text-[8px] md:text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
               <span>📦</span>
               <span className="max-w-[64px] truncate">{packageName}</span>
             </div>
@@ -95,7 +113,24 @@ export default function CategoryCard({ category, ritualId, vendor, spanTwo, unlo
               </div>
             )
           })()}
-        </button>
+
+          {/* The way into the rest of the category. It used to be a bare
+              two-arrow glyph in the corner and people didn't read it as
+              anything — so it says what it does, and how much is behind it. */}
+          <button
+            onClick={openExplorer}
+            aria-label={exploreLong}
+            className="pointer-events-auto w-full flex items-center justify-center gap-1 md:gap-1.5 rounded-lg bg-white/90 text-dark text-[9px] md:text-[12px] font-semibold py-1 md:py-1.5 active:bg-white transition-colors"
+          >
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="md:w-3 md:h-3 shrink-0">
+              <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+              <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+            </svg>
+            <span className="md:hidden truncate">{exploreShort}</span>
+            <span className="hidden md:inline truncate">{exploreLong}</span>
+          </button>
+          </div>
+        </div>
       </div>
 
       {/* Vendor Detail Sheet — shared with the Category Board so couples see the same rich data */}

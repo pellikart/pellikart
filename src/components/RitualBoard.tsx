@@ -167,6 +167,7 @@ export default function RitualBoard({ board }: Props) {
               spanTwo={index === 0 && (filledCategories.length + (emptyCategories.length > 0 ? 1 : 0)) > 2}
               unlocked={unlocked}
               guests={guests}
+              boardName={board.name}
               packageName={pkg?.name}
               onRemove={() => {
                 if (pkg) setBreakPrompt({ pkg, categoryId: cat.id })
@@ -185,7 +186,9 @@ export default function RitualBoard({ board }: Props) {
               <div className="w-8 h-8 rounded-full border-[1.5px] border-dashed border-magenta flex items-center justify-center">
                 <span className="text-magenta text-base leading-none">+</span>
               </div>
-              <span className="text-[10px] text-gray-500">{addableCount} more</span>
+              {/* Not "{addableCount} more" any more — that read as a sibling of
+                  the cards' "N more options" bars, which mean something else. */}
+              <span className="text-[10px] text-gray-500">Add category</span>
             </button>
           </div>
         )}
