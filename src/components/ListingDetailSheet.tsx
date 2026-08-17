@@ -191,6 +191,10 @@ interface Props {
    *  page anyone can read. Withhold that prose here; signed-in couples in the
    *  app still get it. */
   publicPreview?: boolean
+  /** Shows the "Shortlist this …" call to action at the foot of the sheet.
+   *  Only the public landing page passes it — inside the app a couple adds a
+   *  vendor to a board from the board itself. */
+  onShortlist?: () => void
 }
 
 /** Informational chips for a Photography event package — coverage duration,
@@ -212,7 +216,7 @@ function EventPackageInfoChips({ pkg }: { pkg: import('@/lib/vendor-category-con
   )
 }
 
-export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours, preview = false, publicPreview = false }: Props) {
+export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours, preview = false, publicPreview = false, onShortlist }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
   // Photo lightbox: index into `gallery`, or null when closed.
   const [lightbox, setLightbox] = useState<number | null>(null)
@@ -1818,6 +1822,23 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               >
                 View Vendor Portfolio
               </button>
+            )}
+
+            {/* Public surface: the only action available before signup. Sits
+                under the listing so the whole card is read first. */}
+            {onShortlist && (
+              <div className="pt-1">
+                <button
+                  onClick={onShortlist}
+                  className="w-full py-3.5 rounded-xl bg-magenta text-white text-[14px] font-semibold active:scale-[0.99] transition-transform"
+                >
+                  Shortlist this {(vendor.category || 'vendor').toLowerCase()}
+                </button>
+                <p className="mt-2 text-center text-[10.5px] text-gray-500 leading-relaxed">
+                  We'll build your wedding board around it — with picks for every
+                  other category.
+                </p>
+              </div>
             )}
           </div>
         </div>

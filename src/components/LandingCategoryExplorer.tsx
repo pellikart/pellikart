@@ -6,6 +6,9 @@ import { buildLiveVendorMap, useStore } from '@/lib/store'
 import { adapterByCategory } from '@/lib/seo/adapters'
 import { collapseFanOut, sortRows, usefulSpecKeys, type SeoRow } from '@/lib/seo/types'
 import SeoVendorCard from '@/components/SeoVendorCard'
+import ShortlistSignupModal from '@/components/ShortlistSignupModal'
+import { setPendingShortlist } from '@/lib/pending-shortlist'
+import { listingDisplayName } from '@/lib/helpers'
 import type { Vendor } from '@/lib/types'
 
 /** The full listing sheet is ~1900 lines and only opens on click — keep it out
@@ -41,6 +44,8 @@ export default function LandingCategoryExplorer() {
   const [vendors, setVendors] = useState<Record<string, Vendor> | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [shortlisting, setShortlisting] = useState<Vendor | null>(null)
+  const lvMapRef = useRef<Record<string, string>>({})
   const panelRef = useRef<HTMLDivElement>(null)
 
   // One fetch for every category; switching tabs is then instant.
@@ -61,6 +66,7 @@ export default function LandingCategoryExplorer() {
         // Not live mode — no DB writes, and board actions are gated on the
         // ritual/category ids we deliberately don't pass.
         useStore.setState({ vendors: vendorMap, _listingVendorMap: lvMap, _liveMode: false })
+        lvMapRef.current = lvMap
         setVendors(vendorMap)
       } catch {
         if (!cancelled) { setLoadFailed(true); setVendors({}) }
@@ -81,6 +87,30 @@ export default function LandingCategoryExplorer() {
     )
   }, [vendors, adapter])
 
+  /**
+   * Card id → the listing to open.
+   *
+   * `collapseFanOut` folds a vendor's fanned listings (`<id>::evt::…`,
+   * `<id>::ent::…`) into one card keyed by the bare id — which is not itself a
+   * key in the vendor map, so entertainers' cards opened nothing at all. Map
+   * each card back to its cheapest underlying listing, matching the
+   * representative collapseFanOut picked.
+   */
+  const listingForCard = useMemo(() => {
+    const out: Record<string, Vendor> = {}
+    if (!vendors) return out
+    for (const r of rows ?? []) {
+      const exact = vendors[r.id]
+      if (exact) { out[r.id] = exact; continue }
+      const prefix = `${r.id}::`
+      const fanned = Object.values(vendors).filter((v) => v.id.startsWith(prefix))
+      if (fanned.length === 0) continue
+      const priced = fanned.filter((v) => v.price > 0)
+      out[r.id] = (priced.length ? priced : fanned).reduce((a, b) => (a.price <= b.price ? a : b))
+    }
+    return out
+  }, [vendors, rows])
+
   const total = rows?.length ?? 0
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
   // Guards the window against a stale page number in the render right after a
@@ -91,7 +121,7 @@ export default function LandingCategoryExplorer() {
   // columns don't shift as you move between pages.
   const specKeys = useMemo(() => usefulSpecKeys(rows ?? []), [rows])
   const loading = rows === null
-  const detailVendor = detailId && vendors ? vendors[detailId] : null
+  const detailVendor = detailId ? listingForCard[detailId] ?? null : null
 
   function choose(cat: LandingCategory, el: HTMLElement) {
     setActive(cat)
@@ -258,8 +288,27 @@ export default function LandingCategoryExplorer() {
             unlocked={false}
             publicPreview
             onClose={() => setDetailId(null)}
+            onShortlist={() => setShortlisting(detailVendor)}
           />
         </Suspense>
+      )}
+
+      {shortlisting && (
+        <ShortlistSignupModal
+          label={listingDisplayName(shortlisting, false)}
+          category={shortlisting.category || active.label}
+          onClose={() => setShortlisting(null)}
+          onContinue={() => {
+            setPendingShortlist({
+              listingId: shortlisting.id,
+              vendorId: lvMapRef.current[shortlisting.id],
+              category: shortlisting.category || active.label,
+            })
+            // /app runs under its own router basename, so this has to be a full
+            // load rather than a client-side navigation.
+            window.location.href = '/app'
+          }}
+        />
       )}
     </section>
   )

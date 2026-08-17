@@ -24,6 +24,7 @@ import {
 } from "./supabase-db";
 import type { Vendor, ActivePackage } from "./types";
 import type { PackageDeal } from "./packages";
+import { readPendingShortlist, clearPendingShortlist } from "./pending-shortlist";
 
 function cloneVendors() {
   const cloned: Record<string, typeof mockVendors[string]> = {};
@@ -522,6 +523,10 @@ export const useStore = create<AppState & LiveModeState & {
           trialSessions,
           trialsUsed,
         })
+
+        // This couple already has boards, so completeOnboarding won't run —
+        // apply anything they shortlisted from the public page before logging in.
+        get().applyPendingShortlist()
       }
       // If no couple record or not onboarded, state stays at defaults (will show onboarding)
     }
@@ -529,6 +534,38 @@ export const useStore = create<AppState & LiveModeState & {
   },
 
   setRole: (role) => set({ role }),
+
+  /**
+   * Put a listing shortlisted from the public landing page onto an existing
+   * board. New couples never reach this — `completeOnboarding` seeds their
+   * boards as it builds them — so this covers the couple who already had a
+   * board and shortlisted something while logged out.
+   *
+   * Picks the earliest ritual carrying that category and no other, rather than
+   * overwriting the couple's choice across every event.
+   */
+  applyPendingShortlist: () => {
+    const pending = readPendingShortlist()
+    if (!pending) return
+
+    const { ritualBoards, vendors } = get()
+    // The exact listing, or another from the same vendor if this deployment
+    // fanned it into per-event listings.
+    const listingId = vendors[pending.listingId]
+      ? pending.listingId
+      : Object.keys(vendors).find(k => k.startsWith(`${pending.listingId}::`))
+    if (!listingId) { clearPendingShortlist(); return }
+
+    for (const board of ritualBoards) {
+      const cat = board.categories.find(c => c.label === pending.category && !c.removed)
+      if (!cat) continue
+      clearPendingShortlist()
+      get().selectVendor(board.id, cat.id, listingId)
+      return
+    }
+    // No ritual uses that category — nothing to apply it to.
+    clearPendingShortlist()
+  },
 
   completeOnboarding: (data) => {
     const { _liveMode, _userId } = get()
@@ -563,6 +600,13 @@ export const useStore = create<AppState & LiveModeState & {
         // a couple talking to one photographer / caterer / etc across events.
         const carryoverByCategory: Record<string, string[]> = {}
 
+        // A listing shortlisted from the public landing page before this couple
+        // had an account. Seeding the carryover makes it the pick for its
+        // category in every ritual that offers it, while every other category
+        // still gets the normal budget-fitted recommendation.
+        const pending = readPendingShortlist()
+        if (pending?.vendorId) carryoverByCategory[pending.category] = [pending.vendorId]
+
         const boards: RitualBoard[] = allEvents.map((eventName) => {
           const id = `r-${eventName.toLowerCase().replace(/\s+/g, "-")}`
           const dateInfo = data.eventDates[eventName]
@@ -596,6 +640,13 @@ export const useStore = create<AppState & LiveModeState & {
             let shortlisted: string[] = []
 
             if (pool.length > 0) {
+              // The exact listing shortlisted before signup wins outright, for
+              // every ritual that offers it. Where it isn't offered, the
+              // carryover seeded above still prefers the same vendor.
+              const pendingListing = pending && label === pending.category
+                ? pool.find(l => l.id === pending.listingId)
+                : undefined
+
               // Carryover preference: try a listing from a vendor we picked for
               // this same category in an earlier ritual. Prefer order picked.
               const carryVendorIds = carryoverByCategory[label] || []
@@ -612,7 +663,11 @@ export const useStore = create<AppState & LiveModeState & {
                 }
               }
 
-              if (carryListing) {
+              if (pendingListing) {
+                selectedId = pendingListing.id as string
+                const others = pool.filter(l => l.id !== pendingListing.id).sort((a, b) => (b.price as number) - (a.price as number))
+                shortlisted = [selectedId, ...others.slice(0, 2).map(l => l.id as string)]
+              } else if (carryListing) {
                 selectedId = carryListing.id as string
                 // Surface 2 other strong options alongside the carryover pick
                 const others = pool.filter(l => l.id !== carryListing!.id).sort((a, b) => (b.price as number) - (a.price as number))
@@ -656,6 +711,8 @@ export const useStore = create<AppState & LiveModeState & {
         // If we have live vendors, use them; otherwise fall back to demo-style
         if (Object.keys(vendorMap).length > 0) {
           set({ vendors: vendorMap, _listingVendorMap: lvMap, ritualBoards: boards })
+          // Honoured above — don't let it steer a second board later.
+          if (pending) clearPendingShortlist()
         } else {
           // No live vendors — use mock data so boards still look populated
           const mockBoards = generateBoardsFromOnboarding(data)

@@ -244,6 +244,8 @@ export interface AppState {
   // Actions
   setRole: (role: AppRole) => void;
   completeOnboarding: (data: OnboardingData) => void;
+  /** Apply a listing shortlisted on the public landing page to an existing board. */
+  applyPendingShortlist: () => void;
   updateOnboardingData: (patch: Partial<OnboardingData>) => void;
   subscribe: (tier: SubscriptionTier) => void;
   selectVendor: (ritualId: string, categoryId: string, vendorId: string) => void;
