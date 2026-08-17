@@ -3,6 +3,7 @@ import LandingNav from '@/components/LandingNav'
 import LandingFooter from '@/components/LandingFooter'
 import { supabase } from '@/lib/supabase'
 import LandingCategoryExplorer from '@/components/LandingCategoryExplorer'
+import LandingTestimonials from '@/components/LandingTestimonials'
 
 export default function LandingPage() {
   const [waitlistEmail, setWaitlistEmail] = useState('')
@@ -86,6 +87,9 @@ export default function LandingPage() {
 
       {/* ============ CATEGORIES ============ */}
       <LandingCategoryExplorer />
+
+      {/* ============ TESTIMONIALS ============ */}
+      <LandingTestimonials />
 
       {/* ============ THE PROBLEM ============ */}
       <section className="py-24 px-6 bg-white">
