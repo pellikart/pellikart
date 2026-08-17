@@ -184,6 +184,13 @@ interface Props {
   /** Vendor-side preview: shows a "how couples see this" banner. Rendered with
    *  no board context, so the couple-only board actions are already hidden. */
   preview?: boolean
+  /** Rendered on a public, pre-signup page (the landing page's category
+   *  explorer). Structured fields are already anonymised by `unlocked`, but
+   *  vendor-authored free text routinely names the business and its street
+   *  ("LNV Banquets, on Dharam Karan Road…"), which would undo the paywall on a
+   *  page anyone can read. Withhold that prose here; signed-in couples in the
+   *  app still get it. */
+  publicPreview?: boolean
 }
 
 /** Informational chips for a Photography event package — coverage duration,
@@ -205,7 +212,7 @@ function EventPackageInfoChips({ pkg }: { pkg: import('@/lib/vendor-category-con
   )
 }
 
-export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours, preview = false }: Props) {
+export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitchListing, ritualId, categoryId, selectedTierHours, preview = false, publicPreview = false }: Props) {
   const [showPortfolio, setShowPortfolio] = useState(false)
   // Photo lightbox: index into `gallery`, or null when closed.
   const [lightbox, setLightbox] = useState<number | null>(null)
@@ -1423,13 +1430,17 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               </div>
             )}
 
-            {/* Venue location */}
+            {/* Venue location. The street address and the map pin identify the
+                business as surely as its name does, so they sit behind the same
+                paywall — locked viewers get the area only. */}
             {vendor.category === 'Venue' && vendor.venueLocation?.address && (
               <div className="mb-4 p-3 rounded-xl bg-empty-bg border border-card-border">
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1">Location</p>
-                <p className="text-[11px] text-gray-700 leading-relaxed">{vendor.venueLocation.address}</p>
+                {unlocked && <p className="text-[11px] text-gray-700 leading-relaxed">{vendor.venueLocation.address}</p>}
                 {(vendor.venueLocation.area || vendor.venueLocation.city) && (
-                  <p className="text-[10px] text-gray-500 mt-0.5">{[vendor.venueLocation.area, vendor.venueLocation.city].filter(Boolean).join(', ')}</p>
+                  <p className={unlocked ? 'text-[10px] text-gray-500 mt-0.5' : 'text-[11px] text-gray-700 leading-relaxed'}>
+                    {[vendor.venueLocation.area, vendor.venueLocation.city].filter(Boolean).join(', ')}
+                  </p>
                 )}
                 {(() => {
                   const cc = onboardingData?.locationLat != null && onboardingData?.locationLng != null
@@ -1441,7 +1452,7 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
                   const label = distanceLabel(cc, vc)
                   return label ? <p className="text-[10px] font-semibold text-magenta mt-1">📍 {label} from you</p> : null
                 })()}
-                {vendor.venueLocation.mapsLink && (
+                {unlocked && vendor.venueLocation.mapsLink && (
                   <a
                     href={vendor.venueLocation.mapsLink}
                     target="_blank"
@@ -1543,8 +1554,9 @@ export default function ListingDetailSheet({ vendor, onClose, unlocked, onSwitch
               )}
             </div>
 
-            {/* Description */}
-            {vendor.description && (
+            {/* Description — vendor-authored prose, so it commonly names the
+                business. Withheld on public pages (see `publicPreview`). */}
+            {vendor.description && !publicPreview && (
               <div className="mb-4">
                 <p className="text-[10px] font-semibold text-dark uppercase tracking-wider mb-1">About</p>
                 <ExpandableText text={vendor.description} className="text-[11px] text-gray-600 leading-relaxed" />

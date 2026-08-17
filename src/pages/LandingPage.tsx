@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import LandingNav from '@/components/LandingNav'
 import LandingFooter from '@/components/LandingFooter'
 import { supabase } from '@/lib/supabase'
-import { CATEGORY_ICONS } from '@/lib/landing-categories'
+import LandingCategoryExplorer from '@/components/LandingCategoryExplorer'
 
 export default function LandingPage() {
   const [waitlistEmail, setWaitlistEmail] = useState('')
@@ -84,44 +84,7 @@ export default function LandingPage() {
       </section>
 
       {/* ============ CATEGORIES ============ */}
-      <section className="py-16 px-6 bg-white border-y border-card-border">
-        <div className="max-w-6xl mx-auto">
-          <p className="text-center text-[11px] font-semibold uppercase tracking-[2px] text-mustard mb-3">
-            EVERYTHING YOU NEED
-          </p>
-          <h2 className="font-serif text-center text-[28px] md:text-[34px] font-bold text-dark leading-tight mb-10">
-            Ten categories. One wedding board.
-          </h2>
-
-          {/* Equal gap between every icon at every breakpoint: a single scrollable
-              row on mobile, then a 5-up grid, then all ten across on desktop. */}
-          {/* scroll-pl-6 keeps the snap points inside the padding, otherwise the
-              first tile snaps flush against the viewport edge. */}
-          <ul className="no-scrollbar flex overflow-x-auto snap-x scroll-pl-6 -mx-6 px-6 gap-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:grid sm:grid-cols-5 lg:grid-cols-10 sm:gap-x-3 sm:gap-y-7 md:gap-x-4">
-            {CATEGORY_ICONS.map((cat) => (
-              <li key={cat.label} className="w-[88px] shrink-0 snap-start sm:w-auto">
-                <Link
-                  to={cat.href}
-                  className="group flex flex-col items-center text-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-magenta focus-visible:ring-offset-4"
-                >
-                  <img
-                    src={cat.src}
-                    alt=""
-                    width={256}
-                    height={256}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full max-w-[104px] aspect-square rounded-2xl object-cover shadow-sm group-hover:shadow-md group-hover:-translate-y-0.5 transition-all duration-200"
-                  />
-                  <span className="mt-2.5 text-[12px] font-semibold text-dark leading-tight group-hover:text-magenta transition-colors">
-                    {cat.label}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <LandingCategoryExplorer />
 
       {/* ============ THE PROBLEM ============ */}
       <section className="py-24 px-6 bg-white">
