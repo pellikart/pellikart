@@ -13,7 +13,7 @@ import {
   getCity, getPage, pagesForCategory, seoPath, resolveCanonical, adapterByPrefix,
 } from '@/lib/seo/registry'
 import {
-  applyFilters, computeStats, sortRows, isIndexable, collapseFanOut,
+  applyFilters, computeStats, sortRows, isIndexable, collapseFanOut, usefulSpecKeys,
   type CategoryAdapter, type FilterValues, type SeoPageDef, type SeoRow, type SeoSort,
 } from '@/lib/seo/types'
 
@@ -94,6 +94,9 @@ export function SeoLandingBody({
     [pageRows, adapter, filters, sort],
   )
   const stats = useMemo(() => computeStats(pageRows), [pageRows])
+  // Coverage is judged on the page's own result set, before filtering, so the
+  // columns stay put as a couple narrows the list down.
+  const specKeys = useMemo(() => usefulSpecKeys(pageRows), [pageRows])
   const faqs = useMemo(() => page.faqs(stats, city), [page, stats, city])
 
   const path = seoPath(adapter.urlPrefix, citySlug, page.slug)
@@ -210,6 +213,7 @@ export function SeoLandingBody({
                 {visible.map((r) => (
                   <SeoVendorCard
                     key={r.id} row={r}
+                    specKeys={specKeys}
                     compare={{
                       selected: compareIds.includes(r.id),
                       onToggle: () => toggleCompare(r.id),

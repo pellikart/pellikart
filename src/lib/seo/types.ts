@@ -1,4 +1,5 @@
 import type { Vendor } from '../types'
+import { formatINR } from '../helpers'
 
 /**
  * Shared shape for every SEO landing page, across every vendor category.
@@ -238,6 +239,46 @@ export function sortRows(rows: SeoRow[], sort: SeoSort): SeoRow[] {
   switch (sort) {
     case 'price-desc': return out.sort((a, b) => b.price - a.price)
     case 'rating-desc': return out.sort((a, b) => b.rating - a.rating)
-    default: return out.sort((a, b) => a.price - b.price)
+    // A listing with no price isn't the cheapest, it's unpriced — sorting it to
+    // the top of "price: low to high" leads the list with an empty card.
+    default: return out.sort((a, b) => (a.price || Infinity) - (b.price || Infinity))
   }
+}
+
+/** A spec value the vendor never filled in. Adapters emit this placeholder. */
+const EMPTY_SPEC = new Set(['—', '', '0'])
+
+/**
+ * Which spec columns are worth showing for a given set of rows.
+ *
+ * Adapters list every spec a category *could* have, but coverage varies wildly
+ * by category — venues fill all eight, while traditional bands fill one and
+ * leave a grid of dashes. Rather than hand-pruning each adapter against today's
+ * data (and re-pruning as vendors onboard), drop any column that fewer than
+ * half the rows on screen have filled.
+ *
+ * Columns, not cells: every card keeps the same keys in the same order, so the
+ * grid still reads across rows for comparison.
+ *
+ * `max` only guards against an adapter listing an unreasonable number of specs —
+ * coverage, not the cap, is what should be trimming a well-filled category.
+ */
+export function usefulSpecKeys(rows: SeoRow[], max = 8): string[] {
+  if (rows.length === 0) return []
+  const half = (n: number) => n * 2 >= rows.length
+  return rows[0].specs
+    .map(([k]) => k)
+    .filter((key) => {
+      let filled = 0, echoesPrice = 0
+      for (const r of rows) {
+        const v = r.specs.find(([k]) => k === key)?.[1]?.trim()
+        if (v == null || EMPTY_SPEC.has(v)) continue
+        filled++
+        // Several adapters lead with a "From" spec restating the headline
+        // price. Harmless in a full grid; the entire grid when coverage is thin.
+        if (r.price && v === formatINR(r.price)) echoesPrice++
+      }
+      return half(filled) && !half(echoesPrice)
+    })
+    .slice(0, max)
 }

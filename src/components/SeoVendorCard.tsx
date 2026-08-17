@@ -15,12 +15,18 @@ import type { SeoRow } from '@/lib/seo/types'
  * They are mutually exclusive by construction: `onOpen` wraps the card body in
  * a button, and nesting the compare button inside it would be invalid HTML.
  */
-export default function SeoVendorCard({ row, onOpen, compare }: {
+export default function SeoVendorCard({ row, onOpen, compare, specKeys }: {
   row: SeoRow
   onOpen?: () => void
   compare?: { selected: boolean; onToggle: () => void; full: boolean }
+  /** Spec columns to show, from `usefulSpecKeys` over the whole result set —
+   *  omit to show every spec the adapter emits. */
+  specKeys?: string[]
 }) {
   const selected = compare?.selected ?? false
+  const specs = specKeys
+    ? specKeys.map((k) => row.specs.find(([kk]) => kk === k)).filter((s): s is [string, string] => !!s)
+    : row.specs
 
   const body = (footer: ReactNode) => (
     <>
@@ -41,14 +47,16 @@ export default function SeoVendorCard({ row, onOpen, compare }: {
           {row.area && <span className="text-[12px] text-gray-500 shrink-0">{row.area}</span>}
         </div>
         {row.summary && <p className="mt-1.5 text-[12.5px] text-gray-600 leading-snug">{row.summary}</p>}
-        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-card-border pt-3">
-          {row.specs.map(([k, v]) => (
-            <div key={k} className="min-w-0">
-              <dt className="text-[10px] uppercase tracking-wide text-gray-400">{k}</dt>
-              <dd className="text-[12.5px] text-dark truncate">{v}</dd>
-            </div>
-          ))}
-        </dl>
+        {specs.length > 0 && (
+          <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-card-border pt-3">
+            {specs.map(([k, v]) => (
+              <div key={k} className="min-w-0">
+                <dt className="text-[10px] uppercase tracking-wide text-gray-400">{k}</dt>
+                <dd className="text-[12.5px] text-dark truncate">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
         {footer}
       </div>
     </>

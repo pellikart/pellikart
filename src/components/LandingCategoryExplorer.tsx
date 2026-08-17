@@ -4,7 +4,7 @@ import { CATEGORY_ICONS, type LandingCategory } from '@/lib/landing-categories'
 import { fetchAllLiveVendors, fetchAllListings, fetchAllAvailability } from '@/lib/supabase-db'
 import { buildLiveVendorMap, useStore } from '@/lib/store'
 import { adapterByCategory } from '@/lib/seo/adapters'
-import { collapseFanOut, sortRows, type SeoRow } from '@/lib/seo/types'
+import { collapseFanOut, sortRows, usefulSpecKeys, type SeoRow } from '@/lib/seo/types'
 import SeoVendorCard from '@/components/SeoVendorCard'
 import type { Vendor } from '@/lib/types'
 
@@ -74,6 +74,9 @@ export default function LandingCategoryExplorer() {
   }, [vendors, adapter])
 
   const shown = rows?.slice(0, PREVIEW_COUNT) ?? []
+  // Judge coverage on the whole category, not just the six on screen, so the
+  // columns don't shift when the same listing appears on its own page.
+  const specKeys = useMemo(() => usefulSpecKeys(rows ?? []), [rows])
   const loading = rows === null
   const detailVendor = detailId && vendors ? vendors[detailId] : null
 
@@ -145,7 +148,7 @@ export default function LandingCategoryExplorer() {
             </h3>
             {!loading && rows.length > PREVIEW_COUNT && (
               <Link to={active.href} className="text-[13px] font-semibold text-magenta hover:underline">
-                View all {rows.length} →
+                View all {adapter?.nounPlural ?? active.label} →
               </Link>
             )}
           </div>
@@ -177,7 +180,7 @@ export default function LandingCategoryExplorer() {
             <>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {shown.map((r) => (
-                  <SeoVendorCard key={r.id} row={r} onOpen={() => setDetailId(r.id)} />
+                  <SeoVendorCard key={r.id} row={r} specKeys={specKeys} onOpen={() => setDetailId(r.id)} />
                 ))}
               </div>
               <p className="mt-6 text-center text-[13px] text-gray-500">
