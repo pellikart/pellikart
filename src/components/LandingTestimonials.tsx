@@ -17,6 +17,7 @@ const TESTIMONIALS: Testimonial[] = [
   { id: 'b', src: '/testimonials/img_8550.mp4', poster: '/testimonials/img_8550.jpg', name: '', meta: '' },
   { id: 'c', src: '/testimonials/img_8705.mp4', poster: '/testimonials/img_8705.jpg', name: '', meta: '' },
   { id: 'd', src: '/testimonials/img_8706.mp4', poster: '/testimonials/img_8706.jpg', name: '', meta: '' },
+  { id: 'e', src: '/testimonials/wa_20260724.mp4', poster: '/testimonials/wa_20260724.jpg', name: '', meta: '' },
 ]
 
 /** How long the pointer has to rest on a clip before it starts. Stops a sweep
@@ -152,7 +153,10 @@ export default function LandingTestimonials() {
               : 'Hover over a clip to play it, with sound.'}
         </p>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+        {/* Flex rather than a grid so an odd number of clips leaves a centred
+            last row instead of a gap on the right. Widths are the grid maths
+            done by hand: 100%/n minus the share of the gaps. */}
+        <div className="flex flex-wrap justify-center gap-4 md:gap-5">
           {TESTIMONIALS.map((t) => {
             const isPlaying = playingId === t.id
             const hasSound = soundId === t.id
@@ -162,7 +166,7 @@ export default function LandingTestimonials() {
                 onMouseEnter={canHover ? () => handleHoverStart(t.id) : undefined}
                 onMouseLeave={canHover ? () => handleHoverEnd(t.id) : undefined}
                 onClick={() => handleClick(t.id)}
-                className="group relative aspect-[9/16] rounded-2xl overflow-hidden bg-dark border border-card-border cursor-pointer shadow-sm hover:shadow-lg transition-shadow"
+                className="group relative w-[calc(50%-8px)] md:w-[calc(20%-16px)] aspect-[9/16] rounded-2xl overflow-hidden bg-dark border border-card-border cursor-pointer shadow-sm hover:shadow-lg transition-shadow"
               >
                 <video
                   ref={(el) => {
