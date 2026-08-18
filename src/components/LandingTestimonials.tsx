@@ -19,10 +19,17 @@ const TESTIMONIALS: Testimonial[] = [
   { id: 'd', src: '/testimonials/img_8706.mp4', poster: '/testimonials/img_8706.jpg', name: '', meta: '' },
 ]
 
+/** How long the pointer has to rest on a clip before it starts. Stops a sweep
+ *  across the row from firing four bursts of audio. */
+const HOVER_INTENT_MS = 160
+
 export default function LandingTestimonials() {
   const [playingId, setPlayingId] = useState<string | null>(null)
   const [soundId, setSoundId] = useState<string | null>(null)
+  // Set when the browser refuses to play unmuted — see `play()`.
+  const [soundBlocked, setSoundBlocked] = useState(false)
   const videos = useRef(new Map<string, HTMLVideoElement>())
+  const hoverTimer = useRef<number | null>(null)
   // Touch devices have no hover, so there they get tap-to-play instead.
   const [canHover, setCanHover] = useState(true)
 
@@ -30,27 +37,64 @@ export default function LandingTestimonials() {
     setCanHover(window.matchMedia('(hover: hover) and (pointer: fine)').matches)
   }, [])
 
-  // React's `muted` prop doesn't survive the initial render reliably, so the
-  // mute state is driven straight off the elements.
+  // Once the visitor clicks anywhere on the page, the browser stops blocking
+  // audio, so the "click once for sound" hint can go away.
   useEffect(() => {
-    videos.current.forEach((v, id) => { v.muted = id !== soundId })
-  }, [soundId])
+    if (!soundBlocked) return
+    const clear = () => setSoundBlocked(false)
+    document.addEventListener('pointerdown', clear, { once: true })
+    document.addEventListener('keydown', clear, { once: true })
+    return () => {
+      document.removeEventListener('pointerdown', clear)
+      document.removeEventListener('keydown', clear)
+    }
+  }, [soundBlocked])
 
   const play = useCallback((id: string, withSound: boolean) => {
     // Only ever one clip at a time.
-    videos.current.forEach((v, other) => { if (other !== id) v.pause() })
+    videos.current.forEach((v, other) => { if (other !== id) { v.pause(); v.muted = true } })
     const video = videos.current.get(id)
     if (!video) return
+
     video.muted = !withSound
-    setSoundId(withSound ? id : null)
-    video.play().then(() => setPlayingId(id)).catch(() => {})
+    video.play().then(() => {
+      setPlayingId(id)
+      setSoundId(withSound ? id : null)
+      if (withSound) setSoundBlocked(false)
+    }).catch(() => {
+      // Hover is not a "user gesture", so until the visitor has clicked
+      // somewhere on the page the browser rejects unmuted playback. Play it
+      // muted instead rather than showing a dead card.
+      if (!withSound) return
+      setSoundBlocked(true)
+      video.muted = true
+      video.play().then(() => {
+        setPlayingId(id)
+        setSoundId(null)
+      }).catch(() => {})
+    })
   }, [])
 
   const pause = useCallback((id: string) => {
     // Position is kept, so moving the mouse away and back resumes the clip.
-    videos.current.get(id)?.pause()
+    const video = videos.current.get(id)
+    if (video) { video.pause(); video.muted = true }
     setPlayingId((cur) => (cur === id ? null : cur))
+    setSoundId((cur) => (cur === id ? null : cur))
   }, [])
+
+  function handleHoverStart(id: string) {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current)
+    hoverTimer.current = window.setTimeout(() => play(id, true), HOVER_INTENT_MS)
+  }
+
+  function handleHoverEnd(id: string) {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current)
+    hoverTimer.current = null
+    pause(id)
+  }
+
+  useEffect(() => () => { if (hoverTimer.current) window.clearTimeout(hoverTimer.current) }, [])
 
   // Stop anything that scrolls out of view.
   useEffect(() => {
@@ -80,7 +124,8 @@ export default function LandingTestimonials() {
       else play(id, true)
       return
     }
-    // Pointer: hover already handles playback, so a click is the sound toggle.
+    // Pointer: hover already starts the clip with sound, so a click mutes it
+    // again — and, on the first click, unblocks audio for every later hover.
     if (soundId === id) {
       const video = videos.current.get(id)
       if (video) video.muted = true
@@ -100,7 +145,11 @@ export default function LandingTestimonials() {
           Don't take our word for it.
         </h2>
         <p className="text-center text-[16px] text-gray-500 mb-12">
-          {canHover ? 'Hover over a clip to play it. Click for sound.' : 'Tap a clip to play it.'}
+          {!canHover
+            ? 'Tap a clip to play it.'
+            : soundBlocked
+              ? 'Hover over a clip to play it — click once to let your browser turn the sound on.'
+              : 'Hover over a clip to play it, with sound.'}
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
@@ -110,8 +159,8 @@ export default function LandingTestimonials() {
             return (
               <div
                 key={t.id}
-                onMouseEnter={canHover ? () => play(t.id, false) : undefined}
-                onMouseLeave={canHover ? () => pause(t.id) : undefined}
+                onMouseEnter={canHover ? () => handleHoverStart(t.id) : undefined}
+                onMouseLeave={canHover ? () => handleHoverEnd(t.id) : undefined}
                 onClick={() => handleClick(t.id)}
                 className="group relative aspect-[9/16] rounded-2xl overflow-hidden bg-dark border border-card-border cursor-pointer shadow-sm hover:shadow-lg transition-shadow"
               >
@@ -162,6 +211,15 @@ export default function LandingTestimonials() {
                     </svg>
                   )}
                 </button>
+
+                {/* Only shown when the browser turned the sound down on us. */}
+                {isPlaying && !hasSound && soundBlocked && (
+                  <div className="absolute inset-x-0 bottom-0 p-3 flex justify-center pointer-events-none">
+                    <span className="bg-dark/70 backdrop-blur-sm text-white text-[11px] font-semibold px-3 py-1.5 rounded-full">
+                      Click for sound
+                    </span>
+                  </div>
+                )}
 
                 {(t.name || t.meta) && (
                   <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-dark/85 to-transparent pointer-events-none">
